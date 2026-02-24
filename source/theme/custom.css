@@ -1,0 +1,540 @@
+/**
+ * Documentation overrides on top of yeti.css
+ * Only styles specific to mdbook documentation layout
+ */
+
+/* ===== Base layout (replaces mdbook's general.css + chrome.css) ===== */
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--color-black);
+  color: var(--color-white);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-base);
+  line-height: 1.7;
+  margin: 0;
+}
+
+.page-wrapper, .page { background: var(--color-black); }
+
+/* Sidebar layout — mdbook structure */
+#body-container {
+  display: flex;
+  height: calc(100vh - 73px);
+}
+
+.sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+/* Sidebar toggle via hidden checkbox */
+.hidden { display: none; }
+
+/* When checkbox unchecked, hide sidebar */
+#sidebar-toggle-anchor:not(:checked) ~ .sidebar { display: none; }
+#sidebar-toggle-anchor:not(:checked) ~ #page-wrapper { flex: 1; }
+
+#page-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.page { min-height: 100%; }
+
+/* ===== Header — uses shared .nav from yeti.css ===== */
+
+.nav { z-index: 200; }
+.nav-left a { text-decoration: none; border: none; }
+
+/* Push body below fixed header */
+#body-container { margin-top: 73px; padding: 0; }
+
+/* Hide default mdBook menu bar */
+.menu-bar, #menu-bar, #menu-bar-hover-placeholder { display: none; }
+
+/* ===== Search — compact in header-right ===== */
+
+.header-search {
+  position: relative;
+  width: 220px;
+}
+
+#search-wrapper.hidden { display: flex; }
+.header-search-form { width: 100%; margin: 0; }
+
+.header-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-grey);
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.nav #searchbar {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px 0 36px;
+  background: var(--color-white-overlay);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  color: var(--color-white);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-sm);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.nav #searchbar:focus { border-color: var(--color-border-primary); }
+.nav #searchbar::placeholder { color: var(--color-grey); }
+
+/* Search results */
+#searchresults-outer {
+  position: fixed;
+  top: 73px;
+  right: 0;
+  width: 400px;
+  max-height: calc(100vh - 73px);
+  overflow-y: auto;
+  background: var(--color-black);
+  border-left: 1px solid var(--color-border-primary);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.4);
+  z-index: 150;
+  font-size: var(--font-size-sm);
+  padding: var(--space-4);
+}
+
+#searchresults-header {
+  font-size: var(--font-size-xs);
+  color: var(--color-grey);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border-primary);
+  margin-bottom: var(--space-3);
+}
+
+#searchresults {
+  background: var(--color-black);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#searchresults li { font-size: var(--font-size-sm); }
+
+.searchresult-outer {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+.searchresult-outer:hover { background: var(--color-white-overlay); }
+
+#searchresults a {
+  display: block;
+  margin-top: var(--space-3);
+}
+
+#searchresults a .breadcrumbs {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+mark {
+  background: rgba(215, 186, 125, 0.3);
+  color: var(--color-warning);
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-sm);
+}
+
+/* ===== Sidebar ===== */
+
+.sidebar {
+  background: var(--color-black);
+  border-right: 1px solid var(--color-border-primary);
+}
+
+.sidebar-scrollbox { background: var(--color-black); padding: var(--space-4) 0; }
+.sidebar .sidebar-resize-handle { display: none; }
+
+.sidebar ol.chapter, .sidebar ol.chapter ol {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.sidebar ol.chapter li {
+  list-style: none;
+  margin: 5px 0;
+}
+
+/* Nested sections indent */
+.sidebar ol.chapter ol { padding-left: var(--space-4); }
+
+.sidebar li a {
+  color: var(--color-grey);
+  text-decoration: none;
+  padding: var(--space-2) var(--space-6);
+  border-left: 2px solid transparent;
+  transition: all var(--transition-fast);
+  font-size: var(--font-size-sm);
+}
+
+/* Chapter item row: link + toggle caret side by side */
+.sidebar .chapter-item {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar .chapter-item > a:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar .chapter-item > a.toggle {
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  border: none;
+  border-left: none;
+}
+
+/* Hide mdBook chapter numbers */
+.sidebar .chapter-item a strong { display: none; }
+
+/* Expand/collapse toggle carets */
+.sidebar .toggle {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar li a:hover { color: var(--color-white); }
+
+.sidebar li.active > a, .sidebar a.active {
+  color: var(--color-white);
+  font-weight: 500;
+  border-left-color: var(--color-success);
+}
+
+.sidebar .part-title {
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-white);
+}
+
+.sidebar .spacer {
+  height: 1px;
+  background: var(--color-border-primary);
+  margin: var(--space-4) 0;
+}
+
+/* Fold/expand — collapsed sections hidden until parent toggled */
+.sidebar .section { display: none; }
+.sidebar .chapter-item.expanded + li > .section { display: block; }
+
+/* Hamburger toggle */
+.sidebar-hamburger {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 250;
+  width: 32px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-black);
+  border: 1px solid var(--color-border-primary);
+  border-left: none;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--color-grey);
+  cursor: pointer;
+  transition: left var(--transition-base), color var(--transition-fast);
+  font-size: 16px;
+}
+
+.sidebar-hamburger:hover { color: var(--color-white); }
+
+#sidebar-toggle-anchor:checked ~ .sidebar-hamburger {
+  left: var(--sidebar-width, 300px);
+}
+
+/* ===== Content ===== */
+
+.content {
+  background: var(--color-black);
+  color: var(--color-white);
+  padding: var(--space-8);
+  max-width: 900px;
+  margin: 0 auto;
+  font-size: var(--font-size-base);
+  line-height: 1.7;
+}
+
+main { color: var(--color-white); }
+
+/* Reset yeti.css .header class — mdbook uses it for heading anchor links */
+.content a.header {
+  display: inline;
+  height: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  flex-shrink: unset;
+}
+
+/* ===== Typography ===== */
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-white);
+  font-weight: 200;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.content > main > h1:first-child {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: 3rem;
+  font-weight: 200;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+h2 {
+  font-size: var(--font-size-3xl, 1.75rem);
+  border-bottom: 1px solid var(--color-border-primary);
+  padding-bottom: var(--space-3);
+}
+
+h3 { font-size: var(--font-size-2xl, 1.35rem); }
+h4 { font-size: var(--font-size-xl); }
+h5, h6 { font-size: var(--font-size-base); }
+
+p { line-height: 1.7; margin: var(--space-4) 0; }
+
+strong, b { font-weight: 600; }
+
+/* ===== Links ===== */
+
+a, a:link, a:visited,
+.content a:link, .content a:visited,
+#searchresults a {
+  color: var(--color-success);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover, .content a:hover, #searchresults a:hover {
+  color: var(--color-white);
+  text-decoration: underline;
+}
+
+/* Header anchor links stay white */
+.content h1 a.header, .content h2 a.header, .content h3 a.header,
+.content h4 a.header, .content h5 a.header, .content h6 a.header,
+h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
+  color: var(--color-white);
+  text-decoration: none;
+}
+
+/* ===== Code ===== */
+
+code {
+  font-family: var(--font-family-mono);
+  background: var(--color-white-overlay);
+  padding: 0.2em 0.4em;
+  border-radius: var(--radius-sm);
+  font-size: 0.85em;
+  color: #cf8e6d;
+  display: inline !important;
+  height: auto !important;
+  border: none !important;
+  flex-shrink: initial !important;
+}
+
+pre code {
+  display: block !important;
+  padding: 0;
+  background: #1e1e1e !important;
+  color: var(--color-white);
+  font-size: var(--font-size-sm);
+}
+
+pre {
+  background: #1e1e1e;
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  overflow-x: auto;
+  margin: var(--space-6) 0;
+}
+
+pre code {
+  background: var(--color-black);
+  padding: 0;
+  color: var(--color-white);
+  font-size: var(--font-size-sm);
+}
+
+/* ===== Tables ===== */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-6) 0;
+  background: #0b0b0b;
+  font-size: var(--font-size-sm);
+}
+
+thead { background: none; }
+
+th {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  color: var(--color-white);
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-border-primary);
+}
+
+td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-primary);
+}
+
+tr:last-child td { border-bottom: none; }
+tr:hover { background: none; }
+
+td code, th code { background: none; }
+
+/* ===== Blockquotes ===== */
+
+blockquote {
+  border-left: 4px solid var(--color-info);
+  padding: var(--space-2) var(--space-4);
+  margin: var(--space-6) 0;
+  background: var(--color-white-overlay);
+  border-radius: var(--radius-sm);
+  color: var(--color-white);
+}
+
+blockquote p { margin: 0; }
+
+/* ===== Lists ===== */
+
+ul, ol { padding-left: var(--space-6); margin: var(--space-4) 0; line-height: 1.7; }
+li { margin: var(--space-2) 0; }
+
+/* ===== Page Navigation ===== */
+
+.nav-wrapper {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border-primary);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-8);
+}
+
+.nav-wrapper a, .nav-wrapper a:link, .nav-wrapper a:visited, .nav-wrapper a:hover {
+  height: 56px;
+  background: none;
+  padding: 0;
+  color: var(--color-white);
+  text-decoration: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  transform: none;
+  width: auto;
+}
+
+.nav-wrapper a .nav-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-wrapper a i { flex-shrink: 0; color: var(--color-grey); }
+.nav-wrapper .nav-prev { grid-column: 1; justify-content: flex-start; }
+.nav-wrapper .nav-next { grid-column: 2; justify-content: flex-end; }
+
+/* ===== Misc ===== */
+
+hr { border: none; border-top: 1px solid var(--color-border-primary); margin: var(--space-8) 0; }
+#theme-toggle { display: none; }
+
+.page footer {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border-primary);
+  color: var(--color-grey);
+  font-size: var(--font-size-sm);
+}
+
+/* Copy button on code blocks */
+.buttons {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 2;
+}
+
+pre {
+  position: relative;
+}
+
+.clip-button {
+  background: var(--color-white-overlay);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--color-grey);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  transition: all var(--transition-fast);
+}
+
+.clip-button:hover {
+  color: var(--color-white);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.clip-button::before {
+  content: "Copy";
+}
+
+.clip-button i.tooltiptext { display: none; }
+
+/* hljs overrides */
+.hljs-symbol { color: #c77dbb; }
+.hljs-keyword { color: #cf8e6d; }
+
+/* ===== Scrollbar ===== */
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-white-overlay); border-radius: var(--radius-full); }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.1); }
+
+/* ===== Mobile ===== */
+
+@media (max-width: 768px) {
+  .content { padding: var(--space-4); }
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.4rem; }
+}

@@ -1,0 +1,18 @@
+# Application metadata
+name: "Documentation"
+app_id: "documentation"
+version: "1.0.0"
+description: "Yeti's documentation, powered by docusaurus"
+
+# Application state
+enabled: true
+
+# Static file serving configuration
+# Serves the documentation at the root of the application route
+static_files:
+  path: web
+  route: /
+  index: index.html
+  build:
+    sourceDir: source
+    command: mdbook build
