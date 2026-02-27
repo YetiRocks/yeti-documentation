@@ -6,7 +6,7 @@
 
 # Getting Started
 
-- [Installation](getting-started/installation.md)
+- [Get Early Access](getting-started/install-coming-soon.md)
 - [Quickstart](getting-started/quickstart.md)
 - [Your First Application](getting-started/first-application.md)
 
@@ -107,7 +107,6 @@
 
 # Contributing
 
-- [Development Setup](contributing/development-setup.md)
 - [Architecture Decisions](contributing/architecture-decisions.md)
 
 ---

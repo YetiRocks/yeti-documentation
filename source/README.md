@@ -42,7 +42,7 @@ curl -sk "https://localhost:9996/my-app/Product?stream=sse"
 
 ## Quick links
 
-- [Installation](getting-started/installation.md) - Get Yeti running locally
+- [Get Early Access](getting-started/install-coming-soon.md) - Apply for early access
 - [Quickstart](getting-started/quickstart.md) - Build a REST API in 5 minutes
 - [Core Concepts](concepts/applications.md) - Understand applications, schemas, and resources
 - [Custom Resources](guides/custom-resources.md) - Add business logic in Rust
@@ -51,7 +51,7 @@ curl -sk "https://localhost:9996/my-app/Product?stream=sse"
 
 ## Resources
 
-- [GitHub](https://github.com/yetiRocks) - Source code and issues
+- [GitHub](https://github.com/yetiRocks) - Example applications and demos
 - [Website](https://YetiRocks.com) - Project homepage
 - [Configuration Reference](reference/server-config.md) - All server and app config options
 - [Architecture](architecture/overview.md) - How Yeti works under the hood
