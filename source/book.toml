@@ -3,7 +3,6 @@ title = "Yeti Documentation"
 description = "High-performance Harper-compatible application platform in Rust"
 authors = ["Yeti Team"]
 language = "en"
-multilingual = false
 src = "."
 
 [build]
