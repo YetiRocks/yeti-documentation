@@ -40,7 +40,7 @@ resource!(Items {
     get(request, ctx) => {
         let table = ctx.get_table("Items")?;
         let id = ctx.require_id()?;
-        let item = table.get_by_id(id).await?;
+        let item = table.get(id).await?;
         match item {
             Some(data) => ok_json!(data),
             None => reply().status(404).json(json!({"error": "Not found"})),
@@ -83,7 +83,7 @@ The `ctx` parameter provides access to the application environment.
 
 ```rust
 let table = ctx.get_table("Product")?;
-let record = table.get_by_id("prod-123").await?;
+let record = table.get("prod-123").await?;
 table.put("prod-123", json!({"id": "prod-123", "name": "Widget"})).await?;
 ```
 
@@ -166,7 +166,7 @@ impl Resource for PageCache {
         async_handler!({
             let path = ctx.id().unwrap_or("/");
             let cache = ctx.get_table("PageCache")?;
-            match cache.get_by_id(path).await? {
+            match cache.get(path).await? {
                 Some(cached) => {
                     ctx.response_headers().append("x-cache", "HIT");
                     ok_html(cached.as_str().unwrap_or_default())

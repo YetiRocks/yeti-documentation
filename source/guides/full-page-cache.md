@@ -43,7 +43,7 @@ impl Resource for PageCache {
             let path = ctx.id().unwrap_or("/");
             let cache = ctx.get_table("PageCache")?;
 
-            if let Some(cached) = cache.get_by_id(&path).await? {
+            if let Some(cached) = cache.get(&path).await? {
                 ctx.response_headers().append("x-cache", "HIT");
                 return ok_html(cached.as_str().unwrap_or_default());
             }

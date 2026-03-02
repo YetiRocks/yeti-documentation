@@ -50,7 +50,7 @@ Methods defined on host-compiled structs (like `ExtensionContext`) run in dylib 
 
 **`reqwest::blocking::Client` crashes**
 
-Reqwest's blocking client creates an internal tokio runtime that conflicts with the dylib boundary. This crashes in async handlers AND in `std::thread::spawn` threads. For table access, use `ctx.get_table("Name")?.scan_all().await?`. For external HTTP, use `std::process::Command` to call `curl`.
+Reqwest's blocking client creates an internal tokio runtime that conflicts with the dylib boundary. This crashes in async handlers AND in `std::thread::spawn` threads. For table access, use `ctx.get_table("Name")?.get_all().await?`. For external HTTP, use `std::process::Command` to call `curl`.
 
 ## Networking & TLS
 

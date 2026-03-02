@@ -82,7 +82,7 @@ use yeti_core::prelude::*;
 resource!(Summary {
     get(_request, ctx) => {
         let tasks = ctx.get_table("Task")?;
-        let records: Vec<serde_json::Value> = tasks.scan_all().await?;
+        let records: Vec<serde_json::Value> = tasks.get_all().await?;
 
         let mut by_status: HashMap<String, usize> = HashMap::new();
         let mut by_priority: HashMap<String, usize> = HashMap::new();
