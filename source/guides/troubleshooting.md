@@ -6,7 +6,7 @@
 
 Check the compiler output in the terminal. Common causes:
 
-- Missing `use yeti_core::prelude::*;` at top of resource file
+- Missing `use yeti_sdk::prelude::*;` at top of resource file
 - Syntax error in `schema.graphql` (mismatched braces, missing `@primaryKey`)
 - Bad dependency version in `config.yaml` `dependencies:` section
 

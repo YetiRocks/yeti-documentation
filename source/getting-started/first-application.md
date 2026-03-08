@@ -77,7 +77,7 @@ type Tag @table(database: "task-tracker") @export(
 Create `~/yeti/applications/task-tracker/resources/summary.rs`:
 
 ```rust,ignore
-use yeti_core::prelude::*;
+use yeti_sdk::prelude::*;
 
 resource!(Summary {
     get(_request, ctx) => {

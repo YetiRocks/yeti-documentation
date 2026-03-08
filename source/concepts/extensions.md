@@ -28,7 +28,7 @@ resources:
 ```
 
 ```rust
-use yeti_core::prelude::*;
+use yeti_sdk::prelude::*;
 
 pub struct MyServiceExtension;
 

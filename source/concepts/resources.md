@@ -3,7 +3,7 @@
 Resources are custom HTTP handlers written in Rust. They extend or override auto-generated table endpoints with business logic.
 
 ```rust
-use yeti_core::prelude::*;
+use yeti_sdk::prelude::*;
 
 resource!(Greeting {
     get => json!({"greeting": "Hello, World!"})

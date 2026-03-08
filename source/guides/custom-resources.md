@@ -14,7 +14,7 @@ resources:
 Every resource file starts with:
 
 ```rust
-use yeti_core::prelude::*;
+use yeti_sdk::prelude::*;
 ```
 
 ## The resource! Macro
@@ -22,7 +22,7 @@ use yeti_core::prelude::*;
 ### Simple Resource
 
 ```rust
-use yeti_core::prelude::*;
+use yeti_sdk::prelude::*;
 
 resource!(Greeting {
     get => json!({"greeting": "Hello, World!"})
@@ -34,7 +34,7 @@ Creates `GET /my-app/greeting` returning JSON.
 ### With Request and Context
 
 ```rust
-use yeti_core::prelude::*;
+use yeti_sdk::prelude::*;
 
 resource!(Items {
     get(request, ctx) => {
@@ -150,7 +150,7 @@ reply()
 For full control, implement the `Resource` trait directly:
 
 ```rust
-use yeti_core::prelude::*;
+use yeti_sdk::prelude::*;
 
 pub struct PageCache;
 
