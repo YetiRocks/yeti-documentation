@@ -39,7 +39,7 @@ curl -sk 'https://localhost:9996/graphql-explorer/Book/book-1?select=title,price
 
 ## Permissions
 
-When RBAC attribute-level permissions are active, restricted fields are omitted regardless of `select`. No error is produced - the field is simply absent. Safe to use the same `select` for all users.
+When RBAC attribute-level permissions are active, restricted fields are omitted regardless of `select`. No error is produced - the field is absent from the response. Safe to use the same `select` for all users.
 
 ## Tips
 

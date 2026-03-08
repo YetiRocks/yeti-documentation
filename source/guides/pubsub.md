@@ -80,7 +80,7 @@ Each topic uses a `tokio::sync::broadcast` channel with **256 message** capacity
 
 ## Custom Publish
 
-```rust
+```rust,ignore
 pubsub.notify_publish("alerts", serde_json::json!({
     "severity": "warning",
     "message": "Disk usage above 80%"

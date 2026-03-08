@@ -16,11 +16,11 @@ Reference for `yeti-config.yaml` at the root directory (default: `~/yeti/yeti-co
 
 ## http
 
-Application API server (default port 9996, HTTPS).
+Application API server (default port 443, HTTPS).
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `http.port` | integer | `9996` | HTTPS port |
+| `http.port` | integer | `443` | HTTPS port |
 | `http.cors` | boolean | `true` | Enable CORS headers |
 | `http.corsAccessList` | string[] | `["*"]` | Allowed CORS origins |
 | `http.timeout` | integer | `120000` | Request timeout (ms) |
@@ -121,7 +121,7 @@ environment: production
 rootDirectory: /opt/yeti
 
 http:
-  port: 9996
+  port: 443
   cors: true
   corsAccessList:
     - "https://app.example.com"

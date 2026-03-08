@@ -7,7 +7,7 @@
 | `ROOT_DIRECTORY` | Root directory for all Yeti data | `~/yeti` |
 | `YETI_ROOT_DIR` | Alias for `ROOT_DIRECTORY` (takes precedence if both set) | - |
 | `SETTINGS_PATH` | Path to `yeti-config.yaml` | `$ROOT_DIRECTORY/yeti-config.yaml` |
-| `APPLICATION_PORT` | Override `http.port` | `9996` |
+| `APPLICATION_PORT` | Override `http.port` | `443` |
 | `OPERATIONS_PORT` | Override `operationsApi.port` | `9995` |
 | `LOG_LEVEL` | Override `logging.level` | `"info"` |
 | `ENVIRONMENT` | Override `environment` | `"development"` |
@@ -55,7 +55,7 @@ The `--root-dir` CLI argument overrides both `ROOT_DIRECTORY` and `YETI_ROOT_DIR
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry collector endpoint |
 | `OTEL_SERVICE_NAME` | Service name for OTLP export |
 
-## Variable Substitution in Config Files
+## Variable Substitution
 
 Application `config.yaml` files support `${VAR:-default}` syntax:
 

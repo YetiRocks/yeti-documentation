@@ -4,7 +4,7 @@ Auth hooks let extensions override role resolution at request time, enabling ten
 
 ## The AuthHook Trait
 
-```rust
+```rust,ignore
 #[async_trait::async_trait]
 pub trait AuthHook: Send + Sync {
     async fn on_resolve_role(
@@ -28,7 +28,7 @@ If any hook returns `Some(access)`, default role resolution is skipped. If all r
 
 ## AccessControl Trait
 
-```rust
+```rust,ignore
 pub trait AccessControl: Send + Sync + std::fmt::Debug {
     fn is_super_user(&self) -> bool;
     fn username(&self) -> &str;
@@ -43,7 +43,7 @@ pub trait AccessControl: Send + Sync + std::fmt::Debug {
 
 ## Registering Hooks
 
-```rust
+```rust,ignore
 impl Extension for MyExtension {
     fn name(&self) -> &str { "my-auth-hook" }
 
@@ -55,7 +55,7 @@ impl Extension for MyExtension {
 
 ## Example: Tenant-Based Roles
 
-```rust
+```rust,ignore
 pub struct TenantHook {
     tenant_roles: HashMap<String, Arc<dyn AccessControl>>,
 }

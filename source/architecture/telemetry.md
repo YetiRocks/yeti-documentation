@@ -36,7 +36,7 @@ Skips events from `yeti_core::{pubsub, backend, telemetry, resource::table, http
 
 ## EventSubscriber Trait
 
-```rust
+```rust,ignore
 pub trait EventSubscriber: Send + 'static {
     fn run(
         self: Box<Self>,

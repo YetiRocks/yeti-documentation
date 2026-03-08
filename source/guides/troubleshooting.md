@@ -62,13 +62,13 @@ Development server uses self-signed certificates. Always use `-sk` flags:
 curl -sk https://localhost:9996/health
 ```
 
-**Connection refused on port 9996**
+**Connection refused on port 443**
 
 Check that the server is running and the port matches `yeti-config.yaml`:
 
 ```yaml
 http:
-  port: 9996
+  port: 443
 ```
 
 **Operations API not responding**
@@ -76,7 +76,9 @@ http:
 The Operations API runs on a separate port (default 9995) over plain HTTP:
 
 ```bash
-curl -X POST http://localhost:9995/ -d '{"operation":"list_apps"}'
+curl -X POST http://localhost:9995/ \
+  -H "Content-Type: application/json" \
+  -d '{"operation":"list_apps"}'
 ```
 
 ## Data & Queries
@@ -93,7 +95,7 @@ Plain `GET /{app}/{Table}` without query parameters returns table metadata.
 
 **FIQL filter returns empty results**
 
-Check that the filtered field has `@indexed` in the schema. Non-indexed fields can't be filtered with FIQL.
+Check that the filtered field has `@indexed` in schema.graphql. Non-indexed fields require table scans.
 
 **Seed data not loading**
 
@@ -111,7 +113,7 @@ Yeti scans `~/yeti/applications/*/config.yaml`. Check that:
 
 **`@export` table has no REST endpoints**
 
-Tables need `@export(rest: true)` in the schema AND `rest: true` in `config.yaml`. Both are required.
+Tables need `@export(rest: true)` in schema.graphql AND `rest: true` in `config.yaml`. Both are required.
 
 **Database lock errors in tests**
 

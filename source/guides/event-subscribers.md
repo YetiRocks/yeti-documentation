@@ -4,7 +4,7 @@ Event subscribers receive structured tracing events (logs and spans) as JSON ove
 
 ## The EventSubscriber Trait
 
-```rust
+```rust,ignore
 pub trait EventSubscriber: Send + 'static {
     fn run(
         self: Box<Self>,
@@ -50,7 +50,7 @@ Fields are always string-valued in JSON, even for numeric tracing fields.
 
 Register during `on_ready()`:
 
-```rust
+```rust,ignore
 fn on_ready(&self, ctx: &ExtensionContext) -> Result<()> {
     let log_table = ctx.table("log");
     let subscriber = Box::new(MySubscriber { log_table });
@@ -63,7 +63,7 @@ Only one subscriber can be active. Last `set_event_subscriber()` wins. No subscr
 
 ## Minimal Example
 
-```rust
+```rust,ignore
 pub struct DebugSubscriber;
 
 impl EventSubscriber for DebugSubscriber {

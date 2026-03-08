@@ -50,7 +50,7 @@ Rules use keys: `{version}||{host}||{path}`
 
 Lookup: version + host + path -> exact match -> global fallback (empty host) -> 404.
 
-## Creating Rules
+## Rule Creation
 
 ```bash
 curl -sk -X POST https://localhost:9996/redirect-manager/rule \

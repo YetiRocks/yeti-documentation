@@ -1,79 +1,81 @@
-# Caching & Performance
+# Caching Guide
 
-## Table-Level Caching
+Yeti offers three caching strategies. Choosing the right one depends on your access pattern.
 
-When `storage.caching` is enabled (the default), Yeti maintains an in-memory LRU read cache in front of RocksDB.
+## Decision Flowchart
+
+```
+Is the data an entire rendered page or API response?
+  YES -> Full-page caching
+  NO  -> Does the data expire after a fixed time?
+    YES -> Table expiration (@expiresAt or table-level TTL)
+    NO  -> In-memory read cache (automatic)
+```
+
+## Strategy 1: In-Memory Read Cache
+
+**When to use**: Hot query results that are read far more often than written.
+
+Yeti maintains an LRU cache in front of RocksDB by default. Writes automatically invalidate affected entries.
 
 ```yaml
 storage:
-  caching: true
+  caching: true   # default, no action needed
 ```
 
-Writes automatically invalidate cache entries. No additional configuration needed.
+Best for: lookup-heavy tables (user profiles, product catalogs, configuration).
+No tuning required.
 
-## Full-Page Caching
+## Strategy 2: Table Expiration (@expiresAt)
 
-Store entire HTTP responses keyed by URL path. On cache hit, return immediately; on miss, fetch and store.
+**When to use**: Records that should automatically disappear after a time window -- sessions, tokens, rate-limit counters, temporary data.
 
-See [Full-Page Caching](full-page-cache.md) for implementation details.
-
-## Table Expiration (TTL)
-
-Configure automatic record expiration:
+Table-level TTL (all records expire after the same duration):
 
 ```graphql
 type Session @table(expiration: 3600) @export {
     id: ID! @primaryKey
-    userId: String!
     token: String!
 }
 ```
 
-See [Table Expiration](table-expiration.md) for details.
+Per-record TTL (each record sets its own deadline):
 
-## Rate Limiting
-
-```yaml
-rateLimiting:
-  maxRequestsPerSecond: 1000
-  maxConcurrentConnections: 100
-  maxStorageGB: 10
+```graphql
+type Cache @table @export {
+    id: ID! @primaryKey
+    value: String
+    expiresAt: Int @expiresAt   # Unix timestamp
+}
 ```
 
-Returns HTTP 503 when overloaded. See [Rate Limiting](rate-limiting.md).
+See [Table Expiration](table-expiration.md) for details on cleanup behavior.
 
-## Compression
+## Strategy 3: Full-Page Caching
 
-Responses above `compressionThreshold` are gzip-compressed automatically:
+**When to use**: Entire HTTP responses that are expensive to generate and can be served from cache on repeated requests -- rendered pages, aggregated API results, proxy responses.
 
-```yaml
-http:
-  compressionThreshold: 1024  # bytes
-```
+Store the complete response keyed by URL path. On cache hit, return immediately without recomputation.
 
-Clients must send `Accept-Encoding: gzip`.
+See [Full-Page Caching](full-page-cache.md) for the implementation pattern.
 
-## Performance Tuning Checklist
+## Combined Strategies
 
-1. **Enable caching** - `storage.caching: true` (default)
-2. **Index selectively** - only `@indexed` fields you filter on; each index slows writes
-3. **Use TTL** - prevent unbounded table growth
-4. **Set rate limits** - protect against runaway clients
-5. **Tune threads** - `threads.count` matching CPU cores
-6. **Enable compression** - reasonable `compressionThreshold` for API traffic
-7. **Monitor** - use the telemetry dashboard to identify slow queries
+Most production apps use all three:
 
-## Performance Characteristics
+- **Read cache** runs automatically for all table reads
+- **Expiration** keeps sessions and temporary data from growing unbounded
+- **Full-page cache** accelerates expensive rendered content
 
-| Operation | Throughput (no indexes) | Notes |
-|-----------|------------------------|-------|
-| Read | 186K ops/s | Direct RocksDB with caching |
-| Create | 82K ops/s | Single write path |
-| Mixed (70R/30W) | 156K ops/s | Typical workload pattern |
-| With 1 index | 25K creates/s | Trade-off for query speed |
-| With 2 indexes | 15K creates/s | Only index what you filter on |
+## Performance Impact
 
-See [Performance Benchmarks](../reference/benchmarks.md) for detailed measurements.
+| Operation | Throughput | Notes |
+|-----------|-----------|-------|
+| Cached read | 186K ops/s | LRU hit, no disk I/O |
+| Uncached read | ~80K ops/s | RocksDB disk read |
+| Write (0 indexes) | 82K ops/s | Invalidates cache automatically |
+
+See [Performance Benchmarks](../appendix/benchmarks.md) for detailed measurements.
 
 ## See Also
 

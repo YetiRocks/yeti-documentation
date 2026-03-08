@@ -2,51 +2,33 @@
 
 Yeti uses GraphQL schema definitions with custom directives to define your data model. Types with `@table` become storage tables; `@export` makes them API endpoints.
 
-## Core Directives
+## Schema Design
 
-### @table
-
-Declares a persistent table:
+Start by identifying your domain entities. Each entity becomes a type with `@table`:
 
 ```graphql
 type Product @table {
     id: ID! @primaryKey
     name: String!
-}
-
-type Author @table(database: "graphql-explorer") {
-    id: ID! @primaryKey
-    name: String!
-}
-
-type PageCache @table(database: "full-page-caching", expiration: 3600) {
-    path: String! @primaryKey
-    pageContents: String
+    price: Float
 }
 ```
 
-`database` groups tables logically. `expiration` sets TTL in seconds.
+### Queryable Tables
 
-### @export
-
-Controls API exposure:
+Add `@export` to expose HTTP endpoints. Without it, the table is internal-only (accessible from custom resources via `ctx.get_table("Name")`):
 
 ```graphql
-type Author @table(database: "graphql-explorer") @export(rest: true, graphql: true) {
+type Product @table @export {
     id: ID! @primaryKey
     name: String!
+    price: Float
 }
 ```
 
-Without `@export`, the table has no HTTP endpoint but is accessible from custom resources via `ctx.get_table("Name")`.
+### Indexes for Filtering
 
-### @primaryKey
-
-Every table must have exactly one. Used for single-record lookups: `GET /{app}/{Table}/{id}`.
-
-### @indexed
-
-Creates a secondary index for efficient filtering:
+Only index fields you actually filter on -- each index slows writes:
 
 ```graphql
 type Book @table @export {
@@ -58,7 +40,40 @@ type Book @table @export {
 }
 ```
 
-#### Vector Index
+### Related Tables
+
+Use `@relationship` to define joins between tables:
+
+```graphql
+# Many-to-one: look up Author where Author.id == this.authorId
+author: Author @relationship(from: "authorId")
+
+# One-to-many: find all Books where Book.authorId == this.id
+books: [Book] @relationship(to: "authorId")
+```
+
+### Timestamps and Expiration
+
+Track record lifecycle automatically:
+
+```graphql
+type Document @table @export {
+    id: ID! @primaryKey
+    content: String
+    createdAt: String @createdTime    # Set on insert only
+    modifiedAt: String @updatedTime   # Set on every write
+}
+
+type Session @table @export {
+    id: ID! @primaryKey
+    userId: String!
+    expiresAt: Int @expiresAt         # Per-record TTL (Unix timestamp)
+}
+```
+
+### Vector Search
+
+The `Vector` type with `@indexed(source: ...)` enables automatic embedding:
 
 ```graphql
 type Document @table @export {
@@ -68,62 +83,11 @@ type Document @table @export {
 }
 ```
 
-The `Vector` type automatically uses HNSW indexing -- no `type: "HNSW"` needed. See [Vector Search](vector-search.md) for tuning parameters and model selection.
-
-### @relationship
-
-#### `from` - Many-to-One
-
-```graphql
-# Look up Author where Author.id == this.authorId
-author: Author @relationship(from: "authorId")
-```
-
-#### `to` - One-to-Many
-
-```graphql
-# Find all Books where Book.authorId == this.id
-books: [Book] @relationship(to: "authorId")
-```
-
-See [Relationships & Joins](relationships.md) for query examples.
-
-### @createdTime / @updatedTime
-
-```graphql
-type Document @table @export {
-    id: ID! @primaryKey
-    content: String
-    createdAt: String @createdTime    # Set on insert only
-    modifiedAt: String @updatedTime   # Set on every write
-}
-```
-
-### @expiresAt
-
-Per-record TTL as Unix timestamp:
-
-```graphql
-type Session @table @export {
-    id: ID! @primaryKey
-    userId: String!
-    expiresAt: Int @expiresAt
-}
-```
-
-## Field Types
-
-| GraphQL Type | Description |
-|-------------|-------------|
-| `ID!` | Non-nullable identifier |
-| `String` / `String!` | Nullable / required string |
-| `Int` | Integer |
-| `Float` | Floating-point |
-| `Boolean` | Boolean |
-| `Vector` | Embedding vector (HNSW-indexed) |
-| `[String]` | String array |
+See [Vector Search](vector-search.md) for tuning parameters and model selection.
 
 ## Complete Example
+
+A multi-table schema with relationships:
 
 ```graphql
 type Author @table(database: "graphql-explorer") @export(rest: true, graphql: true) {
@@ -141,9 +105,7 @@ type Book @table(database: "graphql-explorer") @export(rest: true, graphql: true
     genre: String @indexed
     price: Float
     authorId: ID! @indexed
-    publisherId: ID @indexed
     author: Author @relationship(from: "authorId")
-    publisher: Publisher @relationship(from: "publisherId")
     reviews: [Review] @relationship(to: "bookId")
 }
 
@@ -155,3 +117,9 @@ type Review @table(database: "graphql-explorer") @export(rest: true, graphql: tr
     book: Book @relationship(from: "bookId")
 }
 ```
+
+## See Also
+
+- [Schema Directives Reference](../reference/schema-directives.md) - Full directive parameters, field types, and HNSW tuning
+- [Relationships & Joins](relationships.md) - Query examples for related tables
+- [Vector Search](vector-search.md) - Embedding models and similarity queries

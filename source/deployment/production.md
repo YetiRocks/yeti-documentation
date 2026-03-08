@@ -97,6 +97,6 @@ Enables SSRF validation and stricter security defaults.
 ## Post-Deployment
 
 ```bash
-curl -s https://your-server:9995/health
+curl -s http://your-server:9995/health
 curl -v https://your-server:443/documentation/ 2>&1 | grep "SSL certificate"
 ```

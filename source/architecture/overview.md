@@ -5,7 +5,7 @@ Yeti is a single-process, schema-driven application platform built in Rust. It h
 ## Architecture
 
 ```
-HTTPS :9996 ──> DynamicRouter ──> /{app-id}/ prefix match
+HTTPS :443 ──> DynamicRouter ──> /{app-id}/ prefix match
                                         │
                                    AutoRouter
                                    (per-app)
@@ -25,7 +25,7 @@ HTTPS :9996 ──> DynamicRouter ──> /{app-id}/ prefix match
 
 ## Request Lifecycle
 
-1. **HTTPS Termination** - TLS on port 9996
+1. **HTTPS Termination** - TLS on port 443
 2. **DynamicRouter** - Extracts `app-id` from path, looks up application
 3. **AutoRouter** - Per-app router generated from schema
 4. **Resource Handler** - CRUD for tables or custom logic for plugins

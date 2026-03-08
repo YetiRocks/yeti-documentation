@@ -24,6 +24,7 @@
 
 # Guides
 
+- [Studio](guides/studio.md)
 - [Defining Schemas](guides/defining-schemas.md)
 - [Custom Resources](guides/custom-resources.md)
 - [Seed Data & Data Loading](guides/seed-data.md)
@@ -56,6 +57,19 @@
 - [URL Redirect Management](guides/redirects.md)
 - [Telemetry & Observability](guides/telemetry.md)
 - [Troubleshooting](guides/troubleshooting.md)
+
+---
+
+# SDK Reference
+
+- [Overview](sdk/overview.md)
+- [Resource Macros](sdk/resource-macros.md)
+- [Request Parsing](sdk/request-parsing.md)
+- [Response Helpers](sdk/response-helpers.md)
+- [Table Access](sdk/table-access.md)
+- [ResourceParams](sdk/resource-params.md)
+- [Utilities](sdk/utilities.md)
+- [Extension API](sdk/extension-api.md)
 
 ---
 

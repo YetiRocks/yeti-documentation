@@ -6,7 +6,7 @@
 
 The compiler scans source files for `struct {Name}Extension` - no config declaration needed.
 
-```rust
+```rust,ignore
 pub struct TelemetryExtension {
     config: TelemetryConfig,
 }
@@ -26,7 +26,7 @@ Host loads each dylib via `dlopen`. The extension gets separate copies of thread
 
 Earliest point for extension code. Use for lightweight setup only.
 
-```rust
+```rust,ignore
 fn initialize(&self) -> Result<()> {
     eprintln!("[my-ext] Loaded");
     Ok(())
@@ -45,7 +45,7 @@ Tables created in storage, REST/GraphQL routes mapped, SSE/WebSocket wired up, s
 
 Main setup hook with full runtime access:
 
-```rust
+```rust,ignore
 fn on_ready(&self, ctx: &ExtensionContext) -> Result<()> {
     let log_table = ctx.table("log").expect("Log table registered");
 

@@ -13,7 +13,7 @@ Extensions can:
 
 ## Extension Trait
 
-```rust
+```rust,ignore
 use yeti_sdk::prelude::*;
 
 pub struct MyExtension;
@@ -88,7 +88,7 @@ The dylib boundary creates important constraints:
 
 ## Auth Providers
 
-```rust
+```rust,ignore
 fn auth_providers(&self) -> Vec<Arc<dyn AuthProvider>> {
     vec![
         Arc::new(BasicAuthProvider::new()),
@@ -103,7 +103,7 @@ fn auth_hooks(&self) -> Vec<Arc<dyn AuthHook>> {
 
 ## Middleware
 
-```rust
+```rust,ignore
 fn middleware(&self) -> Option<Arc<dyn RequestMiddleware>> {
     Some(Arc::new(RateLimiter::new(100)))
 }
@@ -111,7 +111,7 @@ fn middleware(&self) -> Option<Arc<dyn RequestMiddleware>> {
 
 ## Event Subscriber
 
-```rust
+```rust,ignore
 fn on_ready(&self, ctx: &ExtensionContext) -> Result<()> {
     let log_table = ctx.table("log");
     ctx.set_event_subscriber(Box::new(MyHandler { log_table }));

@@ -15,7 +15,7 @@ type Document @table @export {
 }
 ```
 
-The `Vector` type automatically creates an HNSW index. When `source` is specified, Yeti auto-generates embeddings from the source field on every write — just insert your text:
+The `Vector` type automatically creates an HNSW index. When `source` is specified, Yeti auto-generates embeddings from the source field on every write - insert your text:
 
 ```bash
 curl -sk -X POST https://localhost:9996/my-app/document \
@@ -29,9 +29,9 @@ The `embedding` field is populated automatically.
 
 The embedding model is resolved in this order:
 
-1. **Schema field** — `@indexed(source: "content", model: "all-MiniLM-L6-v2")`
-2. **App config** — `extensions: - yeti-vectors: { model: "all-MiniLM-L6-v2" }`
-3. **Default** — `BAAI/bge-small-en-v1.5` (ships with Yeti, downloaded on first use)
+1. **Schema field** - `@indexed(source: "content", model: "all-MiniLM-L6-v2")`
+2. **App config** - `extensions: - yeti-vectors: { model: "all-MiniLM-L6-v2" }`
+3. **Default** - `BAAI/bge-small-en-v1.5` (ships with Yeti, downloaded on first use)
 
 Most apps don't need to specify a model:
 
@@ -83,7 +83,7 @@ extensions:
       model: all-MiniLM-L6-v2
 ```
 
-## Searching
+## Search
 
 ### JSON Query (recommended)
 
@@ -94,7 +94,7 @@ curl -sk "https://localhost:9996/my-app/document/?query=\
 {\"conditions\":[{\"field\":\"embedding\",\"op\":\"vector\",\"value\":\"how does deep learning work\"}],\"limit\":5}"
 ```
 
-The model and field configuration come from the schema — the query only needs the search text.
+The model and field configuration come from the schema - the query only needs the search text.
 
 Results are sorted by distance (nearest first) and include a `$distance` field:
 
@@ -105,7 +105,7 @@ Results are sorted by distance (nearest first) and include a `$distance` field:
 ]
 ```
 
-### Combining with Filters
+### Combined Filters
 
 Vector search conditions can be mixed with FIQL conditions in the same query:
 
@@ -129,27 +129,26 @@ curl -sk "https://localhost:9996/my-app/document/?query=\
 {\"conditions\":[{\"field\":\"embedding\",\"op\":\"vector\",\"value\":\"search text\"}],\"limit\":5}"
 ```
 
-## Using Vector Search in Custom Resources
+## Vector Search in Custom Resources
 
-Custom resources access tables via the SDK's `TableAccess` trait.
+Custom resources access tables via yeti-sdk.
 
 ### Example: Semantic Search Resource
 
-```rust
+```rust,ignore
 use yeti_sdk::prelude::*;
-use serde_json::json;
 
 #[yeti_resource(name = "semantic-search")]
 pub struct SemanticSearch;
 
 impl Resource for SemanticSearch {
-    fn get(&self, params: ResourceParams) -> ResourceFuture {
-        let query = params.get("q").unwrap_or("").to_string();
-        let limit: usize = params.get("limit")
+    fn get(&self, ctx: ResourceParams) -> ResourceFuture {
+        let query = ctx.get("q").unwrap_or("").to_string();
+        let limit: usize = ctx.get("limit")
             .and_then(|s| s.parse().ok())
             .unwrap_or(5);
 
-        let hook = params.vector_hook().cloned();
+        let hook = ctx.vector_hook().cloned();
 
         Box::pin(async move {
             let Some(hook) = hook else {
@@ -173,20 +172,20 @@ impl Resource for SemanticSearch {
 }
 ```
 
-### Accessing Vector Hooks from ResourceParams
+### Vector Hooks from ResourceParams
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `params.vector_hook()` | `Option<&Arc<dyn VectorHook>>` | The embedding hook (from yeti-vectors) |
-| `params.vector_mappings()` | `&[FieldMapping]` | Configured source-to-target field mappings |
-| `params.vector_cache()` | `Option<&Arc<dyn KvBackend>>` | Embedding cache backend |
-| `params.vector_batcher()` | `Option<&Arc<VectorBatcher>>` | Micro-batcher for batch embedding |
+| `ctx.vector_hook()` | `Option<&Arc<dyn VectorHook>>` | The embedding hook (from yeti-vectors) |
+| `ctx.vector_mappings()` | `&[FieldMapping]` | Configured source-to-target field mappings |
+| `ctx.vector_cache()` | `Option<&Arc<dyn KvBackend>>` | Embedding cache backend |
+| `ctx.vector_batcher()` | `Option<&Arc<VectorBatcher>>` | Micro-batcher for batch embedding |
 
 ### VectorHook Methods
 
-The `VectorHook` trait provides embedding methods (all sync — call via `spawn_blocking`):
+The `VectorHook` trait provides embedding methods (all sync - call via `spawn_blocking`):
 
-```rust
+```rust,ignore
 // Convert text to a vector
 hook.vectorize_text("how does deep learning work", "BAAI/bge-small-en-v1.5")
     -> Result<Vec<f32>>
@@ -220,9 +219,9 @@ type Photo @table @export {
 
 Adding yeti-vectors to an existing app (or adding `source` to a `Vector` field) auto-backfills embeddings on next restart. The backfill is:
 
-- **Non-blocking** — runs as a background task after startup
-- **Idempotent** — skips records that already have embeddings
-- **Progressive** — logs progress every 100 records
+- **Non-blocking** - runs as a background task after startup
+- **Idempotent** - skips records that already have embeddings
+- **Progressive** - logs progress every 100 records
 
 If the schema declares `source` fields but yeti-vectors is not enabled, an error is logged and the app fails to load.
 

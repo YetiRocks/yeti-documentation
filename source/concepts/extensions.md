@@ -11,7 +11,7 @@ Extensions provide shared services to multiple applications. An extension makes 
 
 Both are standard Yeti applications with `extension: true`. You can disable, replace, or supplement them.
 
-## Creating an Extension
+## Extension Setup
 
 Set `extension: true` in config and include a struct implementing the `Extension` trait:
 
@@ -27,7 +27,7 @@ resources:
   - resources/*.rs
 ```
 
-```rust
+```rust,ignore
 use yeti_sdk::prelude::*;
 
 pub struct MyServiceExtension;
@@ -53,7 +53,7 @@ The compiler auto-detects the extension type by scanning for `struct {Type}Exten
 
 ## Extension Trait
 
-```rust
+```rust,ignore
 pub trait Extension: Send + Sync {
     fn name(&self) -> &str;
     fn initialize(&self) -> Result<()> { Ok(()) }

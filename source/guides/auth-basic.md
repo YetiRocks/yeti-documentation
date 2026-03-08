@@ -18,7 +18,7 @@ extensions:
   - yeti-auth: {}
 ```
 
-## Creating Users
+## User Creation
 
 ```bash
 curl -sk -X POST https://localhost:9996/yeti-auth/users \
@@ -38,7 +38,7 @@ curl -sk -u alice:strong-password-here https://localhost:9996/my-app/MyTable
 
 The `BasicAuthProvider` caches successful authentications in memory with a **5-minute TTL** to avoid repeated Argon2id verification. Cache invalidates on password change or server restart.
 
-## Managing Users
+## User Management
 
 ```bash
 # List all users
@@ -59,7 +59,7 @@ curl -sk -u admin:admin -X DELETE https://localhost:9996/yeti-auth/users/alice
 ## Security Notes
 
 - Always use HTTPS - Basic auth credentials are base64-encoded, not encrypted
-- Yeti runs HTTPS on port 9996 by default
+- Yeti runs HTTPS on port 443 by default
 - For browser apps, prefer [JWT](auth-jwt.md) or [OAuth](auth-oauth.md)
 - Basic auth is ideal for server-to-server, CLI tools, and scripts
 

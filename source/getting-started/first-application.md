@@ -82,22 +82,12 @@ use yeti_sdk::prelude::*;
 resource!(Summary {
     get(_request, ctx) => {
         let tasks = ctx.get_table("Task")?;
-        let records: Vec<serde_json::Value> = tasks.get_all().await?;
-
-        let mut by_status: HashMap<String, usize> = HashMap::new();
-        let mut by_priority: HashMap<String, usize> = HashMap::new();
-
-        for record in &records {
-            if let Some(status) = record["status"].as_str() {
-                *by_status.entry(status.to_string()).or_insert(0) += 1;
-            }
-            if let Some(priority) = record["priority"].as_str() {
-                *by_priority.entry(priority.to_string()).or_insert(0) += 1;
-            }
-        }
+        let total = tasks.count().await?;
+        let by_status = tasks.count_by("status").await?;
+        let by_priority = tasks.count_by("priority").await?;
 
         reply().json(json!({
-            "total": records.len(),
+            "total": total,
             "byStatus": by_status,
             "byPriority": by_priority,
         }))

@@ -40,7 +40,7 @@ export default {
 ```
 
 **Yeti:**
-```rust
+```rust,ignore
 pub struct UserResource;
 impl Resource for UserResource {
     fn name(&self) -> &'static str { "users" }
@@ -55,7 +55,7 @@ impl Resource for UserResource {
 
 ```bash
 # Export from Harper
-curl http://localhost:9996/User > users.json
+curl http://localhost:443/User > users.json
 
 # Import to Yeti
 cat users.json | jq -c '.[]' | while read record; do
@@ -70,7 +70,7 @@ done
 yeti restart
 
 # Compare responses
-curl http://localhost:9996/User/test-id > harper.json
+curl http://localhost:443/User/test-id > harper.json
 curl http://localhost:9997/User/test-id > yeti.json
 diff harper.json yeti.json
 ```

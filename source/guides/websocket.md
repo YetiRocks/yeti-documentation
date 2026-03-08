@@ -24,10 +24,10 @@ schemas:
   - schema.graphql
 ```
 
-## Connecting
+## Connection
 
 ```javascript
-const ws = new WebSocket('wss://localhost:9996/my-app/Message');
+const ws = new WebSocket('wss://localhost:443/my-app/Message');
 
 ws.onopen = () => console.log('Connected');
 
@@ -59,7 +59,7 @@ Types: `Update`, `Delete`, `Publish`, `Retained`.
 ## Record-Level Subscriptions
 
 ```javascript
-const ws = new WebSocket('wss://localhost:9996/my-app/Message/msg-1');
+const ws = new WebSocket('wss://localhost:443/my-app/Message/msg-1');
 ```
 
 ## Heartbeat
@@ -75,7 +75,7 @@ Most WebSocket libraries handle ping/pong automatically.
 
 ```javascript
 function connect() {
-  const ws = new WebSocket('wss://localhost:9996/my-app/Message');
+  const ws = new WebSocket('wss://localhost:443/my-app/Message');
   ws.onclose = () => setTimeout(connect, 3000);
   ws.onmessage = (event) => handleUpdate(JSON.parse(event.data));
 }

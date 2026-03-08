@@ -49,7 +49,7 @@ Evaluated most-specific first:
 | `standard` | Read, insert, update. No delete. |
 | `viewer` | Read-only. |
 
-## Managing Roles
+## Role Management
 
 ```bash
 # Create

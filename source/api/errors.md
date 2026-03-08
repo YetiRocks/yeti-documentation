@@ -17,9 +17,9 @@ All errors return JSON: `{"error": "Human-readable message"}`.
 | 500 | `Storage(...)` / `Internal(msg)` | Database or unexpected error |
 | 503 | - | Backpressure (maxInFlightRequests exceeded) |
 
-## Using Errors in Resource Handlers
+## Errors in Resource Handlers
 
-```rust
+```rust,ignore
 // 400 - static message
 return Err(BadRequest("Email is required"))?;
 

@@ -16,7 +16,7 @@ type Message @table(database: "realtime-demo") @export(
 }
 ```
 
-## Connecting
+## Connection
 
 Add `?stream=sse` to any table endpoint:
 

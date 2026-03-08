@@ -1,6 +1,6 @@
 # TLS & HTTPS
 
-Yeti serves HTTPS on port 9996 using Rustls with the ring cryptography provider - no OpenSSL dependency.
+Yeti serves HTTPS on port 443 using Rustls with the ring cryptography provider - no OpenSSL dependency.
 
 ## Configuration
 

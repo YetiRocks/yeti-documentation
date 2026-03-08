@@ -13,7 +13,7 @@ resources:
 
 Every resource file starts with:
 
-```rust
+```rust,ignore
 use yeti_sdk::prelude::*;
 ```
 
@@ -21,7 +21,7 @@ use yeti_sdk::prelude::*;
 
 ### Simple Resource
 
-```rust
+```rust,ignore
 use yeti_sdk::prelude::*;
 
 resource!(Greeting {
@@ -33,7 +33,7 @@ Creates `GET /my-app/greeting` returning JSON.
 
 ### With Request and Context
 
-```rust
+```rust,ignore
 use yeti_sdk::prelude::*;
 
 resource!(Items {
@@ -43,7 +43,7 @@ resource!(Items {
         let item = table.get(id).await?;
         match item {
             Some(data) => ok_json!(data),
-            None => reply().status(404).json(json!({"error": "Not found"})),
+            None => reply().code(404).json(json!({"error": "Not found"})),
         }
     },
     post(request, ctx) => {
@@ -58,7 +58,7 @@ resource!(Items {
 
 ### Options
 
-```rust
+```rust,ignore
 // Custom URL path
 resource!(MyHandler {
     name = "custom-path",
@@ -70,7 +70,7 @@ resource!(Fallback {
     default = true,
     get(request, ctx) => {
         let path = ctx.path_id().unwrap_or("/");
-        reply().status(404).json(json!({"error": "Not found", "path": path}))
+        reply().code(404).json(json!({"error": "Not found", "path": path}))
     }
 });
 ```
@@ -81,7 +81,7 @@ The `ctx` parameter provides access to the application environment.
 
 ### Table Access
 
-```rust
+```rust,ignore
 let table = ctx.get_table("Product")?;
 let record = table.get("prod-123").await?;
 table.put("prod-123", json!({"id": "prod-123", "name": "Widget"})).await?;
@@ -89,14 +89,14 @@ table.put("prod-123", json!({"id": "prod-123", "name": "Widget"})).await?;
 
 ### Path Parameters
 
-```rust
+```rust,ignore
 let id = ctx.path_id();       // Option<&str> from /Resource/{id}
 let id = ctx.require_id()?;   // Returns 400 if missing
 ```
 
 ### Configuration Access
 
-```rust
+```rust,ignore
 let url = ctx.config().get_str("origin.url", "https://default.com");
 let timeout = ctx.config().get_i64("api.timeout", 30);
 let enabled = ctx.config().get_bool("features.cache", false);
@@ -104,7 +104,7 @@ let enabled = ctx.config().get_bool("features.cache", false);
 
 ### Response Headers
 
-```rust
+```rust,ignore
 ctx.response_headers().append("x-cache", "HIT");
 ctx.response_headers().set("X-Custom-Header", "value");
 ```
@@ -113,7 +113,7 @@ ctx.response_headers().set("X-Custom-Header", "value");
 
 The `request` parameter is `http::Request<Vec<u8>>`:
 
-```rust
+```rust,ignore
 let body = request.json_value()?;
 let name = body.require_str("name")?;
 let bio = body.get("bio").and_then(|v| v.as_str());
@@ -121,7 +121,7 @@ let bio = body.get("bio").and_then(|v| v.as_str());
 
 ## Response Helpers
 
-```rust
+```rust,ignore
 // 200 OK with JSON
 ok_json!({"status": "ok", "count": 42})
 ok_json!(data)
@@ -131,7 +131,7 @@ created(json!({"id": "new-123"}))
 created_json!({"id": "new-123"})
 
 // Custom status
-reply().status(404).json(json!({"error": "Not found"}))
+reply().code(404).json(json!({"error": "Not found"}))
 
 // Other content types
 ok_html("<h1>Hello</h1>")
@@ -140,7 +140,7 @@ reply().redirect("/new-location", Some(302))
 
 // Custom headers
 reply()
-    .status(200)
+    .code(200)
     .header("x-cache", "HIT")
     .json(json!({"message": "Hello"}))
 ```
@@ -149,7 +149,7 @@ reply()
 
 For full control, implement the `Resource` trait directly:
 
-```rust
+```rust,ignore
 use yeti_sdk::prelude::*;
 
 pub struct PageCache;
@@ -173,7 +173,7 @@ impl Resource for PageCache {
                 }
                 None => {
                     ctx.response_headers().append("x-cache", "MISS");
-                    reply().status(404).text("Not cached")
+                    reply().code(404).text("Not cached")
                 }
             }
         })

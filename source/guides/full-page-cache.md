@@ -31,7 +31,7 @@ origin:
 
 ## Implementation
 
-```rust
+```rust,ignore
 pub struct PageCache;
 
 impl Resource for PageCache {

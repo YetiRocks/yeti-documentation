@@ -1,6 +1,6 @@
 # Yeti
 
-Yeti is a schema-driven application platform built in Rust. Define your data model in GraphQL, and Yeti generates REST APIs, real-time subscriptions, GraphQL endpoints, and authentication - all from a single configuration file.
+Yeti is a schema-driven application platform built in Rust. Define your data model in GraphQL, and Yeti generates REST APIs, real-time subscriptions, GraphQL endpoints, and authentication - all from a single `config.yaml`.
 
 ## Define a schema. Get an API.
 

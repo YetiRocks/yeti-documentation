@@ -2,7 +2,7 @@
 
 Yeti auto-generates a GraphQL API from your schema. Tables with `graphql: true` get query, mutation, and subscription support at `POST /{app-id}/graphql`.
 
-## Enabling
+## Setup
 
 ```yaml
 graphql: true

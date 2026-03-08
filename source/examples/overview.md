@@ -1,60 +1,38 @@
 # Example Applications
 
-These applications are pre-installed by `yeti init` in `~/yeti/applications/`. Each is self-contained with its own config, schema, and optional resources.
+All demo applications are open source on GitHub. Browse the source, then install them directly from the Studio.
 
-## Extensions
+## Browse Source Code
 
-| App ID | Description |
-|--------|-------------|
-| `yeti-auth` | Authentication and authorization (Basic, JWT, OAuth, RBAC) |
-| `yeti-telemetry` | Log/Span/Metric collection with dashboard and OTLP export |
-| `yeti-vectors` | Automatic text/image embedding with persistent vector cache |
+Visit [github.com/yetiRocks](https://github.com/yetiRocks) to view all available applications:
 
-## Applications
+| Repository | What You'll Learn |
+|-----------|-------------------|
+| `demo-basic` | CRUD operations, REST endpoints, custom resources |
+| `demo-fiql` | FIQL filtering, sorting, pagination, field selection |
+| `demo-realtime` | SSE, WebSocket, and MQTT streaming with a React UI |
+| `demo-authentication` | Basic, JWT, and OAuth auth with RBAC visualization |
+| `demo-vector` | Semantic search with auto-embedding and HNSW indexes |
+| `demo-graphql` | Multi-table relationships with GraphQL playground |
+| `demo-mcp` | Model Context Protocol integration for AI agents |
+| `app-redirector` | URL redirects with pattern matching and scheduled cutover |
 
-| App ID | Description |
-|--------|-------------|
-| `application-template` | Minimal starter with a single table and custom resource |
-| `graphql-explorer` | Multi-table relationships with GraphQL explorer UI |
-| `example-queries` | FIQL filtering, sorting, pagination, field selection, joins |
-| `vector-search-demo` | Semantic similarity search with auto-embedding |
-| `realtime-demo` | SSE streaming with a React UI for live updates |
-| `redirect-manager` | URL redirects with pattern matching and cutover |
-| `web-auth-demo` | Interactive demo of all auth methods with RBAC visualization |
-| `yeti-applications` | Web UI for viewing and managing all Yeti applications |
-| `benchmarks` | Performance testing with multiple table types |
-| `documentation` | This documentation site (mdBook) |
-| `www` | Project homepage |
+## Install from Studio
 
-## Browse an App
+1. Open Studio at `https://localhost:9996/admin`
+2. Go to the **Applications** tab
+3. Click **New Application**
+4. Select a demo from the list or paste a GitHub repository URL
+5. The app installs, compiles, and starts automatically
 
-Each app is a directory you can read directly:
+See [Studio](../guides/studio.md) for more on managing applications.
 
-```bash
-ls ~/yeti/applications/graphql-explorer/
-# config.yaml  schema.graphql  data/  web/
-```
+## Create a New Application
 
-## Creating a New Application
-
-Copy the template:
+Start from scratch or copy an existing app:
 
 ```bash
-cp -r ~/yeti/applications/application-template ~/yeti/applications/my-app
+mkdir ~/yeti/applications/my-app
 ```
 
-Edit `config.yaml` and `schema.graphql`, then restart the server.
-
-## Common Structure
-
-```
-~/yeti/applications/{app-id}/
-  config.yaml          # Required
-  schema.graphql       # Table definitions (if any)
-  resources/           # Custom Rust resources (if any)
-    *.rs
-  data/                # Seed data (if any)
-    *.json
-  web/                 # Static files (if any)
-    index.html
-```
+Add `config.yaml` and `schema.graphql`, then restart the server. See [Quickstart](../getting-started/quickstart.md) for a step-by-step walkthrough.

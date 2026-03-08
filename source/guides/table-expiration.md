@@ -2,7 +2,7 @@
 
 Yeti supports automatic record expiration (TTL) using RocksDB's built-in TTL compaction.
 
-## Configuring Expiration
+## Expiration Configuration
 
 Set `expiration` (in seconds) on the `@table` directive:
 

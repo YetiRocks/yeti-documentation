@@ -32,12 +32,39 @@ Controls which APIs expose this table. Without `@export`, the table is internal-
 | `graphql` | boolean | app default | Include in GraphQL schema |
 | `ws` | boolean | app default | Enable WebSocket subscriptions |
 | `sse` | boolean | app default | Enable Server-Sent Events |
+| `mqtt` | boolean | app default | Enable MQTT publish/subscribe |
+| `public` | list | `[]` | Operations accessible without authentication |
 
 ```graphql
 type User @table @export { ... }
 type Rule @table @export(name: "rule") { ... }
 type Log @table @export(sse: true) { ... }
 ```
+
+#### Public Access
+
+The `public` parameter declares which operations bypass authentication entirely -- no login, no token, no session required:
+
+```graphql
+type Chat @table @export(public: [read, create, subscribe]) {
+    id: ID! @primaryKey
+    message: String!
+    author: String
+    createdAt: String @createdTime
+}
+```
+
+| Value | HTTP Method | Description |
+|-------|------------|-------------|
+| `read` | GET | Read records and list queries |
+| `create` | POST | Create new records |
+| `update` | PUT | Update existing records |
+| `delete` | DELETE | Delete records |
+| `subscribe` | GET (SSE) | Subscribe to change streams |
+| `connect` | WebSocket | Establish WebSocket connections |
+| `publish` | MQTT | Publish MQTT messages |
+
+Operations not listed in `public` still require authentication. This is useful for tables that need anonymous reads but authenticated writes, or public chat rooms where anyone can post but only admins can delete.
 
 ## Field Directives
 
@@ -88,7 +115,7 @@ Without `source`, the field expects manual vector data on insert.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `source` | string | — | Source field for auto-embedding (requires yeti-vectors) |
+| `source` | string | - | Source field for auto-embedding (requires yeti-vectors) |
 | `model` | string | app default or `BAAI/bge-small-en-v1.5` | Embedding model (only used with `source`) |
 | `distance` | string | `"cosine"` | `"cosine"` or `"euclidean"` |
 | `optimizeRouting` | float | `0.5` | Routing optimization aggressiveness (0.0–1.0) |

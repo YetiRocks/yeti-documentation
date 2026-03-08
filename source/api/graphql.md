@@ -93,7 +93,7 @@ Partial success is possible - `data` may contain results for some fields while `
 
 Browse interactively at `https://localhost:9996/graphql-explorer/`.
 
-## Enabling GraphQL
+## GraphQL Setup
 
 Application-wide in `config.yaml`:
 
@@ -101,7 +101,7 @@ Application-wide in `config.yaml`:
 graphql: true
 ```
 
-Per-table via `@export(graphql: true)` in the schema.
+Per-table via `@export(graphql: true)` in schema.graphql.
 
 ## See Also
 

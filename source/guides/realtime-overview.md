@@ -10,7 +10,7 @@ Yeti streams data changes to connected clients via SSE, WebSocket, and an intern
 | [WebSocket](websocket.md) | Bidirectional | WS/WSS | Chat, collaboration, gaming |
 | [PubSub](pubsub.md) | Internal | In-process channels | Connects data changes to streams |
 
-## Enabling Real-Time
+## Real-Time Setup
 
 Enable SSE and/or WebSocket in your schema:
 

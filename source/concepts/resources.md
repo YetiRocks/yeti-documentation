@@ -2,7 +2,7 @@
 
 Resources are custom HTTP handlers written in Rust. They extend or override auto-generated table endpoints with business logic.
 
-```rust
+```rust,ignore
 use yeti_sdk::prelude::*;
 
 resource!(Greeting {
@@ -22,3 +22,32 @@ resources:
 Resources compile to dynamic libraries and load at runtime. Initial compilation takes ~2 minutes; cached rebuilds are fast.
 
 For the full API - request parsing, response helpers, table access, manual trait implementation - see [Custom Resources](../guides/custom-resources.md).
+
+## Routing Priority
+
+Yeti generates routes automatically from schemas and resources. Every `@export`ed table and every resource file produces HTTP endpoints under the app's URL prefix:
+
+```
+https://localhost:9996/{app-id}/{resource-or-table}
+```
+
+When multiple handlers could match a request, they resolve in this order:
+
+1. **Custom resources** (exact name match)
+2. **Table endpoints** (auto-generated from `@export`)
+3. **Default resource** (catch-all, one per app)
+4. **Static files** (from `web/` directory)
+5. **404 Not Found**
+
+A custom resource with the same name as a table takes precedence. Unoverridden methods fall through to the default table handler.
+
+A default resource catches all unmatched paths within an app:
+
+```rust,ignore
+resource!(SpaFallback {
+    default = true,
+    get => ok_html(include_str!("../web/index.html"))
+});
+```
+
+See also: [REST API](../api/rest.md), [Custom Resources](../guides/custom-resources.md), [Static File Serving](../guides/static-files.md).

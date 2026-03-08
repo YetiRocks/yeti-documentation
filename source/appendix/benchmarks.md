@@ -47,7 +47,7 @@ Benchmark data from Yeti's Criterion.rs test suite. 8 threads, 20 iterations, 5-
 | Locking | contention 1 key | 4.02M ops/s |
 | Static Files | serve 1000 files | 173K ops/s |
 
-## Running Benchmarks
+## Benchmark Commands
 
 ```bash
 # Automated suite (recommended)
