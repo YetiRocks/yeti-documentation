@@ -225,7 +225,7 @@ mark {
 .sidebar li.active > a, .sidebar a.active {
   color: var(--color-white);
   font-weight: 500;
-  border-left-color: var(--color-success);
+  border-left-color: var(--color-primary);
 }
 
 .sidebar .part-title {
@@ -281,7 +281,7 @@ mark {
   background: var(--color-black);
   color: var(--color-white);
   padding: var(--space-8);
-  max-width: 900px;
+  width: 80%;
   margin: 0 auto;
   font-size: var(--font-size-base);
   line-height: 1.7;
@@ -338,7 +338,7 @@ strong, b { font-weight: 600; }
 a, a:link, a:visited,
 .content a:link, .content a:visited,
 #searchresults a {
-  color: var(--color-success);
+  color: var(--color-primary);
   text-decoration: none;
   transition: color var(--transition-fast);
 }
