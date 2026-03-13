@@ -11,11 +11,10 @@ HTTP Basic authentication sends credentials with every request using `Authorizat
 
 ## Configuration
 
-Add `yeti-auth` to your app's extensions. Basic auth is always available when enabled:
+Add `auth:` to your app's config.yaml. Basic auth is always available when enabled:
 
 ```yaml
-extensions:
-  - yeti-auth: {}
+auth: {}
 ```
 
 ## User Creation

@@ -1,6 +1,6 @@
 # TLS & HTTPS
 
-Yeti serves HTTPS on port 443 using Rustls with the ring cryptography provider - no OpenSSL dependency.
+Yeti serves HTTPS on port 9996 using Rustls with the ring cryptography provider -- no OpenSSL dependency.
 
 ## Configuration
 
@@ -28,6 +28,32 @@ tls:
 
 Creates certificates at `$rootDirectory/certs/localhost/`, valid for `localhost` and `127.0.0.1`.
 
+## mkcert (Recommended for Development)
+
+For browser-trusted local development certificates, use [mkcert](https://github.com/FiloSottile/mkcert):
+
+```bash
+# Install mkcert
+brew install mkcert
+
+# Install the local CA into your system trust store (one-time setup)
+mkcert -install
+
+# Generate certificates for localhost
+cd ~/yeti/certs/localhost
+mkcert localhost 127.0.0.1
+```
+
+This creates `localhost+1.pem` (certificate) and `localhost+1-key.pem` (private key). Configure Yeti to use them:
+
+```yaml
+tls:
+  certificate: certs/localhost/localhost+1.pem
+  privateKey: certs/localhost/localhost+1-key.pem
+```
+
+Certificate paths are resolved relative to the root directory. With mkcert, browsers will trust the certificate without warnings, and you do not need `-k` with curl.
+
 ## Manual Certificates
 
 ```yaml
@@ -44,27 +70,18 @@ Requirements: PEM format, RSA (2048+) or ECDSA (P-256/P-384), no password on pri
 sudo certbot certonly --standalone -d yeti.example.com
 ```
 
-### mkcert (Local Development)
-
-```bash
-brew install mkcert && mkcert -install
-mkcert localhost 127.0.0.1
-```
-
 ## Development Workflow
 
-Self-signed certificates require `-k` with curl:
+Self-signed certificates (from `autoGenerate: true`) require `-k` with curl:
 
 ```bash
 curl -sk https://localhost:9996/my-app/TableName
 ```
 
-## Operations API (No TLS)
-
-The Operations API on port 9995 runs plain HTTP. Do not expose it to the public internet.
+With mkcert certificates, curl works without `-k`:
 
 ```bash
-curl http://localhost:9995/health
+curl -s https://localhost:9996/my-app/TableName
 ```
 
 ## Supported Protocols

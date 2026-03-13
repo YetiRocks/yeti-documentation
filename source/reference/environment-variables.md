@@ -4,22 +4,15 @@
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ROOT_DIRECTORY` | Root directory for all Yeti data | `~/yeti` |
-| `YETI_ROOT_DIR` | Alias for `ROOT_DIRECTORY` (takes precedence if both set) | - |
+| `YETI_HOME` | Settings directory containing `settings.toml` | `~/.yeti` |
+| `YETI_ROOT_DIR` | Root directory for all Yeti data | `~/yeti` |
+| `ROOT_DIRECTORY` | Alias for `YETI_ROOT_DIR` | `~/yeti` |
 | `SETTINGS_PATH` | Path to `yeti-config.yaml` | `$ROOT_DIRECTORY/yeti-config.yaml` |
-| `APPLICATION_PORT` | Override `http.port` | `443` |
-| `OPERATIONS_PORT` | Override `operationsApi.port` | `9995` |
+| `APPLICATION_PORT` | Override `http.port` | `9996` |
 | `LOG_LEVEL` | Override `logging.level` | `"info"` |
 | `ENVIRONMENT` | Override `environment` | `"development"` |
 
-The `--root-dir` CLI argument overrides both `ROOT_DIRECTORY` and `YETI_ROOT_DIR`.
-
-## Storage
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `STORAGE_MODE` | `"embedded"` or `"cluster"` | `"embedded"` |
-| `CLUSTER_PD_ENDPOINTS` | Comma-separated PD endpoints | - |
+The `--dir` CLI argument overrides both `ROOT_DIRECTORY` and `YETI_ROOT_DIR`.
 
 ## Authentication Secrets
 
@@ -70,11 +63,21 @@ custom:
 
 The `:-` separator provides a default value. An empty default (`${VAR:-}`) results in an empty string.
 
+Variables can also be set in `yeti-config.yaml` under the `env:` key:
+
+```yaml
+env:
+  JWT_SECRET_KEY: "my-secret"
+  GOOGLE_CLIENT_ID: "123456.apps.googleusercontent.com"
+```
+
+Real environment variables take precedence over values in the `env:` section.
+
 ## Security Notes
 
 - Never commit secrets to version control.
 - Use `${VAR:-}` substitution in config files to reference secrets from the environment.
-- The `get_configuration` operations API endpoint sanitizes secrets from its output.
+- Use the `env:` section in yeti-config.yaml for non-sensitive defaults.
 
 ## See Also
 

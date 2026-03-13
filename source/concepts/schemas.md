@@ -1,6 +1,6 @@
 # Schemas & Tables
 
-Yeti uses GraphQL SDL to define tables, fields, indexes, and relationships. This is not a GraphQL API - it's a schema language that Yeti interprets to create database tables and generate REST and GraphQL endpoints.
+Yeti uses GraphQL SDL to define tables, fields, indexes, and relationships. Yeti generates REST, GraphQL, and real-time endpoints from your schema.
 
 ## Example
 
@@ -64,6 +64,16 @@ The `!` suffix means non-nullable.
 ```graphql
 type Product @table(database: "my-app") @export(rest: true, graphql: true) { ... }
 ```
+
+Transport flags: `rest`, `graphql`, `ws`, `sse`, `mqtt` -- all default to `true` when `@export` is present. Without `@export`, the table exists internally but has no HTTP endpoints.
+
+**`@export(public: [...])`** - Declares operations that bypass authentication:
+
+```graphql
+type Chat @table @export(public: [read, create, subscribe]) { ... }
+```
+
+Values: `read`, `create`, `update`, `delete`, `subscribe`, `connect`, `publish`.
 
 ## Field Directives
 

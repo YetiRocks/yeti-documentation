@@ -1,19 +1,15 @@
 # Storage Engine
 
-RocksDB-based key-value store supporting **embedded** (single-node, default) and **cluster** (distributed) modes.
+Embedded RocksDB key-value store. Each application gets its own database namespace with automatic sharding.
 
 ```yaml
 storage:
-  mode: embedded    # or "cluster"
+  mode: embedded
 ```
 
-## Embedded Mode
+## Sharding
 
-RocksDB runs in-process. Writes go to memtable, flush to SSTables, background compaction maintains read performance.
-
-### Sharding
-
-Each database splits across `max(num_cpus / 2, 2)` RocksDB instances. Keys distributed via consistent hash of the primary key.
+Each database splits across `max(num_cpus / 2, 2)` RocksDB instances. Keys are distributed via consistent hash of the primary key.
 
 ```
 data/my-app/
@@ -22,35 +18,6 @@ data/my-app/
 ├── shard-2/
 └── shard-3/
 ```
-
-## Cluster Mode
-
-Distributed cluster with automatic sharding, replication, and fault tolerance.
-
-### Configuration
-
-```yaml
-storage:
-  mode: cluster
-  cluster:
-    pdEndpoints:
-      - "pd1:23791"
-      - "pd2:23792"
-      - "pd3:23793"
-    timeoutMs: 5000
-    autoStart: true     # Dev only - starts Docker cluster automatically
-```
-
-### Hot Cache
-
-Each table has a local LRU cache (10,000 entries, max 64KB per value):
-- Write-through: updated before writes reach cluster
-- Negative caching: tracks non-existent keys
-- Batch-aware: `get_batch()` checks cache first
-
-### Connection Pool
-
-Sized at `max(num_cpus / 2, 2)` persistent gRPC channels with round-robin distribution.
 
 ## Key Encoding
 
@@ -64,9 +31,7 @@ Enables efficient point lookups, prefix scans, and range queries. UUID v7 keys s
 
 ## BackendManager
 
-Maps table names to backend instances. In embedded mode, one sharded RocksDB per database. In cluster mode, key prefix isolation with shared connection pool.
-
-Extension tables are merged via `with_merged_tables()` for extensions declared in the app's `extensions:` list.
+Maps table names to backend instances. One sharded RocksDB per database. Extension tables are merged via `with_merged_tables()` for extensions declared in the app's config.
 
 ## KvBackend Trait
 
@@ -98,4 +63,4 @@ Extension tables are merged via `with_merged_tables()` for extensions declared i
 type PageCache @table(expiration: 3600) { ... }
 ```
 
-Records older than the specified seconds are automatically cleaned up.
+Records older than the specified seconds are automatically cleaned up. Per-record TTL is also available via the `@expiresAt` field directive.

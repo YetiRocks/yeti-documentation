@@ -1,6 +1,6 @@
 [book]
 title = "Yeti Documentation"
-description = "High-performance Harper-compatible application platform in Rust"
+description = "Distributed application platform built in Rust"
 authors = ["Yeti Team"]
 language = "en"
 src = "."

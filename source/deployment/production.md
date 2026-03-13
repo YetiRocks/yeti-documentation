@@ -2,7 +2,7 @@
 
 ## TLS Certificates (Required)
 
-Replace self-signed certificates with real ones:
+Replace self-signed certificates with production certificates:
 
 ```yaml
 tls:
@@ -22,8 +22,6 @@ export ENVIRONMENT="production"
 
 ## Storage (Required)
 
-### Embedded Mode
-
 ```yaml
 storage:
   mode: embedded
@@ -32,22 +30,7 @@ storage:
   compression: true
 ```
 
-Use SSDs. Set up regular backups (see [Backup & Recovery](backup.md)).
-
-### Cluster Mode
-
-```yaml
-storage:
-  mode: cluster
-  cluster:
-    pdEndpoints: ["pd1:23791", "pd2:23792", "pd3:23793"]
-    tlsCaPath: /etc/yeti/tls/ca.pem
-    tlsCertPath: /etc/yeti/tls/client.pem
-    tlsKeyPath: /etc/yeti/tls/client-key.pem
-    autoStart: false
-```
-
-Provision 3+ PD nodes and 3+ storage nodes. Enable mTLS in production.
+Use SSDs. Configure regular backups (see [Backup & Recovery](backup.md)).
 
 ## Logging
 
@@ -66,18 +49,7 @@ http:
     - "https://app.yourdomain.com"
 ```
 
-Never use `"*"` in production.
-
-## Operations API
-
-```yaml
-operationsApi:
-  enabled: true
-  requireAuth: true
-  cors: false
-```
-
-Bind to localhost or restrict with firewall rules.
+Do not use `"*"` in production.
 
 ## Application Review
 
@@ -97,6 +69,6 @@ Enables SSRF validation and stricter security defaults.
 ## Post-Deployment
 
 ```bash
-curl -s http://your-server:9995/health
-curl -v https://your-server:443/documentation/ 2>&1 | grep "SSL certificate"
+curl -sk https://your-server:9996/health
+curl -v https://your-server:9996/documentation/ 2>&1 | grep "SSL certificate"
 ```

@@ -1,42 +1,63 @@
-# Migrating from Harper to Yeti
+# Migration Guide
 
-## What's Compatible
+Migrate existing backend applications to Yeti from Node.js/Express, Django, Rails, or similar frameworks.
 
-- Resource API (CRUD), FIQL queries, GraphQL schemas, static file serving, config.yaml, multi-tenancy
+## What Maps Directly
+
+Applications using REST APIs, JSON data, and standard CRUD patterns translate directly:
+
+| Traditional Approach | Yeti Equivalent |
+|---------------------|-----------------|
+| Route handlers (Express, Flask, etc.) | Custom resources (Rust plugins) |
+| Database models / ORM schemas | GraphQL schema with `@table` directive |
+| SQL / MongoDB queries | FIQL query language |
+| Static file middleware | `static_files` in config.yaml |
+| Auth middleware | yeti-auth extension (JWT, OAuth, RBAC) |
+| Environment variables | `env:` section in yeti-config.yaml + `${VAR:-default}` substitution |
 
 ## Migration Steps
 
-### 1. Create Yeti Application
+### 1. Create a Yeti Application
 
 ```bash
 cd ~/yeti/applications
 mkdir my-app && cd my-app
 ```
 
-### 2. Copy Configuration
+### 2. Define Your Schema
 
-```bash
-cp /path/to/harper-app/config.yaml .
-cp /path/to/harper-app/schema.graphql .
-cp -r /path/to/harper-app/web ./static
+Convert database models to a GraphQL schema:
+
+```graphql
+type User @table @export {
+    id: ID! @primaryKey
+    email: String! @indexed
+    name: String!
+    createdAt: String @createdTime
+    updatedAt: String @updatedTime
+}
 ```
 
-No modifications needed - Yeti uses the same config.yaml and schema.graphql formats.
+### 3. Create Configuration
 
-### 3. Port Custom Resources
+```yaml
+name: my-app
+schemas:
+  - schema.graphql
+rest: true
+```
 
-Harper JavaScript resources need to be rewritten in Rust:
+### 4. Port Custom Endpoints
 
-**Harper:**
+Rewrite traditional route handlers as Rust resources:
+
+**Express (Node.js):**
 ```javascript
-export default {
-  users: {
-    beforeCreate: async (data) => {
-      data.created_at = new Date().toISOString();
-      return data;
-    }
-  }
-}
+app.post('/users', async (req, res) => {
+  req.body.created_at = new Date().toISOString();
+  const user = await db.insert('users', req.body);
+  res.json(user);
+});
 ```
 
 **Yeti:**
@@ -51,40 +72,51 @@ impl Resource for UserResource {
 }
 ```
 
-### 4. Migrate Data
+Many use cases need no custom resources. Schema-driven tables provide full CRUD, filtering, pagination, and real-time subscriptions out of the box.
+
+### 5. Migrate Data
 
 ```bash
-# Export from Harper
-curl http://localhost:443/User > users.json
+# Export from your existing system (adjust as needed)
+curl http://old-server/api/users > users.json
 
 # Import to Yeti
 cat users.json | jq -c '.[]' | while read record; do
-  curl -X POST http://localhost:9997/User \
+  curl -sk -X POST https://localhost:9996/my-app/User \
     -H "Content-Type: application/json" -d "$record"
 done
 ```
 
-### 5. Verify
+### 6. Verify
 
 ```bash
 yeti restart
 
-# Compare responses
-curl http://localhost:443/User/test-id > harper.json
-curl http://localhost:9997/User/test-id > yeti.json
-diff harper.json yeti.json
+# Test CRUD
+curl -sk https://localhost:9996/my-app/User?limit=10
 ```
+
+## Key Differences from Traditional Backends
+
+| Aspect | Traditional | Yeti |
+|--------|------------|------|
+| Language | JavaScript/Python/Ruby | Rust (plugins), schema-driven (tables) |
+| Database | Separate process (PostgreSQL, MongoDB) | Embedded RocksDB (zero network overhead) |
+| API layer | Hand-written routes | Auto-generated from schema |
+| Real-time | WebSocket library + custom code | Built-in SSE, WebSocket, MQTT |
+| Auth | Passport.js / custom middleware | yeti-auth extension (JWT, OAuth, RBAC) |
+| Deployment | App server + database + reverse proxy | Single binary |
 
 ## Migration Checklist
 
-- [ ] Backup Harper database
-- [ ] Copy config.yaml and schema.graphql
-- [ ] Copy static files
-- [ ] Port custom resources to Rust
-- [ ] Migrate data
+- [ ] Back up existing data
+- [ ] Define GraphQL schemas for all data models
+- [ ] Create config.yaml with appropriate settings
+- [ ] Port custom endpoints to Rust resources (if needed)
+- [ ] Migrate data to Yeti tables
 - [ ] Test CRUD operations and FIQL queries
-- [ ] Test authentication
-- [ ] Load test
+- [ ] Configure authentication (JWT, OAuth, or both)
+- [ ] Set up TLS certificates
+- [ ] Load test to verify performance
 - [ ] Plan and execute cutover
 - [ ] Monitor production
-- [ ] Decommission Harper after validation

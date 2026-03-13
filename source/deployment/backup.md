@@ -10,7 +10,7 @@
 | `certs/` | Important | Yes if `autoGenerate: true` |
 | `cache/builds/` | Low | Yes - recompiled on startup |
 
-## Embedded Mode Backup
+## Backup Procedure
 
 RocksDB supports hot backup - safe to copy while server is running:
 
@@ -39,31 +39,24 @@ maintenance:
     retentionDays: 30
 ```
 
-## Cluster Mode Backup
-
-Application data lives in the distributed cluster. The Yeti server itself is stateless - back up only `applications/` and `yeti-config.yaml`. Back up cluster node data volumes separately.
-
 ## Recovery
 
-### Full Recovery (Embedded)
+### Full Recovery
 
 ```bash
-yeti stop
+# Stop the server, restore data, restart
 cp -r /backups/yeti-latest/data /var/lib/yeti/data
 cp -r /backups/yeti-latest/applications /var/lib/yeti/applications
 cp /backups/yeti-latest/yeti-config.yaml /var/lib/yeti/
-yeti start --root-dir /var/lib/yeti
+# Restart yeti - plugin cache regenerates automatically (~2 min per plugin)
 ```
-
-Plugin cache regenerates automatically (~2 min per plugin).
 
 ### Partial Recovery (Single Database)
 
 ```bash
-yeti stop
 rm -rf /var/lib/yeti/data/my-app
 cp -r /backups/yeti-latest/data/my-app /var/lib/yeti/data/my-app
-yeti start --root-dir /var/lib/yeti
+# Restart yeti
 ```
 
 ### Rebuilding Plugin Cache
@@ -78,16 +71,9 @@ yeti start --root-dir /var/lib/yeti
 
 ## Disaster Recovery
 
-### Embedded Mode
-
 - **RTO**: ~5 minutes (copy data + plugin recompile)
 - **RPO**: Depends on backup frequency
 - No cross-architecture restore (x86 backups cannot restore on ARM)
-
-### Cluster Mode
-
-- Single node failure causes no data loss (3+ replicas)
-- Only `applications/` and `yeti-config.yaml` need restoring on the Yeti server
 
 ## Verify Backups
 

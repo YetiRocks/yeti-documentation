@@ -1,6 +1,6 @@
 # Applications
 
-An application is a self-contained unit deployed to the platform. Each bundles its configuration, schemas, custom logic, seed data, and optional static files into a single directory. Applications are isolated - each gets its own database namespace and URL prefix.
+A self-contained unit bundling configuration, schemas, custom logic, seed data, and optional static files into a single directory. Each application gets its own database namespace and URL prefix.
 
 ## Directory Structure
 
@@ -44,13 +44,12 @@ static_files:
 
 dataLoader: data/*.json
 
-extensions:
-  - yeti-auth:
-      oauth:
-        rules:
-          - strategy: provider
-            pattern: "github"
-            role: standard
+auth:
+  oauth:
+    rules:
+      - strategy: provider
+        pattern: "github"
+        role: standard
 
 dependencies:
   serde_yaml: "0.9"
@@ -65,7 +64,7 @@ dependencies:
 | `resources` | Glob patterns for custom Rust handlers |
 | `static_files` | Serve a directory of static files |
 | `dataLoader` | JSON seed data files |
-| `extensions` | Extensions to use, with per-app config |
+| `auth` / `vectors` | Per-app extension config (replaces deprecated `extensions:` list) |
 | `dependencies` | Rust crate dependencies for resources |
 
 ## Discovery
@@ -80,7 +79,7 @@ Yeti scans `~/yeti/applications/*/` for directories with a `config.yaml`. Drop a
 
 ## Extensions
 
-Apps with `extension: true` provide shared services to other apps. They load first and can supply auth, telemetry, and middleware. Consumer apps opt in via the `extensions:` field. See [Extensions](extensions.md).
+Apps with `extension: true` provide shared services to other apps. They load first and supply auth, telemetry, and middleware. Consumer apps opt in via top-level keys (`auth:`, `vectors:`). See [Extensions](extensions.md).
 
 ## Naming Conventions
 

@@ -12,15 +12,15 @@ Reference for `yeti-config.yaml` at the root directory (default: `~/yeti/yeti-co
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `rootDirectory` | string | `"~/yeti"` | Root directory for all Yeti data. Override with `--root-dir` CLI argument. |
+| `rootDirectory` | string | `"~/yeti"` | Root directory for all Yeti data. Override with `--dir` CLI argument. |
 
 ## http
 
-Application API server (default port 443, HTTPS).
+Application API server (default port 9996, HTTPS).
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `http.port` | integer | `443` | HTTPS port |
+| `http.port` | integer | `9996` | HTTPS port |
 | `http.cors` | boolean | `true` | Enable CORS headers |
 | `http.corsAccessList` | string[] | `["*"]` | Allowed CORS origins |
 | `http.timeout` | integer | `120000` | Request timeout (ms) |
@@ -30,38 +30,14 @@ Application API server (default port 443, HTTPS).
 | `http.maxInFlightRequests` | integer | `500` | Max concurrent requests (503 when exceeded) |
 | `http.disconnectTimeout` | integer | `5000` | Graceful shutdown timeout (ms) |
 
-## operationsApi
-
-Administrative API (default port 9995, plain HTTP).
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `operationsApi.port` | integer | `9995` | Operations API port |
-| `operationsApi.enabled` | boolean | `true` | Enable the operations API |
-| `operationsApi.cors` | boolean | `true` | Enable CORS |
-| `operationsApi.corsAccessList` | string[] | `["*"]` | CORS allowed origins |
-
 ## storage
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `storage.mode` | string | `"embedded"` | `"embedded"` (single-node) or `"cluster"` (distributed) |
+| `storage.mode` | string | `"embedded"` | `"embedded"` for single-node RocksDB storage |
 | `storage.caching` | boolean | `true` | Enable in-memory read cache |
 | `storage.compression` | boolean | `true` | Enable data compression |
 | `storage.path` | string | `null` | Custom storage path (default: `$rootDirectory/data/`) |
-
-### storage.cluster
-
-Only used when `storage.mode` is `"cluster"`.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `storage.cluster.pdEndpoints` | string[] | `[]` | Placement driver endpoints |
-| `storage.cluster.tlsCaPath` | string | `null` | CA certificate for mTLS |
-| `storage.cluster.tlsCertPath` | string | `null` | Client certificate for mTLS |
-| `storage.cluster.tlsKeyPath` | string | `null` | Client private key for mTLS |
-| `storage.cluster.timeoutMs` | integer | `5000` | Timeout per operation (ms) |
-| `storage.cluster.autoStart` | boolean | `false` | Auto-start Docker cluster (development only) |
 
 ## logging
 
@@ -83,6 +59,30 @@ Only used when `storage.mode` is `"cluster"`.
 | `tls.autoGenerate` | boolean | `false` | Auto-generate self-signed certificates |
 | `tls.privateKey` | string | `null` | Path to PEM private key file |
 | `tls.certificate` | string | `null` | Path to PEM certificate file |
+
+## env
+
+Environment variables to inject at startup. Set before extensions initialize, so yeti-auth and other extensions can read them via `std::env::var()`. Real environment variables take precedence over values defined here.
+
+```yaml
+env:
+  JWT_SECRET_KEY: "my-production-secret"
+  GOOGLE_CLIENT_ID: "123456.apps.googleusercontent.com"
+  GOOGLE_CLIENT_SECRET: "secret-value"
+  ANTHROPIC_API_KEY: "sk-ant-..."
+```
+
+## mqtt
+
+Embedded MQTT broker configuration.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `mqtt.enabled` | boolean | `false` | Enable the embedded MQTT broker |
+| `mqtt.port` | integer | `8883` | MQTTS port for native clients |
+| `mqtt.maxClients` | integer | `10000` | Maximum simultaneous MQTT clients |
+
+When enabled, the broker also exposes a WebSocket proxy at `wss://host:9996/mqtt` for browser clients.
 
 ## rateLimiting
 
@@ -114,6 +114,12 @@ Only used when `storage.mode` is `"cluster"`.
 | `maintenance.healthCheck.intervalSeconds` | integer | `30` | Health check interval |
 | `maintenance.healthCheck.timeoutSeconds` | integer | `5` | Health check timeout |
 
+## audit
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `audit.enabled` | boolean | `false` | Enable global audit trail |
+
 ## Example
 
 ```yaml
@@ -121,7 +127,7 @@ environment: production
 rootDirectory: /opt/yeti
 
 http:
-  port: 443
+  port: 9996
   cors: true
   corsAccessList:
     - "https://app.example.com"
@@ -140,6 +146,14 @@ logging:
 tls:
   privateKey: /etc/ssl/private/yeti.key
   certificate: /etc/ssl/certs/yeti.crt
+
+env:
+  JWT_SECRET_KEY: "${JWT_SECRET}"
+  GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
+
+mqtt:
+  enabled: true
+  port: 8883
 
 telemetry:
   serviceName: yeti-production

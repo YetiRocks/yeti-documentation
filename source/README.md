@@ -42,7 +42,7 @@ curl -sk "https://localhost:9996/my-app/Product?stream=sse"
 
 ## Quick links
 
-- [Get Early Access](getting-started/install-coming-soon.md) - Apply for early access
+- [Installation](getting-started/installation.md) - Install Yeti in minutes
 - [Quickstart](getting-started/quickstart.md) - Build a REST API in 5 minutes
 - [Core Concepts](concepts/applications.md) - Understand applications, schemas, and resources
 - [Custom Resources](guides/custom-resources.md) - Add business logic in Rust

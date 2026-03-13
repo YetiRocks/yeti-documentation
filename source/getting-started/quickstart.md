@@ -1,6 +1,6 @@
 # Quickstart
 
-Build a REST API in 5 minutes.
+Build a REST API in 5 minutes. Requires a running Yeti server ([installation](installation.md)).
 
 ## Step 1: Create an Application
 
@@ -53,7 +53,7 @@ This generates:
 yeti restart
 ```
 
-First run compiles the plugin (~2 minutes). You'll see:
+First run compiles the plugin (~2 minutes). Output:
 
 ```
 [INFO] Registered my-app (1 table, 0 resources)

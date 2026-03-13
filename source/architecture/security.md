@@ -1,6 +1,6 @@
 # Security Architecture
 
-Yeti provides layered authentication through the `yeti-auth` extension.
+Layered authentication through the `yeti-auth` extension.
 
 ## Auth Pipeline
 

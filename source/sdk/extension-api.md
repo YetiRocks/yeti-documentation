@@ -5,6 +5,36 @@ Extensions provide shared services across applications: authentication, telemetr
 ## Extension Trait
 
 ```rust,ignore
+pub trait Extension: Send + Sync {
+    fn name(&self) -> &str;
+
+    fn on_ready(&self, ctx: ExtensionContext) -> Result<()> {
+        Ok(())
+    }
+
+    fn middleware(&self) -> Option<Arc<dyn RequestMiddleware>> {
+        None
+    }
+
+    fn auth_providers(&self) -> Vec<Arc<dyn AuthProvider>> {
+        vec![]
+    }
+
+    fn auth_hooks(&self) -> Vec<Arc<dyn AuthHook>> {
+        vec![]
+    }
+
+    fn vector_hooks(&self) -> Vec<Arc<dyn VectorHook>> {
+        vec![]
+    }
+}
+```
+
+All methods except `name()` have default no-op implementations. Implement only what you need.
+
+### Full example
+
+```rust,ignore
 use yeti_sdk::prelude::*;
 
 pub struct MyExtension;
@@ -14,65 +44,41 @@ impl Extension for MyExtension {
         "my-extension"
     }
 
-    fn initialize(&self) -> Result<()> {
-        // Called once at load time. Set up static state here.
-        Ok(())
-    }
-
     fn on_ready(&self, ctx: ExtensionContext) -> Result<()> {
-        // Called after routes and tables are registered.
-        // Access tables, set event subscribers, register hooks.
-        let table = ctx.table("Config")?;
+        let config_table = ctx.table("Config")?;
+        yeti_log!(info, "Extension ready, config table loaded");
         Ok(())
-    }
-
-    fn on_shutdown(&self) {
-        // Called during graceful shutdown. Clean up resources.
     }
 
     fn middleware(&self) -> Option<Arc<dyn RequestMiddleware>> {
-        // Return request middleware (runs before every request)
-        None
+        None  // return Some(...) to intercept every request
     }
 
     fn auth_providers(&self) -> Vec<Arc<dyn AuthProvider>> {
-        // Return authentication providers (Basic, JWT, OAuth)
-        vec![]
+        vec![]  // return providers for Basic, JWT, OAuth auth
     }
 
     fn auth_hooks(&self) -> Vec<Arc<dyn AuthHook>> {
-        // Override role resolution before default logic
-        vec![]
+        vec![]  // override role resolution before default logic
     }
 
     fn vector_hooks(&self) -> Vec<Arc<dyn VectorHook>> {
-        // Provide vector embedding generation
-        vec![]
+        vec![]  // provide vector embedding generation
     }
 }
 ```
 
-All methods except `name()` have default no-op implementations.
-
 ## ExtensionContext
 
-Available in `on_ready()`:
+Available in `on_ready()`. Provides access to tables, filesystem, routing, and event subscribers.
 
 ```rust,ignore
-fn on_ready(&self, ctx: ExtensionContext) -> Result<()> {
-    // Access a table
-    let config_table = ctx.table("Config")?;
-
-    // Root directory path
-    let root: &Path = ctx.root_dir();
-
-    // Get the auto-router for registering custom routes
-    let router = ctx.auto_router();
-
-    // Set an event subscriber for telemetry events
-    ctx.set_event_subscriber(Box::new(MySubscriber::new()));
-
-    Ok(())
+impl ExtensionContext {
+    fn table(&self, name: &str) -> Result<Arc<TableResource>>
+    fn root_dir(&self) -> &Path
+    fn auto_router(&self) -> &AutoRouter
+    fn set_event_subscriber(&self, sub: Box<dyn EventSubscriber>)
+    fn pubsub(&self, table: &str) -> Option<Arc<PubSubManager>>
 }
 ```
 
@@ -82,14 +88,37 @@ fn on_ready(&self, ctx: ExtensionContext) -> Result<()> {
 | `root_dir()` | `&Path` | Server root directory |
 | `auto_router()` | `&AutoRouter` | Route registration |
 | `set_event_subscriber(sub)` | `()` | Register telemetry event handler |
+| `pubsub(table)` | `Option<Arc<PubSubManager>>` | PubSub manager for a table |
+
+```rust,ignore
+fn on_ready(&self, ctx: ExtensionContext) -> Result<()> {
+    // Access a table
+    let config = ctx.table("Config")?;
+
+    // Root directory
+    let root: &Path = ctx.root_dir();
+
+    // Register a telemetry event subscriber
+    ctx.set_event_subscriber(Box::new(MySubscriber::new()));
+
+    Ok(())
+}
+```
 
 ## EventSubscriber Trait
 
-Process telemetry events (logs, spans, metrics) in a background task:
+Process telemetry events (logs, spans, metrics) in a background task.
 
 ```rust,ignore
-use yeti_sdk::prelude::*;
+pub trait EventSubscriber: Send {
+    fn run(
+        self: Box<Self>,
+        rx: mpsc::Receiver<Value>,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+}
+```
 
+```rust,ignore
 pub struct MySubscriber;
 
 impl EventSubscriber for MySubscriber {
@@ -99,7 +128,7 @@ impl EventSubscriber for MySubscriber {
     ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         Box::pin(async move {
             while let Ok(event) = rx.recv().await {
-                // Process event JSON
+                // Event format:
                 // {"kind": "log"|"span", "timestamp": f64, "level": "INFO", ...}
                 eprintln!("Event: {}", event);
             }
@@ -109,6 +138,81 @@ impl EventSubscriber for MySubscriber {
 ```
 
 The channel is bounded (capacity 10,000). The host spawns the future after `on_ready()` returns.
+
+## VectorHook Trait
+
+Provide vector embedding generation for `@vector` schema fields. Implementations must be **sync** (not async) for dylib boundary safety.
+
+```rust,ignore
+pub trait VectorHook: Send + Sync {
+    fn vectorize_fields(
+        &self,
+        record: Value,
+        mappings: &[FieldMapping],
+    ) -> Result<Value, String>;
+
+    fn vectorize_text(&self, text: &str, model: &str) -> Result<Vec<f32>, String>;
+
+    fn vectorize_image(&self, bytes: &[u8], model: &str) -> Result<Vec<f32>, String>;
+
+    fn validate_model(&self, model: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn warmup_model(&self, model: &str, field_type: &str) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn vectorize_fields_batch(
+        &self,
+        records: Vec<Value>,
+        mappings: &[FieldMapping],
+    ) -> Result<Vec<Value>, String>;
+}
+```
+
+`FieldMapping` describes the source-to-target mapping:
+
+```rust,ignore
+pub struct FieldMapping {
+    pub source: String,      // source field name
+    pub target: String,      // target vector field name
+    pub model: String,       // model identifier
+    pub field_type: String,  // "text" (default) or "image"
+}
+```
+
+## AuthHook Trait
+
+Override role resolution before the default logic runs. Useful for custom role assignment based on request context.
+
+## PubSub
+
+Topic-based publish/subscribe for real-time messaging.
+
+```rust,ignore
+pub struct PubSubManager {
+    // ...
+}
+
+impl PubSubManager {
+    pub fn new(capacity: usize) -> Self;
+    pub async fn subscribe(&self, topic: &str) -> broadcast::Receiver<SubscriptionMessage>;
+    pub async fn publish(&self, topic: &str, message: SubscriptionMessage);
+    pub async fn notify_update(&self, table: &str, id: &str, data: &Value);
+    pub async fn notify_delete(&self, table: &str, id: &str);
+    pub async fn notify_create(&self, table: &str, id: &str, data: &Value);
+}
+```
+
+```rust,ignore
+// In on_ready():
+let pubsub = ctx.pubsub("Chat").unwrap();
+let mut receiver = pubsub.subscribe("Chat/room-1").await;
+
+// Publishing
+pubsub.notify_create("Chat", "msg-1", &json!({"text": "Hello"})).await;
+```
 
 ## export_extension!
 
@@ -123,22 +227,25 @@ Place this at module level alongside `export_plugin!()`.
 ## Lifecycle Order
 
 1. Plugin `.dylib` loaded
-2. `Extension::initialize()` called
-3. Tables and routes registered
-4. `Extension::on_ready(ctx)` called
-5. Event subscriber spawned (if set)
-6. Server starts accepting requests
-7. `Extension::on_shutdown()` called during graceful shutdown
+2. Tables and routes registered
+3. `Extension::on_ready(ctx)` called
+4. Event subscriber spawned (if set via `ctx.set_event_subscriber()`)
+5. Server starts accepting requests
+6. Graceful shutdown
 
-## Important Constraints
+Telemetry extensions are sorted first in `load_extensions` so their event subscriber captures other extensions' startup.
+
+## Dylib Constraints
 
 These apply to all code running in dylib context (extensions and resources):
 
-- **No `tracing::info!`** -- use `eprintln!` or `yeti_log!` instead (TLS isolation)
-- **No `tokio::spawn`** -- causes crashes ("cannot catch foreign exceptions"). Use `futures::stream::unfold` for async patterns
-- **No `reqwest::blocking::Client`** -- crashes due to internal tokio runtime conflict. Use `ctx.table()` for data access or `curl_request()` for external HTTP
-- **No host statics** -- `OnceLock` values in yeti-core are duplicated in dylib. Use dylib-local statics
-- **Flag-based patterns** -- set flags in dylib code, let the host check them after `on_ready()` returns for any tokio operations
+| Constraint | Why | Alternative |
+|-----------|-----|-------------|
+| No `tracing::info!` | TLS isolation between host and dylib | `yeti_log!` or `eprintln!` |
+| No `tokio::spawn` | Crashes: "cannot catch foreign exceptions" | `futures::stream::unfold` |
+| No `reqwest::blocking::Client` | Internal tokio runtime conflict causes crash | `fetch()` |
+| No host statics | `OnceLock` in yeti-core is duplicated in dylib | Dylib-local statics |
+| No tokio channels/futures in host methods | Methods on host types run in dylib context when called from dylib | Flag-based patterns: set flags in dylib, host checks after `on_ready()` |
 
 ## Minimal Extension Example
 

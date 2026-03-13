@@ -17,8 +17,12 @@ Reference for `config.yaml` files at `~/yeti/applications/{app-id}/config.yaml`.
 |-------|------|---------|-------------|
 | `enabled` | boolean | `true` | Whether the application loads at startup |
 | `extension` | boolean | `false` | Whether this app provides an extension (shared service) |
+| `require_super_user` | boolean | `false` | Require super_user role for all routes |
+| `route_prefix` | string | `"/{app_id}"` | Custom route prefix override |
 
 When `extension: true`, the compiler scans source files for `struct {TypeName}Extension` and generates registration code automatically.
+
+When `require_super_user: true`, unauthenticated users receive 401 and non-super_user users receive 403 on all routes, even in development mode.
 
 ## Interface Flags
 
@@ -27,9 +31,10 @@ Control which protocols are exposed. Individual schemas can override per-table u
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `rest` | boolean | `true` | Enable REST API endpoints |
-| `graphql` | boolean | `false` | Enable GraphQL endpoint at `/{app-id}/graphql` |
+| `graphql` | boolean | `true` | Enable GraphQL endpoint at `/{app-id}/graphql` |
 | `ws` | boolean | `false` | Enable WebSocket subscriptions |
 | `sse` | boolean | `false` | Enable Server-Sent Events streaming |
+| `mcp` | boolean | `false` | Enable MCP (Model Context Protocol) endpoint |
 
 ## Schemas
 
@@ -55,13 +60,32 @@ Custom resource files compiled as dynamic library plugins. Supports glob pattern
 | `static_files.route` | string | `"/"` | URL route prefix |
 | `static_files.index` | string | `"index.html"` | Default file for directory requests |
 
-## Extensions
+## Extension Configuration
+
+Per-app extension configuration uses top-level keys:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `extensions` | string[] | `[]` | Ordered list of extension app IDs to load |
+| `auth` | object | - | Auth extension config (JWT settings, OAuth providers) |
+| `vectors` | object | - | Vector extension config (defaultModel, etc.) |
 
-Extensions are loaded before this application. Their tables are merged into the app's backend manager.
+The older `extensions:` list format is deprecated but still supported.
+
+```yaml
+# New style (preferred)
+auth:
+  jwt:
+    secret: "${JWT_SECRET:-dev-secret}"
+
+vectors:
+  defaultModel: "BAAI/bge-small-en-v1.5"
+
+# Old style (deprecated)
+extensions:
+  yeti-auth:
+    jwt:
+      secret: "${JWT_SECRET:-dev-secret}"
+```
 
 ## Dependencies
 
@@ -89,9 +113,17 @@ Seed data files to load on first startup.
 dataLoader: data/*.json
 ```
 
+## Audit Configuration
+
+Per-app audit trail settings. Only takes effect when global `audit.enabled` is true in yeti-config.yaml.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `audit.protocol.mcp` | boolean | `false` | Audit MCP requests |
+
 ## Custom Configuration
 
-Accessible via `ctx.config()` in resource handlers and `params.extension_config()` for extensions.
+Accessible via `ctx.config()` in resource handlers and `params.extension_config()` for extensions. Any top-level keys not recognized by Yeti are captured as custom configuration.
 
 ```yaml
 custom:
@@ -101,9 +133,6 @@ custom:
 
 origin:
   url: "https://www.example.com/"
-
-environment:
-  MODE: "redirect"
 ```
 
 ## See Also

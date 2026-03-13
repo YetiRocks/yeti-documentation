@@ -1,15 +1,16 @@
 # Authentication & Authorization
 
-The `yeti-auth` extension provides authentication with role-based access control (RBAC) down to the field level. Apps opt in by declaring it in `extensions:`:
+The `yeti-auth` extension provides authentication with RBAC down to the field level. Choose a method: [Basic](auth-basic.md) | [JWT](auth-jwt.md) | [OAuth](auth-oauth.md)
+
+Opt in by adding an `auth:` section to config.yaml:
 
 ```yaml
-extensions:
-  - yeti-auth:
-      oauth:
-        rules:
-          - strategy: provider
-            pattern: "github"
-            role: standard
+auth:
+  oauth:
+    rules:
+      - strategy: provider
+        pattern: "github"
+        role: standard
 ```
 
 ## Authentication Methods
@@ -35,7 +36,7 @@ No matching provider returns `401 Unauthorized`.
 
 ## Auth is Per-App
 
-Apps without `yeti-auth` in `extensions:` have no authentication - all requests are permitted. Public and authenticated APIs coexist on the same instance.
+Apps without an `auth:` section in config.yaml have no authentication - all requests are permitted. Public and authenticated APIs coexist on the same instance.
 
 ## Quick Setup
 
@@ -47,11 +48,10 @@ curl -sk -X POST https://localhost:9996/yeti-auth/users \
   -d '{"username":"myuser","password":"secure-password-123","roleId":"standard","email":"myuser@example.com"}'
 ```
 
-2. Add `yeti-auth` to your app:
+2. Add auth to your app's config.yaml:
 
 ```yaml
-extensions:
-  - yeti-auth: {}
+auth: {}
 ```
 
 3. Authenticate:

@@ -4,7 +4,7 @@ Yeti uses GraphQL schema definitions with custom directives to define your data 
 
 ## Schema Design
 
-Start by identifying your domain entities. Each entity becomes a type with `@table`:
+Each entity becomes a type with `@table`:
 
 ```graphql
 type Product @table {
@@ -70,6 +70,21 @@ type Session @table @export {
     expiresAt: Int @expiresAt         # Per-record TTL (Unix timestamp)
 }
 ```
+
+### Public Access
+
+Tables can declare which operations bypass authentication using `@export(public: [...])`:
+
+```graphql
+type Chat @table @export(public: [read, create, subscribe]) {
+    id: ID! @primaryKey
+    message: String!
+    author: String
+    createdAt: String @createdTime
+}
+```
+
+Values: `read`, `create`, `update`, `delete`, `subscribe`, `connect`, `publish`. Operations not listed still require authentication.
 
 ### Vector Search
 

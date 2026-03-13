@@ -21,7 +21,9 @@ resources:
 
 Resources compile to dynamic libraries and load at runtime. Initial compilation takes ~2 minutes; cached rebuilds are fast.
 
-For the full API - request parsing, response helpers, table access, manual trait implementation - see [Custom Resources](../guides/custom-resources.md).
+For HTTP calls, use `fetch()` from `yeti_sdk::prelude`. Do not use `reqwest::blocking::Client` -- crashes in dylib context.
+
+For the full API - request parsing, response helpers, table access, `fetch()` usage, manual trait implementation - see [Custom Resources](../guides/custom-resources.md).
 
 ## Routing Priority
 

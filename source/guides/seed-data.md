@@ -38,7 +38,7 @@ data/
 
 ## Change Detection
 
-Records are only written when the data file has changed since last load. Unchanged files are skipped for faster startup.
+Seed data loads on first startup. Records are upserted by primary key. Unchanged files are skipped on subsequent starts.
 
 ## Runtime Loading
 

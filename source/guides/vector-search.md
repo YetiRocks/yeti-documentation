@@ -30,7 +30,7 @@ The `embedding` field is populated automatically.
 The embedding model is resolved in this order:
 
 1. **Schema field** - `@indexed(source: "content", model: "all-MiniLM-L6-v2")`
-2. **App config** - `extensions: - yeti-vectors: { model: "all-MiniLM-L6-v2" }`
+2. **App config** - `vectors: { model: "all-MiniLM-L6-v2" }`
 3. **Default** - `BAAI/bge-small-en-v1.5` (ships with Yeti, downloaded on first use)
 
 Most apps don't need to specify a model:
@@ -68,20 +68,14 @@ If `M` is set without `mL`, the value is auto-computed as `1/ln(M)`.
 
 ### Config.yaml Setup
 
-The `yeti-vectors` extension must be enabled in your app's `config.yaml`:
+The yeti-vectors extension is auto-detected when your schema has `@vector` fields. To enable it explicitly or set a default model:
 
 ```yaml
-extensions:
-  - yeti-vectors
+vectors:
+  model: all-MiniLM-L6-v2
 ```
 
-To set a default model for the app:
-
-```yaml
-extensions:
-  - yeti-vectors:
-      model: all-MiniLM-L6-v2
-```
+The older `extensions: - yeti-vectors:` format still works but is deprecated.
 
 ## Search
 
@@ -244,9 +238,8 @@ yeti-vectors caches embeddings keyed by `sha256(model + "\0" + text)`. Determini
 Disable per-app:
 
 ```yaml
-extensions:
-  - yeti-vectors:
-      cache: false
+vectors:
+  cache: false
 ```
 
 Manage via REST:

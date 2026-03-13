@@ -1,115 +1,77 @@
-# Operations API
+# Server Management
 
-Administrative API on a separate port (default 9995), plain HTTP.
+Yeti provides server management through the `/health` endpoint and the built-in extension APIs. There is no centralized admin API -- each extension exposes its own endpoints under its route prefix.
 
-| Property | Value |
-|----------|-------|
-| Port | 9995 (configurable) |
-| Protocol | HTTP (no TLS) |
-| Method | POST with JSON body |
-| Health | `GET /health` |
-
-All operations use `{"operation": "operation_name"}`.
-
-## System Operations
-
-### health_check
+## Health Check
 
 ```bash
-curl -X POST http://localhost:9995/ \
-  -H "Content-Type: application/json" \
-  -d '{"operation": "health_check"}'
+curl -sk https://localhost:9996/health
 ```
 
-Quick check also available via `GET /health`.
+Returns server health status including loaded application count.
 
-### system_information
+## Extension APIs
+
+Studio and other admin tools interact with each extension's REST API directly. All extension endpoints require `super_user` authentication.
+
+### Applications (yeti-applications)
 
 ```bash
-curl -X POST http://localhost:9995/ \
-  -H "Content-Type: application/json" \
-  -d '{"operation": "system_information"}'
+# List all deployed applications
+curl -sk https://localhost:9996/yeti-applications/Application \
+  -H "Authorization: Basic $(echo -n 'YETI_ADMIN:password' | base64)"
 ```
 
-Returns hostname, OS, CPU, memory, uptime, and loaded application count.
+Returns all deployed applications with metadata.
 
-### get_configuration
+### Authentication (yeti-auth)
 
 ```bash
-curl -X POST http://localhost:9995/ \
-  -H "Content-Type: application/json" \
-  -d '{"operation": "get_configuration"}'
+# List users
+curl -sk https://localhost:9996/yeti-auth/users \
+  -H "Authorization: Basic $(echo -n 'YETI_ADMIN:password' | base64)"
+
+# List roles
+curl -sk https://localhost:9996/yeti-auth/roles \
+  -H "Authorization: Basic $(echo -n 'YETI_ADMIN:password' | base64)"
 ```
 
-Returns current server configuration (secrets are sanitized).
+User and role management. See [Authentication](../guides/auth-overview.md) for the full API.
 
-## Application Operations
-
-### list_applications
+### Telemetry (yeti-telemetry)
 
 ```bash
-curl -X POST http://localhost:9995/ \
-  -H "Content-Type: application/json" \
-  -d '{"operation": "list_apps"}'
+# Query logs
+curl -sk https://localhost:9996/yeti-telemetry/Log?limit=50 \
+  -H "Authorization: Basic $(echo -n 'YETI_ADMIN:password' | base64)"
+
+# Stream logs in real-time
+curl -sk https://localhost:9996/yeti-telemetry/Log?stream=sse \
+  -H "Authorization: Basic $(echo -n 'YETI_ADMIN:password' | base64)"
+
+# Query metrics
+curl -sk https://localhost:9996/yeti-telemetry/Metric?limit=50 \
+  -H "Authorization: Basic $(echo -n 'YETI_ADMIN:password' | base64)"
 ```
 
-Returns all deployed applications with ID, name, route prefix, table count, and interface flags.
+Log, span, and metric storage with real-time SSE streaming. See [Telemetry](../guides/telemetry.md).
 
-## Describe Operations
-
-### describe_all
-
-Lists all databases and their tables.
+### Vectors (yeti-vectors)
 
 ```bash
-curl -X POST http://localhost:9995/ \
-  -H "Content-Type: application/json" \
-  -d '{"operation": "describe_all"}'
+# List available models
+curl -sk https://localhost:9996/yeti-vectors/models \
+  -H "Authorization: Basic $(echo -n 'YETI_ADMIN:password' | base64)"
 ```
 
-### describe_table
+Vector embedding model management. See [Vector Search](../guides/vector-search.md).
 
-```bash
-curl -X POST http://localhost:9995/ \
-  -H "Content-Type: application/json" \
-  -d '{"operation": "describe_table", "database": "data", "table": "User"}'
-```
+## Authentication
 
-## Deployment Operations
-
-### package_component
-
-Package an application for deployment to another server.
-
-```bash
-curl -X POST http://localhost:9995/ \
-  -H "Content-Type: application/json" \
-  -d '{"operation": "package_component", "project": "my-app"}'
-```
-
-### deploy_component
-
-Deploy a packaged application. Validates that the package platform matches the target server.
-
-```bash
-curl -X POST http://localhost:9995/ \
-  -H "Content-Type: application/json" \
-  -d '{"operation": "deploy_component", "project": "my-app", "payload": "H4sIAAAAAAAA..."}'
-```
-
-## Security
-
-Do not expose port 9995 to the public internet. Restrict access using firewall rules.
-
-```yaml
-operationsApi:
-  port: 9995
-  enabled: true
-  cors: false
-```
+All extension APIs use the same authentication as the rest of the platform (Basic, JWT, or OAuth). The user must have the `super_user` role.
 
 ## See Also
 
-- [REST API](rest.md) - Application data API
-- [Server Configuration](../reference/server-config.md) - Config reference
-- [Error Codes](errors.md) - Error response details
+- [REST API](rest.md) -- Application data API
+- [Server Configuration](../reference/server-config.md) -- Config reference
+- [Error Codes](errors.md) -- Error response details

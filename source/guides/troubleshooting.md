@@ -50,7 +50,13 @@ Methods defined on host-compiled structs (like `ExtensionContext`) run in dylib 
 
 **`reqwest::blocking::Client` crashes**
 
-Reqwest's blocking client creates an internal tokio runtime that conflicts with the dylib boundary. This crashes in async handlers AND in `std::thread::spawn` threads. For table access, use `ctx.get_table("Name")?.get_all().await?`. For external HTTP, use `std::process::Command` to call `curl`.
+Reqwest's blocking client creates an internal tokio runtime that conflicts with the dylib boundary. This crashes in async handlers AND in `std::thread::spawn` threads. For table access, use `ctx.get_table("Name")?.get_all().await?`. For external HTTP, use `fetch()` from `yeti_sdk::prelude` -- a Node.js-compatible API wrapping curl:
+
+```rust,ignore
+let res = fetch("https://api.example.com/data", None)
+    .map_err(|e| YetiError::Validation(e))?;
+let data = res.json()?;
+```
 
 ## Networking & TLS
 
@@ -62,23 +68,21 @@ Development server uses self-signed certificates. Always use `-sk` flags:
 curl -sk https://localhost:9996/health
 ```
 
-**Connection refused on port 443**
+**Connection refused on port 9996**
 
 Check that the server is running and the port matches `yeti-config.yaml`:
 
 ```yaml
 http:
-  port: 443
+  port: 9996
 ```
 
-**Operations API not responding**
+**Port already in use**
 
-The Operations API runs on a separate port (default 9995) over plain HTTP:
+Another process is using the configured port. Find it and stop it, or change the port in `yeti-config.yaml`:
 
 ```bash
-curl -X POST http://localhost:9995/ \
-  -H "Content-Type: application/json" \
-  -d '{"operation":"list_apps"}'
+lsof -i :9996
 ```
 
 ## Data & Queries
@@ -120,3 +124,23 @@ Tables need `@export(rest: true)` in schema.graphql AND `rest: true` in `config.
 ```bash
 rm -rf /tmp/yeti-test-*
 ```
+
+## Plugin Cache
+
+When in doubt, clear the plugin cache. This forces a full recompile on next startup (~2 min per plugin):
+
+```bash
+# Clear all plugin caches
+rm -rf ~/yeti/cache/builds/*/target/
+rm -rf ~/yeti/cache/builds/*/src/
+
+# Clear a single app
+rm -rf ~/yeti/cache/builds/my-app/target/
+rm -rf ~/yeti/cache/builds/my-app/src/
+```
+
+Always clear after:
+- Rebuilding yeti from source (`cargo clean && cargo build`)
+- Upgrading yeti to a new version
+- Changing plugin dependencies in config.yaml
+- Seeing unexplained segfaults or ABI errors

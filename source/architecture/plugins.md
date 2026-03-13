@@ -16,7 +16,7 @@ ApplicationCompiler
 cache/builds/{app}/target/release/lib{app}.dylib
 ```
 
-Fresh builds take ~2 minutes per plugin (pre-built RocksDB avoids 65s C++ compilation). Cached rebuilds take ~10 seconds.
+Fresh builds take ~2 minutes per plugin. Cached rebuilds take ~10 seconds.
 
 ## Hot Reload
 
@@ -31,12 +31,7 @@ Application-level hot reload also watches `applications/` for new or removed app
 
 ## Plugin Source Cache
 
-The compiler copies source to `cache/builds/{app}/src/` before building. Clear the cache when changes aren't taking effect:
-
-```bash
-rm -rf ~/yeti/cache/builds/{app}/src/
-rm -rf ~/yeti/cache/builds/{app}/target/
-```
+The compiler copies source to `cache/builds/{app}/src/` before building. See [Troubleshooting](../guides/troubleshooting.md) for cache-clearing instructions when changes are not taking effect.
 
 ## Dylib Boundary Rules
 

@@ -1,6 +1,6 @@
 # Extensions
 
-Extensions provide shared services to multiple applications. An extension makes its capabilities - auth, telemetry, middleware - available to any app that opts in.
+Extensions provide shared services -- auth, telemetry, middleware -- to any app that opts in.
 
 ## Built-in Extensions
 
@@ -8,8 +8,9 @@ Extensions provide shared services to multiple applications. An extension makes 
 |-----------|---------|
 | **yeti-auth** | Authentication (Basic, JWT, OAuth) and role-based access control |
 | **yeti-telemetry** | Log collection, span tracing, metrics, and a real-time dashboard |
+| **yeti-vectors** | Embedding models, HNSW vector indexing, and similarity search |
 
-Both are standard Yeti applications with `extension: true`. You can disable, replace, or supplement them.
+All three are standard Yeti applications with `extension: true`, binary-embedded. Disable, replace, or supplement them as needed.
 
 ## Extension Setup
 
@@ -75,23 +76,22 @@ pub trait Extension: Send + Sync {
 
 ## Consumer Configuration
 
-Apps opt in via `extensions:` in config.yaml with optional inline config:
+Apps opt in via top-level keys in config.yaml (`auth:`, `vectors:`) with inline config:
 
 ```yaml
-extensions:
-  - yeti-auth:
-      oauth:
-        default_role: "viewer"
-        rules:
-          - strategy: provider
-            pattern: "google"
-            role: admin
-          - strategy: email
-            pattern: "*@corp.com"
-            role: standard
+auth:
+  oauth:
+    default_role: "viewer"
+    rules:
+      - strategy: provider
+        pattern: "google"
+        role: admin
+      - strategy: email
+        pattern: "*@corp.com"
+        role: standard
 ```
 
-Per-app config is accessible via `ctx.extension_config("yeti-auth")`.
+The older `extensions:` list format still works but is deprecated. Per-app config is accessible via `params.extension_config("yeti-auth")`.
 
 ## Lifecycle
 

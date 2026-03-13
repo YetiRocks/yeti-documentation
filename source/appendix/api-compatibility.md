@@ -1,17 +1,17 @@
 # API Compatibility Matrix
 
-Harper API implementation status in Yeti. ~95% parity achieved.
+Yeti API feature implementation status.
 
 ## Resource API (REST)
 
 | Endpoint | Status |
 |----------|--------|
-| `GET /schema/table` | Complete |
-| `GET /schema/table/:id` | Complete |
-| `POST /schema/table` | Complete |
-| `PUT /schema/table/:id` | Complete |
-| `DELETE /schema/table/:id` | Complete |
-| `GET /schema/table?fiql` | Complete |
+| `GET /{app}/{table}` | Complete |
+| `GET /{app}/{table}/:id` | Complete |
+| `POST /{app}/{table}` | Complete |
+| `PUT /{app}/{table}/:id` | Complete |
+| `DELETE /{app}/{table}/:id` | Complete |
+| `GET /{app}/{table}?fiql` | Complete |
 
 ## FIQL Query Language
 
@@ -26,23 +26,21 @@ Harper API implementation status in Yeti. ~95% parity achieved.
 | Regex (`=~=`) | Complete |
 | Set membership (`=in=`, `=out=`) | Complete |
 | Full-text search (`=ft=`) | Complete |
-| Strict equality (`===`, `!==`) | Yeti extension |
-| Contains/starts/ends (`=ct=`, `=sw=`, `=ew=`) | Yeti extension |
-| Range operators (`=gele=`, `=gtlt=`) | Yeti extension |
-| Type prefixes (`number:`, `boolean:`, `date:`) | Yeti extension |
+| Strict equality (`===`, `!==`) | Complete |
+| Contains/starts/ends (`=ct=`, `=sw=`, `=ew=`) | Complete |
+| Range operators (`=gele=`, `=gtlt=`) | Complete |
+| Type prefixes (`number:`, `boolean:`, `date:`) | Complete |
 
-## Operations API
+## Administrative Endpoints
 
-| Operation | Status |
-|-----------|--------|
-| `system_information` | Complete |
-| `health_check` | Complete |
-| `get_configuration` | Complete |
-| `get_components` / `list_apps` | Complete |
-| `describe_all` / `describe_table` | Complete |
-| `package_component` / `deploy_component` | Complete |
-| `add_component` / `drop_component` | Planned |
-| Schema operations (`create_schema`, `create_table`, etc.) | Planned |
+| Endpoint | Status |
+|----------|--------|
+| `GET /health` | Complete |
+| `GET /yeti-applications/Application` | Complete (requires super_user) |
+| `GET /yeti-auth/users` | Complete (requires super_user) |
+| `GET /yeti-auth/roles` | Complete (requires super_user) |
+| `GET /yeti-telemetry/Log` | Complete (requires super_user) |
+| `GET /yeti-vectors/models` | Complete (requires super_user) |
 
 ## Other Features
 
@@ -52,10 +50,15 @@ Harper API implementation status in Yeti. ~95% parity achieved.
 | HNSW vector index | Complete |
 | Custom resources (GET/POST/PUT/DELETE/PATCH) | Complete |
 | Static file serving | Complete |
-| Auto-embedding (yeti-vectors) | Yeti extension |
+| Server-Sent Events (SSE) | Complete |
+| WebSocket subscriptions | Complete |
+| MQTT publish/subscribe | Complete |
+| GraphQL queries | Complete |
+| Auto-embedding (yeti-vectors) | Complete |
+| OAuth 2.0 (Google, GitHub, Microsoft) | Complete |
+| JWT authentication | Complete |
+| Role-based access control | Complete |
 
 ## Legend
 
 - **Complete** - Fully implemented and tested
-- **Planned** - Scheduled for implementation
-- **Yeti extension** - Feature beyond Harper's capabilities

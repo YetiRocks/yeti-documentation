@@ -53,17 +53,15 @@ resources:
   - resources/*.rs
 ```
 
-Apps opt in via `extensions:`:
+Apps opt in via top-level config keys:
 
 ```yaml
-extensions:
-  - my-extension: {}
-  - yeti-auth:
-      oauth:
-        rules:
-          - strategy: provider
-            pattern: "github"
-            role: standard
+auth:
+  oauth:
+    rules:
+      - strategy: provider
+        pattern: "github"
+        role: standard
 ```
 
 Order matters - extensions initialize and run middleware in listed order.

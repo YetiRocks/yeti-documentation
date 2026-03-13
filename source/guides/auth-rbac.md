@@ -12,7 +12,7 @@ Each user has a `roleId` that maps to a Role record with structured permissions.
 }
 ```
 
-The `permissions` field is a JSON string:
+The `permissions` field is a double-encoded JSON string (a JSON object serialized as a string value). The auth system unwraps this before deserializing:
 
 ```json
 {

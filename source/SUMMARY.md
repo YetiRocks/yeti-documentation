@@ -6,7 +6,7 @@
 
 # Getting Started
 
-- [Get Early Access](getting-started/install-coming-soon.md)
+- [Installation](getting-started/installation.md)
 - [Quickstart](getting-started/quickstart.md)
 - [Your First Application](getting-started/first-application.md)
 
@@ -129,4 +129,4 @@
 
 - [API Compatibility Matrix](appendix/api-compatibility.md)
 - [Performance Benchmarks](appendix/benchmarks.md)
-- [Migration from Harper](appendix/migration.md)
+- [Migration Guide](appendix/migration.md)

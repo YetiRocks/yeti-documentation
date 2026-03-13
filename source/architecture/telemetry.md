@@ -32,7 +32,7 @@ A `tracing` subscriber layer that serializes log events and span lifecycle to JS
 
 ### Feedback Filter
 
-Skips events from `yeti_core::{pubsub, backend, telemetry, resource::table, http::sse}` to prevent telemetry writes from generating more telemetry.
+Uses `FILTERED_MESSAGE_PREFIXES` (SSE content checks) to prevent telemetry writes from generating more telemetry. In production mode, only ERROR-level events pass through.
 
 ## EventSubscriber Trait
 

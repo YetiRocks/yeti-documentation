@@ -1,5 +1,7 @@
 # Static File Serving
 
+> **Warning:** Do not use `default = true` in a custom resource when the app also has `static_files:` configured. The SPA fallback and the default resource conflict over routes. Use explicit named resources instead.
+
 Yeti serves frontend applications alongside your API.
 
 ## Configuration

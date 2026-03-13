@@ -1,24 +1,24 @@
 # Monitoring
 
-## Operations API
+## Health Check
 
-Health check (liveness probe):
-
-```bash
-curl -s http://localhost:9995/health
-```
-
-System information:
+Liveness probe available on the main HTTPS port:
 
 ```bash
-curl -s http://localhost:9995/system
+curl -sk https://localhost:9996/health
 ```
 
-Active configuration (secrets redacted):
+Returns server status and loaded application count.
 
-```bash
-curl -s http://localhost:9995/config
+## Admin Dashboard
+
+Full application management and monitoring via Studio:
+
 ```
+https://localhost:9996/studio/
+```
+
+See [Studio](../guides/studio.md) for details.
 
 ## Telemetry Extension
 
@@ -64,4 +64,4 @@ Also configurable via `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
 | Real-time | SSE streams or Dashboard | Instant |
 | Near-real-time | OTLP export to Grafana | Seconds |
 | Historical | REST queries on Log/Span/Metric tables | On-demand |
-| Uptime | Operations API health check | Poll-based |
+| Uptime | Health endpoint | Poll-based |

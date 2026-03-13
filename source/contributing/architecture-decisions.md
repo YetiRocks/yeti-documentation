@@ -4,7 +4,7 @@ Key technology choices for yeti-core v1.0.
 
 ## ADR-001: RocksDB as Storage Backend
 
-**Decision**: RocksDB for all deployments (embedded and cluster modes).
+**Decision**: Embedded RocksDB for all deployments.
 
 **Why**: LSM-tree architecture optimized for write-heavy workloads, proven at Facebook/LinkedIn/Netflix scale, native TTL support, efficient range queries. 10+ years in production.
 
@@ -34,9 +34,9 @@ Key technology choices for yeti-core v1.0.
 
 **Decision**: FIQL (Feed Item Query Language) for REST filtering.
 
-**Why**: Harper-compatible, URL-safe, human-readable (`name==john;age>18`), composable with AND/OR operators.
+**Why**: URL-safe, human-readable (`name==john;age>18`), composable with AND/OR operators, widely understood.
 
-**Rejected**: OData (too complex), custom DSL (no user familiarity, breaks compatibility).
+**Rejected**: OData (too complex), custom DSL (no user familiarity).
 
 **Benchmarks**: Parse <1us per query, evaluate <100ns per record.
 
@@ -55,4 +55,3 @@ Key technology choices for yeti-core v1.0.
 | HTTP Server | actix-web |
 | Query Language | FIQL |
 | TLS | Rustls + ring |
-| Compatibility | Harper API |

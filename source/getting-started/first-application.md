@@ -1,6 +1,6 @@
 # Your First Application
 
-Build a task tracker with two related tables, seed data, a custom resource, and real-time streaming.
+Build a task tracker with two related tables, seed data, a custom resource, and real-time streaming. Requires [installation](installation.md) and [Quickstart](quickstart.md).
 
 ## Step 1: Create the Application
 
@@ -195,8 +195,6 @@ curl -sk --max-time 30 "https://localhost:9996/task-tracker/Task?stream=sse"
     tags.json          # Tag seed data
     tasks.json         # Task seed data
 ```
-
-Five files. No boilerplate.
 
 ## Next Steps
 

@@ -32,19 +32,18 @@ MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret
 Map OAuth users to roles in your app's config:
 
 ```yaml
-extensions:
-  - yeti-auth:
-      oauth:
-        rules:
-          - strategy: provider
-            pattern: "google"
-            role: admin
-          - strategy: email
-            pattern: "*@mycompany.com"
-            role: standard
-          - strategy: provider
-            pattern: "github"
-            role: standard
+auth:
+  oauth:
+    rules:
+      - strategy: provider
+        pattern: "google"
+        role: admin
+      - strategy: email
+        pattern: "*@mycompany.com"
+        role: standard
+      - strategy: provider
+        pattern: "github"
+        role: standard
 ```
 
 Strategies: `provider` (match by provider name) or `email` (wildcard pattern). Rules evaluate in order; first match wins. No match and no `default_role` returns `401`.

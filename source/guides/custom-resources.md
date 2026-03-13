@@ -1,6 +1,6 @@
 # Custom Resources
 
-Custom resources add business logic beyond auto-generated CRUD. They are Rust source files compiled into dynamic library plugins.
+Custom resources add business logic beyond auto-generated CRUD.
 
 ## Getting Started
 
@@ -184,6 +184,43 @@ register_resource!(PageCache);
 ```
 
 The `resource!` macro handles registration automatically. For manual implementations, add `register_resource!(MyResource);` at the end.
+
+## External HTTP Requests
+
+Use `fetch()` from `yeti_sdk::prelude` for external HTTP calls. Do not use `reqwest::blocking::Client` -- it crashes in the dylib context.
+
+```rust,ignore
+use yeti_sdk::prelude::*;
+
+resource!(Proxy {
+    get(request, ctx) => {
+        let res = fetch("https://api.example.com/data", None)
+            .map_err(|e| YetiError::Validation(e))?;
+
+        if res.ok() {
+            ok_json!(res.json()?)
+        } else {
+            reply().code(res.status).text(&format!("Upstream error: {}", res.status))
+        }
+    },
+    post(request, ctx) => {
+        let body = request.json_value()?;
+        let res = fetch("https://api.example.com/data", Some(FetchOptions {
+            method: "POST".to_string(),
+            headers: vec![("Content-Type".to_string(), "application/json".to_string())]
+                .into_iter().collect(),
+            body: Some(body.to_string()),
+            ..Default::default()
+        })).map_err(|e| YetiError::Validation(e))?;
+
+        ok_json!(res.json()?)
+    }
+});
+```
+
+`FetchResponse` methods: `.ok()`, `.json()`, `.text()`, `.header(name)`, `.status`, `.url`, `.redirected`.
+
+`FetchOptions` fields: `method`, `headers`, `body`, `redirect`, `timeout`, `signal_timeout`.
 
 ## Supported HTTP Methods
 
