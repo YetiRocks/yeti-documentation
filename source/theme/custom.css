@@ -374,14 +374,14 @@ code {
 pre code {
   display: block !important;
   padding: 0;
-  background: #1e1e1e !important;
+  background: var(--color-black-overlay) !important;
   color: var(--color-white);
   font-size: var(--font-size-sm);
 }
 
 pre {
-  background: #1e1e1e;
-  border: 1px solid var(--color-border-primary);
+  background: var(--color-black-overlay);
+  border: none;
   border-radius: var(--radius-md);
   padding: var(--space-6);
   overflow-x: auto;
@@ -389,7 +389,7 @@ pre {
 }
 
 pre code {
-  background: var(--color-black);
+  background: var(--color-black-overlay);
   padding: 0;
   color: var(--color-white);
   font-size: var(--font-size-sm);
@@ -401,7 +401,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   margin: var(--space-6) 0;
-  background: #0b0b0b;
+  background: var(--color-black-overlay);
   font-size: var(--font-size-sm);
 }
 
@@ -412,7 +412,9 @@ th {
   text-align: left;
   color: var(--color-white);
   font-weight: 600;
-  border-bottom: 2px solid var(--color-border-primary);
+  border-bottom: 1px solid var(--color-border-primary);
+  background: var(--color-black-overlay);
+  text-transform: uppercase;
 }
 
 td {
