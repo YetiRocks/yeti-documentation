@@ -46,6 +46,7 @@
   - [Server-Sent Events](guides/sse.md)
   - [WebSocket](guides/websocket.md)
   - [PubSub](guides/pubsub.md)
+  - [MQTT](guides/mqtt.md)
 - [Building Extensions](guides/building-extensions.md)
   - [Extension Lifecycle](guides/extension-lifecycle.md)
   - [Event Subscribers](guides/event-subscribers.md)

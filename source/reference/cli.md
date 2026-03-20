@@ -30,7 +30,7 @@ Running `yeti` with no command will launch the install wizard if Yeti is not yet
 | `-h`, `--help` | Print help |
 | `--buildonly` | Compile plugins only, then exit |
 | `--apps <a,b,c>` | Only load specified applications (comma-separated) |
-| `--port <PORT>` | HTTP port (default: 9996) |
+| `--port <PORT>` | HTTP port (default: 443) |
 | `--dir <PATH>` | Root directory (default: ~/yeti) |
 
 ### Install Options
@@ -76,7 +76,7 @@ yeti --version
 4. Filter by `--apps` if specified
 5. Compile application plugins (~2 min per plugin on first run, ~10 seconds cached)
 6. Load plugins and register resources
-7. Start HTTPS server on configured port (default 9996)
+7. Start HTTPS server on configured port (default 443). Use `--port 8443` for a custom port.
 
 ## Plugin Cache
 

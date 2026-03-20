@@ -1,82 +1,68 @@
 # Performance Benchmarks
 
-Benchmark data from Yeti's Criterion.rs test suite. 8 threads, 20 iterations, 5-second measurement per benchmark. Test records: ~1KB with 8 attributes.
+Live benchmark results from a single Yeti node running the app-benchmarks application.
 
-## Summary
+## End-to-End API Throughput
 
-| Operation | Throughput | Notes |
-|-----------|------------|-------|
-| Simple READ | 186K ops/s | Direct RocksDB access |
-| Simple CREATE | 82K ops/s | No indexes |
-| Mixed (70R/30W) | 156K ops/s | Realistic workload |
-| With Indexes | 15-62K ops/s | Depends on index count |
+Results from 30-second tests with 100 concurrent clients (5s warmup excluded). All traffic over HTTPS/TLS 1.3.
 
-## CRUD by Index Count
+### Transactional API (REST)
 
-| Operation | 0 indexes | 1 index | 2 indexes |
-|-----------|-----------|---------|-----------|
-| CREATE | 82.5K | 25.4K (-69%) | 15.6K (-81%) |
-| READ | 186.6K | 175K (-6%) | 172K (-8%) |
-| UPDATE | 64.5K | 10.4K (-84%) | 5.7K (-91%) |
-| DELETE | 32.9K | 9.7K (-71%) | 5.7K (-83%) |
-| MIXED (70R/30W) | 156.2K | 62.0K (-60%) | 40.2K (-74%) |
+| Operation | Throughput | P50 | P95 | P99 |
+|-----------|------------|-----|-----|-----|
+| REST Reads | 87k req/s | 1.07 ms | 2.01 ms | 2.71 ms |
+| REST Writes | 52k req/s | 1.74 ms | 3.44 ms | 6.42 ms |
+| REST Update | 38k req/s | 2.31 ms | 4.62 ms | 8.51 ms |
+| REST Join | 83k req/s | 1.07 ms | 2.08 ms | 2.88 ms |
 
-## Full Stack
+### Graph API (GraphQL)
 
-| Layer | Benchmark | Throughput |
-|-------|-----------|------------|
-| Encoding | key_encoding | 2.19M ops/s |
-| Encoding | value_encoding | 7.60M ops/s |
-| Storage | backend put | 845K ops/s |
-| Storage | backend get | 821K ops/s |
-| Indexes | hash insert | 14.1K ops/s |
-| Indexes | hash lookup | 52.5K ops/s |
-| Indexes | range scan | 5.13M ops/s |
-| Query | fiql simple eq | 28.0M ops/s |
-| Query | fiql 10k records | 43.4M ops/s |
-| Handlers | 1k posts | 331K ops/s |
-| Handlers | concurrent 8T | 807K ops/s |
-| Handlers | mixed 70R/30W | 464K ops/s |
-| Ingress | request deserialize (small) | 4.29M ops/s |
-| Ingress | response serialize (small) | 11.4M ops/s |
-| Ingress | full request cycle (8T) | 1.22M ops/s |
-| Routing | GET 100 tables | 173K ops/s |
-| Transaction | single write | 91.3K ops/s |
-| Transaction | read-modify-write | 66.7K ops/s |
-| Locking | acquire 1000 keys | 3.28M ops/s |
-| Locking | contention 1 key | 4.02M ops/s |
-| Static Files | serve 1000 files | 173K ops/s |
+| Operation | Throughput | P50 | P95 | P99 |
+|-----------|------------|-----|-----|-----|
+| GraphQL Reads | 74k req/s | 1.22 ms | 2.54 ms | 3.74 ms |
+| GraphQL Writes | 66k req/s | — | — | — |
+| GraphQL Updates | — | — | — | — |
+| GraphQL Join | — | — | — | — |
 
-## Benchmark Commands
+### Realtime & Streaming
+
+| Test | Clients | Throughput | Description |
+|------|---------|------------|-------------|
+| WS Fan-In | 100 | 749k msg/s | WebSocket ingestion from concurrent writers |
+| WS Fan-Out | 4.3k | 28k msg/s | WebSocket subscriber message delivery |
+| SSE Fan-Out | 1k | 26k msg/s | SSE subscriber message delivery |
+| MQTT Fan-Out | — | — | MQTT broker pub/sub throughput |
+
+## Running Benchmarks
+
+Benchmarks run as a standalone Yeti application at `/app-benchmarks/`. The web UI provides one-click test execution with live progress tracking.
 
 ```bash
-# Automated suite (recommended)
-python3 run-benches.py
-
-# Specific layer
-python3 run-benches.py transaction
-
-# Manual
-cargo bench --bench integration
-
-# Compare against baseline
-cargo bench -- --save-baseline before-optimization
-cargo bench -- --baseline before-optimization
+# Access the benchmark dashboard
+open https://localhost/app-benchmarks/
 ```
+
+Individual load test binaries can also be run directly:
+
+```bash
+load-rest --test rest-read --base-url https://localhost --duration 30 --vus 100
+load-graphql --test graphql-read --base-url https://localhost --duration 30 --vus 100
+load-realtime --test ws --base-url https://localhost --duration 30 --vus 15000
+```
+
+## Test Environment
+
+| Parameter | Value |
+|-----------|-------|
+| Duration | 30 seconds per test (5s warmup excluded) |
+| Concurrency | 100 clients (API), up to 15,000 subscribers (realtime) |
+| Transport | HTTPS / TLS 1.3, HTTP/1.1 with connection reuse |
+| Storage | Embedded RocksDB (single node, no replication) |
+| Dataset | 1,000 records for reads/joins |
 
 ## Bottleneck Analysis
 
-1. **Writes**: Index updates (14-16K ops/s) dominate cost
-2. **Reads**: RocksDB access (821K ops/s) with minimal overhead
-3. **Overall**: Indexes are the main performance lever - only index fields you filter on
-
-## Comparison
-
-| System | Simple Read | Simple Write |
-|--------|-------------|--------------|
-| **Yeti** | 186K ops/s | 82K ops/s |
-| Traditional DB | 5-10K ops/s | 3-5K ops/s |
-| MongoDB | 10-20K ops/s | 5-10K ops/s |
-| PostgreSQL | 15-30K ops/s | 10-15K ops/s |
-
-Yeti's advantage: 10-20x faster due to zero network overhead and direct memory access.
+1. **Writes**: Storage I/O and WAL throughput dominate write cost
+2. **Reads**: Sub-millisecond with RocksDB block cache hits
+3. **Realtime**: TLS handshake capacity limits concurrent connections (~15k per process)
+4. **Indexes**: Only index fields you filter on — each index adds write overhead

@@ -16,11 +16,11 @@ Reference for `yeti-config.yaml` at the root directory (default: `~/yeti/yeti-co
 
 ## http
 
-Application API server (default port 9996, HTTPS).
+Application API server (default port 443, HTTPS).
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `http.port` | integer | `9996` | HTTPS port |
+| `http.port` | integer | `443` | HTTPS port |
 | `http.cors` | boolean | `true` | Enable CORS headers |
 | `http.corsAccessList` | string[] | `["*"]` | Allowed CORS origins |
 | `http.timeout` | integer | `120000` | Request timeout (ms) |
@@ -32,12 +32,15 @@ Application API server (default port 9996, HTTPS).
 
 ## storage
 
+Storage is RocksDB. Replication activates when `replicationPort` and `seedNodes` are configured.
+
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `storage.mode` | string | `"embedded"` | `"embedded"` for single-node RocksDB storage |
 | `storage.caching` | boolean | `true` | Enable in-memory read cache |
 | `storage.compression` | boolean | `true` | Enable data compression |
 | `storage.path` | string | `null` | Custom storage path (default: `$rootDirectory/data/`) |
+| `storage.replicationPort` | integer | none | Port for gRPC replication (TCP) and gossip membership (UDP). Enables cluster mode. |
+| `storage.seedNodes` | string[] | none | Peer addresses for cluster discovery |
 
 ## logging
 
@@ -82,7 +85,7 @@ Embedded MQTT broker configuration.
 | `mqtt.port` | integer | `8883` | MQTTS port for native clients |
 | `mqtt.maxClients` | integer | `10000` | Maximum simultaneous MQTT clients |
 
-When enabled, the broker also exposes a WebSocket proxy at `wss://host:9996/mqtt` for browser clients.
+When enabled, the broker also exposes a WebSocket proxy at `wss://host/mqtt` for browser clients.
 
 ## rateLimiting
 
@@ -127,7 +130,7 @@ environment: production
 rootDirectory: /opt/yeti
 
 http:
-  port: 9996
+  port: 443
   cors: true
   corsAccessList:
     - "https://app.example.com"
@@ -135,9 +138,11 @@ http:
   compressionThreshold: 1024
 
 storage:
-  mode: embedded
   caching: true
   compression: true
+  # replicationPort: 9997    # uncomment to enable cluster replication
+  # seedNodes:               # peer addresses for cluster discovery
+  #   - "peer1:9997"
 
 logging:
   level: info

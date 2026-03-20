@@ -1,11 +1,24 @@
 # Storage Engine
 
-Embedded RocksDB key-value store. Each application gets its own database namespace with automatic sharding.
+RocksDB key-value store. Each application gets its own database namespace with automatic sharding. Data always lives in `data/` under the root directory.
+
+```yaml
+storage:          # RocksDB storage (default, no config needed)
+```
+
+## Replication
+
+Replication activates when `replicationPort` and `seedNodes` are configured. With no peers, the coordinator idles and the node runs standalone. The health endpoint reports `mode: "rocksdb"` in all cases.
 
 ```yaml
 storage:
-  mode: embedded
+  replicationPort: 9997       # TCP for gRPC, UDP for gossip
+  seedNodes:
+    - "peer1:9997"
+    - "peer2:9997"
 ```
+
+When configured, the cluster coordinator starts, gossip discovers peers, and replication begins automatically. There is no separate "embedded" vs "distributed" mode -- only one storage engine exists.
 
 ## Sharding
 

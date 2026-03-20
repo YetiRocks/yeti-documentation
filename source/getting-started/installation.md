@@ -26,7 +26,7 @@ A scrollable form with the following fields. Defaults are shown in parentheses.
 |-------|---------|-------------|
 | ROOT DIRECTORY | `~/yeti` | Where Yeti stores applications, data, and configuration |
 | HOSTNAME | `localhost` | Server hostname for TLS certificate generation |
-| PORT | `9996` | HTTPS listen port |
+| PORT | `443` | HTTPS listen port |
 | ENVIRONMENT | `development` | Toggle with Space between `development` and `production` |
 | ENABLE LOCAL STUDIO | `yes` | Install the Yeti Studio web interface |
 | INCLUDE BASIC DEMO APP | `yes` | Install a sample application to explore |
@@ -57,7 +57,7 @@ yeti install \
   --agree-to-terms \
   --dir ~/yeti \
   --hostname localhost \
-  --port 9996 \
+  --port 443 \
   --environment development
 ```
 
@@ -84,7 +84,7 @@ No files are installed outside this directory. Uninstalling is `rm -rf ~/yeti`.
 Yeti starts automatically when installation completes. Studio is accessible at:
 
 ```
-https://localhost:9996/studio/
+https://localhost/studio/
 ```
 
 On subsequent runs, start the server from the root directory:
