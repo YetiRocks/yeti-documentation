@@ -1,6 +1,6 @@
 # Architecture Decisions
 
-Key technology choices for yeti-core v1.0.
+Key technology choices for yeti v1.0.
 
 ## ADR-001: RocksDB as Storage Backend
 

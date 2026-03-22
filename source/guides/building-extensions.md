@@ -22,13 +22,13 @@ impl Extension for MyExtension {
     fn name(&self) -> &str { "my-extension" }
 
     fn initialize(&self) -> Result<()> {
-        eprintln!("[my-extension] Initializing");
+        tracing::info!("[my-extension] Initializing");
         Ok(())
     }
 
     fn on_ready(&self, ctx: &ExtensionContext) -> Result<()> {
         if let Some(table) = ctx.table("my-table") {
-            eprintln!("[my-extension] Table available");
+            tracing::info!("[my-extension] Table available");
         }
         Ok(())
     }
@@ -77,7 +77,7 @@ The dylib boundary creates important constraints:
 - Host statics (`OnceLock`) - dylib has separate copies
 
 **Safe to use:**
-- `eprintln!()` - bypasses TLS isolation
+- `tracing::info!()` / `tracing::warn!()` - use tracing macros for consistent API, even in dylib context
 - `ctx.table(name)` - Arc clones work across boundary
 - `ctx.set_event_subscriber()` - host spawns after on_ready()
 - Pure functions (serde, UUID generation, string ops)

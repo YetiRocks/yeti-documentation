@@ -65,7 +65,7 @@ The `!` suffix means non-nullable.
 type Product @table(database: "my-app") @export(rest: true, graphql: true) { ... }
 ```
 
-Transport flags: `rest`, `graphql`, `ws`, `sse`, `mqtt` -- all default to `true` when `@export` is present. Without `@export`, the table exists internally but has no HTTP endpoints.
+Transport flags: `rest`, `graphql`, `ws`, `sse`, `mqtt`, `grpc`, `mcp` -- all default to `true` when `@export` is present. Without `@export`, the table exists internally but has no HTTP endpoints.
 
 **`@export(public: [...])`** - Declares operations that bypass authentication:
 

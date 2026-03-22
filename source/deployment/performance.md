@@ -6,10 +6,26 @@ Start with defaults and adjust based on workload.
 
 | Parameter | Default | Guidance |
 |-----------|---------|----------|
-| `cache_size_mb` | 2048 | Set to 10-20% of available RAM |
-| `write_buffer_size_mb` | 512 | Increase for write-heavy workloads |
+| `storage.cacheSizeMb` | 2048 | Set to 10-20% of available RAM |
+| `storage.writeBufferSizeMb` | 512 | Increase for write-heavy workloads |
+| `storage.shardCount` | num_cpus / 2 | Override automatic shard count |
 | `sync_writes` | true | Set `false` for 5-10x write throughput (trades durability) |
 | `enable_compression` | false | Enable for 50-70% storage reduction with minimal CPU cost |
+
+## Protocol Interfaces
+
+Yeti serves REST, GraphQL, WebSocket, SSE, gRPC, MQTT, and MCP through the `interfaces` config. Disable unused protocols to reduce overhead:
+
+```yaml
+interfaces:
+  port: 9996
+  grpc:
+    enabled: false
+  mcp:
+    enabled: false
+  mqtt:
+    enabled: false
+```
 
 ## HTTP Tuning
 

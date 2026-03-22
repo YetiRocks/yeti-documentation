@@ -75,7 +75,7 @@ impl EventSubscriber for DebugSubscriber {
             while let Some(event) = rx.recv().await {
                 let kind = event["kind"].as_str().unwrap_or("unknown");
                 let msg = event["message"].as_str().unwrap_or("");
-                eprintln!("[{}] {}", kind, msg);
+                tracing::info!("[{}] {}", kind, msg);
             }
         })
     }

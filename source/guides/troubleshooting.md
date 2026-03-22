@@ -20,13 +20,13 @@ rm -rf ~/yeti/cache/builds/{app}/src/
 
 **Segfault on startup (no panic, no backtrace)**
 
-Stale `.dylib` files from a previous yeti-core build. Clear the plugin cache:
+Stale `.dylib` files from a previous yeti build. Clear the plugin cache:
 
 ```bash
 rm -rf ~/yeti/cache/builds/*/target/
 ```
 
-Always clear after `cargo clean` or rebuilding yeti-core.
+Always clear after `cargo clean` or rebuilding yeti.
 
 ## Dylib Boundary
 

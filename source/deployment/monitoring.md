@@ -53,9 +53,22 @@ telemetry:
   otlpEndpoint: "http://otel-collector:4317"
 ```
 
-Exports via OpenTelemetry Protocol to Grafana, Datadog, Jaeger, Prometheus, etc.
+OTLP export is owned entirely by the `yeti-telemetry` extension (core has zero OpenTelemetry code). Exports via OpenTelemetry Protocol to Grafana, Datadog, Jaeger, Prometheus, etc.
 
 Also configurable via `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
+
+## MCP Audit Logging
+
+The MCP interface (Model Context Protocol) has audit logging enabled by default. All MCP tool invocations are recorded with request/response details:
+
+```yaml
+interfaces:
+  mcp:
+    enabled: true
+    audit: true
+```
+
+Audit events flow through the telemetry pipeline and appear in the Log table.
 
 ## Monitoring Tiers
 

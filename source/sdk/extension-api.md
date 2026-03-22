@@ -130,7 +130,7 @@ impl EventSubscriber for MySubscriber {
             while let Ok(event) = rx.recv().await {
                 // Event format:
                 // {"kind": "log"|"span", "timestamp": f64, "level": "INFO", ...}
-                eprintln!("Event: {}", event);
+                tracing::info!("Event: {}", event);
             }
         })
     }
@@ -241,7 +241,7 @@ These apply to all code running in dylib context (extensions and resources):
 
 | Constraint | Why | Alternative |
 |-----------|-----|-------------|
-| No `tracing::info!` | TLS isolation between host and dylib | `yeti_log!` or `eprintln!` |
+| No `tracing::info!` | TLS isolation between host and dylib | `yeti_log!` or tracing macros (`tracing::info!`, `tracing::warn!`, etc.) for consistent API, even in dylib context |
 | No `tokio::spawn` | Crashes: "cannot catch foreign exceptions" | `futures::stream::unfold` |
 | No `reqwest::blocking::Client` | Internal tokio runtime conflict causes crash | `fetch()` |
 | No host statics | `OnceLock` in yeti-core is duplicated in dylib | Dylib-local statics |

@@ -8,7 +8,7 @@
 | `YETI_ROOT_DIR` | Root directory for all Yeti data | `~/yeti` |
 | `ROOT_DIRECTORY` | Alias for `YETI_ROOT_DIR` | `~/yeti` |
 | `SETTINGS_PATH` | Path to `yeti-config.yaml` | `$ROOT_DIRECTORY/yeti-config.yaml` |
-| `APPLICATION_PORT` | Override `http.port` | `9996` |
+| `APPLICATION_PORT` | Override `interfaces.port` | `9996` |
 | `LOG_LEVEL` | Override `logging.level` | `"info"` |
 | `ENVIRONMENT` | Override `environment` | `"development"` |
 

@@ -40,6 +40,24 @@ logging:
   auditLog: true
 ```
 
+## Interfaces
+
+The `interfaces` section controls the listening port and protocol toggles:
+
+```yaml
+interfaces:
+  port: 9996
+  rest:
+    enabled: true
+  grpc:
+    enabled: true
+  mcp:
+    enabled: true
+    audit: true
+```
+
+Disable unused protocols to reduce attack surface. See [Performance Tuning](performance.md) for details.
+
 ## CORS
 
 ```yaml
@@ -72,3 +90,7 @@ Enables SSRF validation and stricter security defaults.
 curl -sk https://your-server:9996/health
 curl -v https://your-server:9996/documentation/ 2>&1 | grep "SSL certificate"
 ```
+
+## Yeti Cloud
+
+As an alternative to self-hosting, [Yeti Cloud](../architecture/overview.md) provides managed hosting with built-in replication, cgroup isolation, and automated backups.

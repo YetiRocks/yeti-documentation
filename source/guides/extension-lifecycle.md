@@ -28,7 +28,7 @@ Earliest point for extension code. Use for lightweight setup only.
 
 ```rust,ignore
 fn initialize(&self) -> Result<()> {
-    eprintln!("[my-ext] Loaded");
+    tracing::info!("[my-ext] Loaded");
     Ok(())
 }
 ```

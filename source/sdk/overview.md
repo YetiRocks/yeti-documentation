@@ -90,5 +90,5 @@ Code running inside plugins (resources and extensions) executes in a dynamically
 - **No `tracing::info!`** -- use `yeti_log!` instead (tracing TLS is isolated per dylib)
 - **No `tokio::spawn`** -- causes crashes. Use `futures::stream::unfold` for async patterns
 - **No `reqwest::blocking::Client`** -- crashes due to internal tokio conflict. Use `fetch()` for HTTP
-- **No host statics** -- `OnceLock` values in yeti-core are duplicated in dylib memory
-- **Methods on host types run in dylib context** -- even methods defined in yeti-core execute the dylib's compiled copy when called from plugin code
+- **No host statics** -- `OnceLock` values in the host binary are duplicated in dylib memory
+- **Methods on host types run in dylib context** -- even methods defined in the host binary execute the dylib's compiled copy when called from plugin code

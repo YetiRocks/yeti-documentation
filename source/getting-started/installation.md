@@ -26,7 +26,7 @@ A scrollable form with the following fields. Defaults are shown in parentheses.
 |-------|---------|-------------|
 | ROOT DIRECTORY | `~/yeti` | Where Yeti stores applications, data, and configuration |
 | HOSTNAME | `localhost` | Server hostname for TLS certificate generation |
-| PORT | `443` | HTTPS listen port |
+| PORT | `443` | HTTPS listen port (`interfaces.port` in yeti-config.yaml) |
 | ENVIRONMENT | `development` | Toggle with Space between `development` and `production` |
 | ENABLE LOCAL STUDIO | `yes` | Install the Yeti Studio web interface |
 | INCLUDE BASIC DEMO APP | `yes` | Install a sample application to explore |

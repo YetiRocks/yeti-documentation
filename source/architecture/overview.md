@@ -5,29 +5,29 @@ Yeti is a schema-driven application platform built in Rust. It hosts multiple ap
 ## Architecture
 
 ```
-HTTPS :9996 ──> DynamicRouter ──> /{app-id}/ prefix match
+HTTPS/gRPC/MCP :9996 ──> DynamicRouter ──> /{app-id}/ prefix match
+  MQTTS :8883 ───────┘                           │
+                                             AutoRouter
+                                             (per-app)
+                                                  │
+                                        ┌─────────┴─────────┐
+                                        │                    │
+                                  TableResource        Custom Resource
+                                  (schema-driven)      (Rust plugin)
                                         │
-                                   AutoRouter
-                                   (per-app)
+                                   BackendManager
                                         │
-                              ┌─────────┴─────────┐
-                              │                    │
-                        TableResource        Custom Resource
-                        (schema-driven)      (Rust plugin)
-                              │
-                         BackendManager
-                              │
-                       RocksDB Shards
-                       (embedded, per-database)
+                                 RocksDB Shards
+                                 (embedded, per-database)
 ```
 
 ## Request Lifecycle
 
-1. **HTTPS Termination** - TLS on port 9996
-2. **DynamicRouter** - Extracts `app-id` from path, looks up application
+1. **Protocol Termination** - TLS on `interfaces.port` (default 9996) for HTTPS, gRPC, WebSocket, SSE, and MCP. MQTTS on separate port (default 8883)
+2. **DynamicRouter** - Extracts `app-id` from path, looks up application. Intercepts MQTT WebSocket upgrades at `/mqtt`
 3. **AutoRouter** - Per-app router generated from schema
 4. **Resource Handler** - CRUD for tables or custom logic for plugins
-5. **Response** - JSON or SSE stream
+5. **Response** - JSON, SSE stream, gRPC response, or MCP tool result
 
 ## Multi-Tenancy
 
@@ -43,9 +43,13 @@ HTTPS :9996 ──> DynamicRouter ──> /{app-id}/ prefix match
 - **YetiRuntime** - Owns DynamicRouter, DatabaseManager, server lifecycle
 - **ApplicationLoader** - Discovers, compiles, and loads applications
 - **ApplicationCompiler** - Generates Cargo projects from config.yaml, builds dylibs
-- **AutoRouter** - Schema-driven router mapping types to REST/GraphQL/SSE endpoints
+- **AutoRouter** - Schema-driven router mapping types to REST/GraphQL/SSE/gRPC/MCP endpoints
 - **BackendManager** - Maps table names to storage backends
 - **Health Endpoint** - `/health` for liveness checks and app count
+
+## Yeti Cloud
+
+Yeti Cloud is the managed hosting option, providing automated deployment, replication, cgroup isolation, and built-in backups. See the Yeti Cloud documentation for details.
 
 ## Directory Layout
 

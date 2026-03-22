@@ -6,8 +6,9 @@ Yeti includes a native MQTT 5.0 broker for IoT devices, sensors, and machine-to-
 
 ```yaml
 # yeti-config.yaml
-mqtt:
-  enabled: true
+interfaces:
+  mqtt:
+    enabled: true
 ```
 
 This starts:
@@ -105,9 +106,9 @@ client.on('message', (topic, message) => {
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `mqtt.enabled` | `false` | Enable the MQTT broker |
-| `mqtt.port` | `8883` | MQTTS listen port |
-| `mqtt.maxClients` | `10000` | Maximum concurrent MQTT connections |
+| `interfaces.mqtt.enabled` | `false` | Enable the MQTT broker |
+| `interfaces.mqtt.port` | `8883` | MQTTS listen port |
+| `interfaces.mqtt.maxClients` | `10000` | Maximum concurrent MQTT connections |
 
 ## Public Access
 

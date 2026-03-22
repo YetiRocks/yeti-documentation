@@ -92,6 +92,29 @@ The `super_user` role is protected from deletion and privilege removal.
 }
 ```
 
+## MQTT Auth Adapter
+
+The MQTT broker integrates with yeti-auth for client authentication. MQTT `CONNECT` packets are validated against the same User/Role tables, enforcing the same permission model as HTTP. The broker uses in-memory storage (no file persistence).
+
+## MCP Audit Logging
+
+The MCP interface (Model Context Protocol) has audit logging enabled by default. All MCP tool invocations are captured through the telemetry pipeline, providing a complete record of AI agent interactions.
+
+```yaml
+interfaces:
+  mcp:
+    enabled: true
+    audit: true
+```
+
+## Cgroup Isolation (Yeti Cloud)
+
+In Yeti Cloud deployments, each application runs within cgroup boundaries for CPU, memory, and I/O isolation. This prevents noisy-neighbor effects between tenants.
+
+## Unix Socket Permissions
+
+When using Unix socket listeners, filesystem permissions on the socket file control access. Ensure the socket path is readable/writable only by the intended service user.
+
 ## Rate Limiting
 
 ```yaml

@@ -37,13 +37,13 @@ impl Extension for MyServiceExtension {
     fn name(&self) -> &str { "my-service" }
 
     fn initialize(&self) -> Result<()> {
-        eprintln!("[my-service] Extension initialized");
+        tracing::info!("[my-service] Extension initialized");
         Ok(())
     }
 
     fn on_ready(&self, ctx: &ExtensionContext) -> Result<()> {
         if let Some(table) = ctx.table("config") {
-            eprintln!("[my-service] Config table available");
+            tracing::info!("[my-service] Config table available");
         }
         Ok(())
     }
@@ -107,6 +107,6 @@ The older `extensions:` list format still works but is deprecated. Per-app confi
 Extensions compile as dynamic libraries with these constraints:
 
 - **No `tokio::spawn`** - Spawning tasks corrupts the host runtime. Use `set_event_subscriber()` for background work.
-- **No `tracing::info!`** - Lost due to TLS isolation. Use `eprintln!` instead.
+- **`tracing` macros in dylib** - Output may not reach the host subscriber due to TLS isolation. Use `tracing::warn!()` and other tracing macros anyway for consistent API. Never use `eprintln!()`.
 - **No host statics** - `OnceLock` statics are duplicated in the dylib. Use dylib-local statics.
 - **Flag-based patterns** - Set flags in `on_ready()`, let the host check them after the call returns.

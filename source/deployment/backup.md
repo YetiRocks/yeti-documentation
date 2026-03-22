@@ -69,10 +69,25 @@ rm -rf /var/lib/yeti/cache/builds/*/src/
 yeti start --root-dir /var/lib/yeti
 ```
 
+## Replication as Durability Strategy
+
+Yeti uses RocksDB as its sole storage engine (no TiKV or other external databases). For additional durability beyond backups, enable replication to maintain copies across multiple nodes:
+
+```yaml
+replication:
+  enabled: true
+  port: 9997
+  seedNodes:
+    - "peer1:9997"
+    - "peer2:9997"
+```
+
+Replication is license-gated. See [Storage Engine](../architecture/storage.md) for details.
+
 ## Disaster Recovery
 
 - **RTO**: ~5 minutes (copy data + plugin recompile)
-- **RPO**: Depends on backup frequency
+- **RPO**: Depends on backup frequency (or near-zero with replication)
 - No cross-architecture restore (x86 backups cannot restore on ARM)
 
 ## Verify Backups

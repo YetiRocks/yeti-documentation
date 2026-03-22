@@ -162,25 +162,25 @@ First startup compiles the plugin (~2 minutes). Cached restarts take ~10 seconds
 
 ```bash
 # List all tasks
-curl -sk https://localhost:9996/task-tracker/Task
+curl -sk https://localhost/task-tracker/Task
 
 # Filter: high priority tasks
-curl -sk "https://localhost:9996/task-tracker/Task?priority==high"
+curl -sk "https://localhost/task-tracker/Task?priority==high"
 
 # Filter: tasks not done, sorted by due date
-curl -sk "https://localhost:9996/task-tracker/Task?status!=done&sort=-dueDate"
+curl -sk "https://localhost/task-tracker/Task?status!=done&sort=-dueDate"
 
 # Pagination
-curl -sk "https://localhost:9996/task-tracker/Task?limit=2&offset=0"
+curl -sk "https://localhost/task-tracker/Task?limit=2&offset=0"
 
 # Include related tag data
-curl -sk "https://localhost:9996/task-tracker/Task/task-001?select=id,title,tag%7Bname,color%7D"
+curl -sk "https://localhost/task-tracker/Task/task-001?select=id,title,tag%7Bname,color%7D"
 
 # Custom resource
-curl -sk https://localhost:9996/task-tracker/summary
+curl -sk https://localhost/task-tracker/summary
 
 # SSE stream
-curl -sk --max-time 30 "https://localhost:9996/task-tracker/Task?stream=sse"
+curl -sk --max-time 30 "https://localhost/task-tracker/Task?stream=sse"
 ```
 
 ## Final Structure
@@ -195,6 +195,8 @@ curl -sk --max-time 30 "https://localhost:9996/task-tracker/Task?stream=sse"
     tags.json          # Tag seed data
     tasks.json         # Task seed data
 ```
+
+Tables with `@export` also support gRPC and MCP (Model Context Protocol) access when those interfaces are enabled in `yeti-config.yaml`. Add `mcp: true` to an app's `config.yaml` to expose a JSON-RPC 2.0 endpoint at `/{app-id}/mcp`.
 
 ## Next Steps
 

@@ -57,6 +57,8 @@
   - [Rate Limiting](guides/rate-limiting.md)
 - [URL Redirect Management](guides/redirects.md)
 - [Telemetry & Observability](guides/telemetry.md)
+- [gRPC](guides/grpc.md)
+- [MCP Integration](guides/mcp.md)
 - [Troubleshooting](guides/troubleshooting.md)
 
 ---
@@ -89,7 +91,7 @@
 
 - [REST API](api/rest.md)
 - [GraphQL API](api/graphql.md)
-- [Operations API](api/operations.md)
+- [MCP API](api/operations.md)
 - [Error Codes](api/errors.md)
 - [Data Types](api/data-types.md)
 
@@ -102,6 +104,7 @@
 - [Plugin System & Hot Reload](architecture/plugins.md)
 - [Telemetry Pipeline](architecture/telemetry.md)
 - [Security Architecture](architecture/security.md)
+- [Replication](architecture/replication.md)
 
 ---
 
@@ -117,6 +120,7 @@
 - [Performance Tuning](deployment/performance.md)
 - [Monitoring](deployment/monitoring.md)
 - [Backup & Recovery](deployment/backup.md)
+- [Yeti Cloud](deployment/cloud.md)
 
 ---
 

@@ -64,7 +64,7 @@ First run compiles the plugin (~2 minutes). Output:
 ### Create a user
 
 ```bash
-curl -sk -X POST https://localhost:9996/my-app/User \
+curl -sk -X POST https://localhost/my-app/User \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Alice",
@@ -77,26 +77,26 @@ curl -sk -X POST https://localhost:9996/my-app/User \
 ### List all users
 
 ```bash
-curl -sk https://localhost:9996/my-app/User
+curl -sk https://localhost/my-app/User
 ```
 
 ### Filter with FIQL
 
 ```bash
 # Users with role "admin"
-curl -sk "https://localhost:9996/my-app/User?role==admin"
+curl -sk "https://localhost/my-app/User?role==admin"
 
 # Active users, sorted by name
-curl -sk "https://localhost:9996/my-app/User?active==true&sort=name"
+curl -sk "https://localhost/my-app/User?active==true&sort=name"
 
 # Pagination
-curl -sk "https://localhost:9996/my-app/User?limit=10&offset=0"
+curl -sk "https://localhost/my-app/User?limit=10&offset=0"
 ```
 
 ### Update a user
 
 ```bash
-curl -sk -X PATCH https://localhost:9996/my-app/User/USER_ID \
+curl -sk -X PATCH https://localhost/my-app/User/USER_ID \
   -H "Content-Type: application/json" \
   -d '{"role": "viewer"}'
 ```
@@ -104,17 +104,17 @@ curl -sk -X PATCH https://localhost:9996/my-app/User/USER_ID \
 ### Delete a user
 
 ```bash
-curl -sk -X DELETE https://localhost:9996/my-app/User/USER_ID
+curl -sk -X DELETE https://localhost/my-app/User/USER_ID
 ```
 
 ### Stream real-time updates
 
 ```bash
 # In one terminal, listen for updates
-curl -sk "https://localhost:9996/my-app/User?stream=sse"
+curl -sk "https://localhost/my-app/User?stream=sse"
 
 # In another terminal, create a user and it appears in the stream
-curl -sk -X POST https://localhost:9996/my-app/User \
+curl -sk -X POST https://localhost/my-app/User \
   -H "Content-Type: application/json" \
   -d '{"name": "Bob", "email": "bob@example.com"}'
 ```

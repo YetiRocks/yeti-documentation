@@ -8,17 +8,19 @@ storage:          # RocksDB storage (default, no config needed)
 
 ## Replication
 
-Replication activates when `replicationPort` and `seedNodes` are configured. With no peers, the coordinator idles and the node runs standalone. The health endpoint reports `mode: "rocksdb"` in all cases.
+Replication is configured via a top-level `replication:` section (not under `storage:`). It requires a valid license key (Ed25519-signed, offline verification).
 
 ```yaml
-storage:
-  replicationPort: 9997       # TCP for gRPC, UDP for gossip
+replication:
+  enabled: true
+  licenseKey: "your-license-key"
+  port: 9997                    # TCP for gRPC, UDP for gossip
   seedNodes:
     - "peer1:9997"
     - "peer2:9997"
 ```
 
-When configured, the cluster coordinator starts, gossip discovers peers, and replication begins automatically. There is no separate "embedded" vs "distributed" mode -- only one storage engine exists.
+When enabled, the cluster coordinator starts, gossip discovers peers, and replication begins automatically. With no peers, the coordinator idles and the node runs standalone. There is no separate "embedded" vs "distributed" mode -- only one storage engine (RocksDB) exists.
 
 ## Sharding
 
@@ -63,10 +65,11 @@ Maps table names to backend instances. One sharded RocksDB per database. Extensi
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `cache_size_mb` | 2048 | Block cache size per database |
-| `write_buffer_size_mb` | 512 | Memtable size before flush |
-| `enable_compression` | false | LZ4 compression for SSTables |
-| `sync_writes` | true | Sync WAL on every write |
+| `storage.cacheSizeMb` | 2048 | Block cache size per database |
+| `storage.writeBufferSizeMb` | 512 | Memtable size before flush |
+| `storage.shardCount` | num_cpus / 2 | Number of RocksDB shards per database |
+| `storage.compression` | false | LZ4 compression for SSTables |
+| `storage.path` | `data/` | Data directory path |
 
 `StorageConfig::high_performance()` enables async writes for 5-10x throughput.
 

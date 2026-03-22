@@ -30,6 +30,7 @@ rest: true
 graphql: true
 ws: true
 sse: false
+mcp: false
 
 schemas:
   - schema.graphql
@@ -59,9 +60,9 @@ dependencies:
 |-------|---------|
 | `app_id` | URL prefix and database namespace |
 | `enabled` | Toggle the app on/off |
-| `rest` / `graphql` / `ws` / `sse` | Enable protocol interfaces |
+| `rest` / `graphql` / `ws` / `sse` / `mcp` | Enable protocol interfaces per app |
 | `schemas` | GraphQL SDL files that define tables |
-| `resources` | Glob patterns for custom Rust handlers |
+| `resources` | Glob patterns for custom Rust handlers (**required** if you have `.rs` files -- without this key, plugin sources won't compile) |
 | `static_files` | Serve a directory of static files |
 | `dataLoader` | JSON seed data files |
 | `auth` / `vectors` | Per-app extension config (replaces deprecated `extensions:` list) |
@@ -76,6 +77,15 @@ Yeti scans `~/yeti/applications/*/` for directories with a `config.yaml`. Drop a
 - **URL prefix**: All routes are under `/{app-id}/`
 - **Database namespace**: `@table(database: "...")` controls storage isolation
 - **Route space**: Resources and tables share the app's route space but can't conflict with other apps
+
+## Protocols
+
+Server-wide protocol toggles live in `yeti-config.yaml` under `interfaces:`. Per-app toggles in `config.yaml` control which protocols an individual app exposes:
+
+- **REST** / **GraphQL** / **WebSocket** / **SSE** -- toggled per app via `rest:`, `graphql:`, `ws:`, `sse:`
+- **MCP** (Model Context Protocol) -- per-app via `mcp: true`. Exposes a JSON-RPC 2.0 endpoint at `/{app-id}/mcp`
+- **gRPC** -- server-wide only (`interfaces.grpc.enabled`). Exposes all `@export`ed tables via a gRPC tables service on the same port
+- **MQTT** -- server-wide (`interfaces.mqtt.enabled`). Native MQTTS on port 8883, WebSocket proxy at `/mqtt`
 
 ## Extensions
 

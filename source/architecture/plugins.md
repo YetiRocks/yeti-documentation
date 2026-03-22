@@ -44,7 +44,7 @@ Dynamic libraries get separate copies of all static data, creating critical cons
 
 **Instead:**
 - Use `futures::stream::unfold` instead of spawn+channel patterns
-- Use `eprintln!()` for debug output
+- Use tracing macros (`tracing::info!`, `tracing::warn!`, etc.) for consistent API, even in dylib context
 - Use flag-based patterns: dylib sets flags, host checks after `on_ready()` returns
 
 ## Extension Plugins
