@@ -58,7 +58,13 @@ Custom resource files compiled as dynamic library plugins. Supports glob pattern
 |-------|------|---------|-------------|
 | `static_files.path` | string | - | Directory containing static files (relative to app directory) |
 | `static_files.route` | string | `"/"` | URL route prefix |
+| `static_files.spa` | boolean | `false` | SPA mode: serve index.html for unmatched paths with status 200 |
 | `static_files.index` | string | `"index.html"` | Default file for directory requests |
+| `static_files.notFound` | object | - | Custom 404 page (overrides SPA default) |
+| `static_files.build.sourceDir` | string | `"source"` | Frontend source directory |
+| `static_files.build.command` | string | `"npm run build"` | Build command |
+
+See [Static File Serving](../guides/static-files.md) for SPA routing and build pipeline details.
 
 ## Extension Configuration
 

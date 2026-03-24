@@ -40,8 +40,7 @@ resources:
 
 static_files:
   path: web
-  route: "/"
-  index: index.html
+  spa: true
 
 dataLoader: data/*.json
 
@@ -109,6 +108,5 @@ version: "1.0.0"
 enabled: true
 static_files:
   path: web
-  route: /
-  index: index.html
+  spa: true
 ```
