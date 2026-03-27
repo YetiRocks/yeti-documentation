@@ -4,12 +4,9 @@ app_id: "yeti-documentation"
 customer_id: "yeti"
 route_prefix: "/documentation"
 version: "1.0.0"
-description: "Yeti's documentation, powered by docusaurus"
+description: "Yeti's documentation, powered by mdBook"
 
 static_files:
   path: web
   route: /
   index: index.html
-  build:
-    sourceDir: source
-    command: mdbook build
