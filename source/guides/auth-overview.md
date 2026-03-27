@@ -1,6 +1,6 @@
 # Authentication & Authorization
 
-The `yeti-auth` extension provides authentication with RBAC down to the field level. Choose a method: [Basic](auth-basic.md) | [JWT](auth-jwt.md) | [OAuth](auth-oauth.md)
+The `yeti-auth` extension provides authentication with RBAC down to the field level. Choose a method: [Basic](auth-basic.md) | [JWT](auth-jwt.md) | [OAuth](auth-oauth.md) | [mTLS](auth-mtls.md)
 
 Opt in by adding an `auth:` section to config.yaml:
 
@@ -19,6 +19,7 @@ The AuthPipeline tries each provider in order until one succeeds:
 
 | Method | Header | Use Case |
 |--------|--------|----------|
+| [mTLS](auth-mtls.md) | Client certificate (TLS handshake) | Service-to-service, IoT, zero-trust |
 | [Basic Auth](auth-basic.md) | `Authorization: Basic base64(user:pass)` | Server-to-server, scripts |
 | [JWT](auth-jwt.md) | `Authorization: Bearer <token>` | SPAs, mobile apps, APIs |
 | [OAuth](auth-oauth.md) | Session cookie | Web apps with third-party login |
@@ -78,6 +79,7 @@ The `super_user` role has full access and cannot be deleted.
 
 ## Sub-Guides
 
+- [mTLS Authentication](auth-mtls.md)
 - [Basic Authentication](auth-basic.md)
 - [JWT Authentication](auth-jwt.md)
 - [OAuth Integration](auth-oauth.md)

@@ -37,6 +37,7 @@
 - [GraphQL](guides/graphql.md)
 - [Vector Search](guides/vector-search.md)
 - [Authentication & Authorization](guides/auth-overview.md)
+  - [mTLS Authentication](guides/auth-mtls.md)
   - [Basic Authentication](guides/auth-basic.md)
   - [JWT Authentication](guides/auth-jwt.md)
   - [OAuth Integration](guides/auth-oauth.md)
