@@ -8,5 +8,4 @@ description: "Yeti's documentation, powered by mdBook"
 
 static_files:
   path: web
-  route: /
-  index: index.html
+  notFound: 404.html
