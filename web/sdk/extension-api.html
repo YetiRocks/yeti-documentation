@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-KGB7BN8B');</script>
+    <!-- End Google Tag Manager -->
+    <meta charset="UTF-8">
+    <title>Documentation | Yeti | Extension API</title>
+    <meta name="description" content="Distributed application platform built in Rust">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#121212">
+
+    <link rel="icon" href="../favicon.png">
+    <link rel="shortcut icon" href="../favicon.png">
+
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+
+    <!-- Yeti design system + documentation overrides (no mdbook CSS) -->
+    <link rel="stylesheet" href="../theme/yeti.css">
+    <link rel="stylesheet" href="../theme/custom.css">
+
+
+    <!-- Search -->
+    <script>
+        const path_to_root = "../";
+        const default_light_theme = "rust";
+        const default_dark_theme = "navy";
+        window.path_to_searchindex_js = "../searchindex.js";
+        window.playground_copyable = true;
+    </script>
+    <script src="../toc.js"></script>
+    <script>
+        (function(){var t=['#0e0e0e','#0a0e14','#0a120a','#120e0a'];try{var s=localStorage.getItem('yeti-theme');if(s!==null){var i=parseInt(s,10);if(i>=0&&i<t.length)document.documentElement.style.setProperty('--color-black',t[i]);}}catch(e){}})();
+    </script>
+</head>
+<body class="sidebar-visible coal">
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe
+      src="https://www.googletagmanager.com/ns.html?id=GTM-KGB7BN8B" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    <!-- Force coal (dark) theme -->
+    <script>
+        const html = document.documentElement;
+        html.classList.add("coal");
+        html.classList.add("js");
+        localStorage.setItem('mdbook-theme', 'coal');
+    </script>
+
+    <!-- Yeti Header — matches demo app nav structure -->
+    <nav class="nav">
+        <div class="nav-left">
+            <a href="/"><img src="../logo_white.svg" class="nav-logo" alt="Yeti"></a>
+        </div>
+        <span class="nav-title">Documentation</span>
+        <div class="nav-right">
+            <div id="search-wrapper" class="header-search">
+                <i class="fa fa-search header-search-icon"></i>
+                <form id="searchbar-outer" class="header-search-form">
+                    <input type="search" id="searchbar" name="searchbar" placeholder="Search..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                </form>
+            </div>
+        </div>
+    </nav>
+    <!-- Hidden search-toggle stub for searcher.js compatibility -->
+    <button id="search-toggle" style="display:none" aria-expanded="false"></button>
+
+    <div id="body-container">
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Sidebar visibility -->
+        <script>
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            let sidebarState = 'visible';
+            if (document.body.clientWidth < 1080) {
+                sidebarState = 'hidden';
+            } else {
+                try { sidebarState = localStorage.getItem('mdbook-sidebar') || 'visible'; } catch(e) {}
+            }
+            sidebar_toggle.checked = (sidebarState === 'visible');
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+        </nav>
+
+        <!-- Hamburger toggle — always visible, attached to sidebar's right edge -->
+        <label id="sidebar-toggle" class="sidebar-hamburger" for="sidebar-toggle-anchor" title="Toggle sidebar" aria-label="Toggle sidebar" aria-expanded="true" aria-controls="sidebar">
+            <i class="fa fa-bars"></i>
+        </label>
+
+        <div id="page-wrapper" class="page-wrapper">
+            <div class="page">
+                <!-- Search Results -->
+                <div id="searchresults-outer" class="searchresults-outer hidden">
+                    <div id="searchresults-header" class="searchresults-header"></div>
+                    <ul id="searchresults"></ul>
+                </div>
+
+                <!-- Content -->
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="extension-api"><a class="header" href="#extension-api">Extension API</a></h1>
+<p>Extensions provide shared services across applications: authentication, telemetry, vector search, and custom middleware.</p>
+<h2 id="extension-trait"><a class="header" href="#extension-trait">Extension Trait</a></h2>
+<pre><code class="language-rust ignore">pub trait Extension: Send + Sync {
+    fn name(&amp;self) -&gt; &amp;str;
+
+    fn on_ready(&amp;self, ctx: ExtensionContext) -&gt; Result&lt;()&gt; {
+        Ok(())
+    }
+
+    fn middleware(&amp;self) -&gt; Option&lt;Arc&lt;dyn RequestMiddleware&gt;&gt; {
+        None
+    }
+
+    fn auth_providers(&amp;self) -&gt; Vec&lt;Arc&lt;dyn AuthProvider&gt;&gt; {
+        vec![]
+    }
+
+    fn auth_hooks(&amp;self) -&gt; Vec&lt;Arc&lt;dyn AuthHook&gt;&gt; {
+        vec![]
+    }
+
+    fn vector_hooks(&amp;self) -&gt; Vec&lt;Arc&lt;dyn VectorHook&gt;&gt; {
+        vec![]
+    }
+}</code></pre>
+<p>All methods except <code>name()</code> have default no-op implementations. Implement only what you need.</p>
+<h3 id="full-example"><a class="header" href="#full-example">Full example</a></h3>
+<pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
+
+pub struct MyExtension;
+
+impl Extension for MyExtension {
+    fn name(&amp;self) -&gt; &amp;str {
+        "my-extension"
+    }
+
+    fn on_ready(&amp;self, ctx: ExtensionContext) -&gt; Result&lt;()&gt; {
+        let config_table = ctx.table("Config")?;
+        yeti_log!(info, "Extension ready, config table loaded");
+        Ok(())
+    }
+
+    fn middleware(&amp;self) -&gt; Option&lt;Arc&lt;dyn RequestMiddleware&gt;&gt; {
+        None  // return Some(...) to intercept every request
+    }
+
+    fn auth_providers(&amp;self) -&gt; Vec&lt;Arc&lt;dyn AuthProvider&gt;&gt; {
+        vec![]  // return providers for Basic, JWT, OAuth auth
+    }
+
+    fn auth_hooks(&amp;self) -&gt; Vec&lt;Arc&lt;dyn AuthHook&gt;&gt; {
+        vec![]  // override role resolution before default logic
+    }
+
+    fn vector_hooks(&amp;self) -&gt; Vec&lt;Arc&lt;dyn VectorHook&gt;&gt; {
+        vec![]  // provide vector embedding generation
+    }
+}</code></pre>
+<h2 id="extensioncontext"><a class="header" href="#extensioncontext">ExtensionContext</a></h2>
+<p>Available in <code>on_ready()</code>. Provides access to tables, filesystem, routing, and event subscribers.</p>
+<pre><code class="language-rust ignore">impl ExtensionContext {
+    fn table(&amp;self, name: &amp;str) -&gt; Result&lt;Arc&lt;TableResource&gt;&gt;
+    fn root_dir(&amp;self) -&gt; &amp;Path
+    fn auto_router(&amp;self) -&gt; &amp;AutoRouter
+    fn set_event_subscriber(&amp;self, sub: Box&lt;dyn EventSubscriber&gt;)
+    fn pubsub(&amp;self, table: &amp;str) -&gt; Option&lt;Arc&lt;PubSubManager&gt;&gt;
+}</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>table(name)</code></td><td><code>Result&lt;Arc&lt;TableResource&gt;&gt;</code></td><td>Named table reference</td></tr>
+<tr><td><code>root_dir()</code></td><td><code>&amp;Path</code></td><td>Server root directory</td></tr>
+<tr><td><code>auto_router()</code></td><td><code>&amp;AutoRouter</code></td><td>Route registration</td></tr>
+<tr><td><code>set_event_subscriber(sub)</code></td><td><code>()</code></td><td>Register telemetry event handler</td></tr>
+<tr><td><code>pubsub(table)</code></td><td><code>Option&lt;Arc&lt;PubSubManager&gt;&gt;</code></td><td>PubSub manager for a table</td></tr>
+</tbody></table>
+</div>
+<pre><code class="language-rust ignore">fn on_ready(&amp;self, ctx: ExtensionContext) -&gt; Result&lt;()&gt; {
+    // Access a table
+    let config = ctx.table("Config")?;
+
+    // Root directory
+    let root: &amp;Path = ctx.root_dir();
+
+    // Register a telemetry event subscriber
+    ctx.set_event_subscriber(Box::new(MySubscriber::new()));
+
+    Ok(())
+}</code></pre>
+<h2 id="eventsubscriber-trait"><a class="header" href="#eventsubscriber-trait">EventSubscriber Trait</a></h2>
+<p>Process telemetry events (logs, spans, metrics) in a background task.</p>
+<pre><code class="language-rust ignore">pub trait EventSubscriber: Send {
+    fn run(
+        self: Box&lt;Self&gt;,
+        rx: mpsc::Receiver&lt;Value&gt;,
+    ) -&gt; Pin&lt;Box&lt;dyn Future&lt;Output = ()&gt; + Send&gt;&gt;;
+}</code></pre>
+<pre><code class="language-rust ignore">pub struct MySubscriber;
+
+impl EventSubscriber for MySubscriber {
+    fn run(
+        self: Box&lt;Self&gt;,
+        rx: mpsc::Receiver&lt;Value&gt;,
+    ) -&gt; Pin&lt;Box&lt;dyn Future&lt;Output = ()&gt; + Send&gt;&gt; {
+        Box::pin(async move {
+            while let Ok(event) = rx.recv().await {
+                // Event format:
+                // {"kind": "log"|"span", "timestamp": f64, "level": "INFO", ...}
+                tracing::info!("Event: {}", event);
+            }
+        })
+    }
+}</code></pre>
+<p>The channel is bounded (capacity 10,000). The host spawns the future after <code>on_ready()</code> returns.</p>
+<h2 id="vectorhook-trait"><a class="header" href="#vectorhook-trait">VectorHook Trait</a></h2>
+<p>Provide vector embedding generation for <code>@vector</code> schema fields. Implementations must be <strong>sync</strong> (not async) for dylib boundary safety.</p>
+<pre><code class="language-rust ignore">pub trait VectorHook: Send + Sync {
+    fn vectorize_fields(
+        &amp;self,
+        record: Value,
+        mappings: &amp;[FieldMapping],
+    ) -&gt; Result&lt;Value, String&gt;;
+
+    fn vectorize_text(&amp;self, text: &amp;str, model: &amp;str) -&gt; Result&lt;Vec&lt;f32&gt;, String&gt;;
+
+    fn vectorize_image(&amp;self, bytes: &amp;[u8], model: &amp;str) -&gt; Result&lt;Vec&lt;f32&gt;, String&gt;;
+
+    fn validate_model(&amp;self, model: &amp;str) -&gt; Result&lt;(), String&gt; {
+        Ok(())
+    }
+
+    fn warmup_model(&amp;self, model: &amp;str, field_type: &amp;str) -&gt; Result&lt;(), String&gt; {
+        Ok(())
+    }
+
+    fn vectorize_fields_batch(
+        &amp;self,
+        records: Vec&lt;Value&gt;,
+        mappings: &amp;[FieldMapping],
+    ) -&gt; Result&lt;Vec&lt;Value&gt;, String&gt;;
+}</code></pre>
+<p><code>FieldMapping</code> describes the source-to-target mapping:</p>
+<pre><code class="language-rust ignore">pub struct FieldMapping {
+    pub source: String,      // source field name
+    pub target: String,      // target vector field name
+    pub model: String,       // model identifier
+    pub field_type: String,  // "text" (default) or "image"
+}</code></pre>
+<h2 id="authhook-trait"><a class="header" href="#authhook-trait">AuthHook Trait</a></h2>
+<p>Override role resolution before the default logic runs. Useful for custom role assignment based on request context.</p>
+<h2 id="pubsub"><a class="header" href="#pubsub">PubSub</a></h2>
+<p>Topic-based publish/subscribe for real-time messaging.</p>
+<pre><code class="language-rust ignore">pub struct PubSubManager {
+    // ...
+}
+
+impl PubSubManager {
+    pub fn new(capacity: usize) -&gt; Self;
+    pub async fn subscribe(&amp;self, topic: &amp;str) -&gt; broadcast::Receiver&lt;SubscriptionMessage&gt;;
+    pub async fn publish(&amp;self, topic: &amp;str, message: SubscriptionMessage);
+    pub async fn notify_update(&amp;self, table: &amp;str, id: &amp;str, data: &amp;Value);
+    pub async fn notify_delete(&amp;self, table: &amp;str, id: &amp;str);
+    pub async fn notify_create(&amp;self, table: &amp;str, id: &amp;str, data: &amp;Value);
+}</code></pre>
+<pre><code class="language-rust ignore">// In on_ready():
+let pubsub = ctx.pubsub("Chat").unwrap();
+let mut receiver = pubsub.subscribe("Chat/room-1").await;
+
+// Publishing
+pubsub.notify_create("Chat", "msg-1", &amp;json!({"text": "Hello"})).await;</code></pre>
+<h2 id="export_extension"><a class="header" href="#export_extension">export_extension!</a></h2>
+<p>Register the extension for the plugin system:</p>
+<pre><code class="language-rust ignore">export_extension!(MyExtension);</code></pre>
+<p>Place this at module level alongside <code>export_plugin!()</code>.</p>
+<h2 id="lifecycle-order"><a class="header" href="#lifecycle-order">Lifecycle Order</a></h2>
+<ol>
+<li>Plugin <code>.dylib</code> loaded</li>
+<li>Tables and routes registered</li>
+<li><code>Extension::on_ready(ctx)</code> called</li>
+<li>Event subscriber spawned (if set via <code>ctx.set_event_subscriber()</code>)</li>
+<li>Server starts accepting requests</li>
+<li>Graceful shutdown</li>
+</ol>
+<p>Telemetry extensions are sorted first in <code>load_extensions</code> so their event subscriber captures other extensions' startup.</p>
+<h2 id="dylib-constraints"><a class="header" href="#dylib-constraints">Dylib Constraints</a></h2>
+<p>These apply to all code running in dylib context (extensions and resources):</p>
+<div class="table-wrapper"><table><thead><tr><th>Constraint</th><th>Why</th><th>Alternative</th></tr></thead><tbody>
+<tr><td>No <code>tracing::info!</code></td><td>TLS isolation between host and dylib</td><td><code>yeti_log!</code> or tracing macros (<code>tracing::info!</code>, <code>tracing::warn!</code>, etc.) for consistent API, even in dylib context</td></tr>
+<tr><td>No <code>tokio::spawn</code></td><td>Crashes: "cannot catch foreign exceptions"</td><td><code>futures::stream::unfold</code></td></tr>
+<tr><td>No <code>reqwest::blocking::Client</code></td><td>Internal tokio runtime conflict causes crash</td><td><code>fetch()</code></td></tr>
+<tr><td>No host statics</td><td><code>OnceLock</code> in yeti-core is duplicated in dylib</td><td>Dylib-local statics</td></tr>
+<tr><td>No tokio channels/futures in host methods</td><td>Methods on host types run in dylib context when called from dylib</td><td>Flag-based patterns: set flags in dylib, host checks after <code>on_ready()</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="minimal-extension-example"><a class="header" href="#minimal-extension-example">Minimal Extension Example</a></h2>
+<pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
+
+pub struct HealthCheckExtension;
+
+impl Extension for HealthCheckExtension {
+    fn name(&amp;self) -&gt; &amp;str { "health-check" }
+
+    fn on_ready(&amp;self, ctx: ExtensionContext) -&gt; Result&lt;()&gt; {
+        yeti_log!(info, "Health check extension ready");
+        Ok(())
+    }
+}
+
+export_extension!(HealthCheckExtension);
+export_plugin!();  // No resources, extension only</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <a rel="prev" href="../sdk/utilities.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <i class="fa fa-angle-left"></i>
+                            <span class="nav-label">Utilities</span>
+                        </a>
+                        <a rel="next" href="../reference/server-config.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <span class="nav-label">Server Configuration</span>
+                            <i class="fa fa-angle-right"></i>
+                        </a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="../elasticlunr.min.js"></script>
+    <script src="../mark.min.js"></script>
+    <script src="../searcher.js"></script>
+
+    <script src="../clipboard.min.js"></script>
+    <script src="../highlight.js"></script>
+    <script>
+    // Register GraphQL language for highlight.js
+    if (window.hljs) {
+      hljs.registerLanguage('graphql', function(hljs) {
+        return {
+          name: 'GraphQL',
+          aliases: ['gql'],
+          keywords: {
+            keyword: 'type input enum union interface implements extend schema directive scalar fragment query mutation subscription on',
+            literal: 'true false null',
+          },
+          contains: [
+            hljs.HASH_COMMENT_MODE,
+            hljs.QUOTE_STRING_MODE,
+            hljs.NUMBER_MODE,
+            // Directives (@table, @export, etc.) — meta class = yellow
+            { className: 'meta', begin: '\\@[a-zA-Z_]\\w*' },
+            // Built-in types (ID, String, Int, Float, Boolean, Date) — type class = green
+            { className: 'type', begin: '\\b(ID|String|Int|Float|Boolean|Date)\\b' },
+            // Field names (word followed by colon) — attr class = purple
+            { className: 'attr', begin: '[a-zA-Z_]\\w*(?=\\s*:)' },
+            // Punctuation
+            { className: 'punctuation', begin: '[!{}()\\[\\]:=|]' },
+            // Variables
+            { className: 'variable', begin: '\\$[a-zA-Z_]\\w*' },
+          ],
+        };
+      });
+      // Re-highlight any graphql blocks
+      document.querySelectorAll('code.language-graphql').forEach(function(block) {
+        hljs.highlightElement(block);
+      });
+    }
+    </script>
+    <script src="../book.js"></script>
+    <script>
+    // Override scroll-to-top to only scroll the content area, not the sidebar
+    (function() {
+        var pw = document.getElementById('page-wrapper');
+        if (pw) {
+            // Patch: book.js uses document.scrollingElement.scrollTo — redirect to #page-wrapper
+            var origScrollTo = Element.prototype.scrollTo;
+            Object.defineProperty(document.scrollingElement, 'scrollTo', {
+                value: function(opts) { origScrollTo.call(pw, opts); },
+                writable: true
+            });
+            Object.defineProperty(document.scrollingElement, 'scrollTop', {
+                get: function() { return pw.scrollTop; },
+                set: function(v) { pw.scrollTop = v; }
+            });
+        }
+    })();
+    </script>
+
+
+    <!-- Eagerly load search index since searchbar is always visible -->
+    <script>
+    (function() {
+        // Trigger search index load by simulating showSearch
+        const searchbar = document.getElementById('searchbar');
+        if (searchbar) {
+            searchbar.addEventListener('focus', function onFirstFocus() {
+                // Click the hidden search-toggle to trigger index load
+                const toggle = document.getElementById('search-toggle');
+                if (toggle) toggle.click();
+                searchbar.removeEventListener('focus', onFirstFocus);
+            }, { once: true });
+            // Also load immediately if search param is in URL
+            if (window.location.search.includes('search=')) {
+                const toggle = document.getElementById('search-toggle');
+                if (toggle) setTimeout(() => toggle.click(), 100);
+            }
+        }
+    })();
+    </script>
+</body>
+</html>

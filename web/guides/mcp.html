@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-KGB7BN8B');</script>
+    <!-- End Google Tag Manager -->
+    <meta charset="UTF-8">
+    <title>Documentation | Yeti | MCP Integration</title>
+    <meta name="description" content="Distributed application platform built in Rust">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#121212">
+
+    <link rel="icon" href="../favicon.png">
+    <link rel="shortcut icon" href="../favicon.png">
+
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+
+    <!-- Yeti design system + documentation overrides (no mdbook CSS) -->
+    <link rel="stylesheet" href="../theme/yeti.css">
+    <link rel="stylesheet" href="../theme/custom.css">
+
+
+    <!-- Search -->
+    <script>
+        const path_to_root = "../";
+        const default_light_theme = "rust";
+        const default_dark_theme = "navy";
+        window.path_to_searchindex_js = "../searchindex.js";
+        window.playground_copyable = true;
+    </script>
+    <script src="../toc.js"></script>
+    <script>
+        (function(){var t=['#0e0e0e','#0a0e14','#0a120a','#120e0a'];try{var s=localStorage.getItem('yeti-theme');if(s!==null){var i=parseInt(s,10);if(i>=0&&i<t.length)document.documentElement.style.setProperty('--color-black',t[i]);}}catch(e){}})();
+    </script>
+</head>
+<body class="sidebar-visible coal">
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe
+      src="https://www.googletagmanager.com/ns.html?id=GTM-KGB7BN8B" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    <!-- Force coal (dark) theme -->
+    <script>
+        const html = document.documentElement;
+        html.classList.add("coal");
+        html.classList.add("js");
+        localStorage.setItem('mdbook-theme', 'coal');
+    </script>
+
+    <!-- Yeti Header — matches demo app nav structure -->
+    <nav class="nav">
+        <div class="nav-left">
+            <a href="/"><img src="../logo_white.svg" class="nav-logo" alt="Yeti"></a>
+        </div>
+        <span class="nav-title">Documentation</span>
+        <div class="nav-right">
+            <div id="search-wrapper" class="header-search">
+                <i class="fa fa-search header-search-icon"></i>
+                <form id="searchbar-outer" class="header-search-form">
+                    <input type="search" id="searchbar" name="searchbar" placeholder="Search..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                </form>
+            </div>
+        </div>
+    </nav>
+    <!-- Hidden search-toggle stub for searcher.js compatibility -->
+    <button id="search-toggle" style="display:none" aria-expanded="false"></button>
+
+    <div id="body-container">
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Sidebar visibility -->
+        <script>
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            let sidebarState = 'visible';
+            if (document.body.clientWidth < 1080) {
+                sidebarState = 'hidden';
+            } else {
+                try { sidebarState = localStorage.getItem('mdbook-sidebar') || 'visible'; } catch(e) {}
+            }
+            sidebar_toggle.checked = (sidebarState === 'visible');
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+        </nav>
+
+        <!-- Hamburger toggle — always visible, attached to sidebar's right edge -->
+        <label id="sidebar-toggle" class="sidebar-hamburger" for="sidebar-toggle-anchor" title="Toggle sidebar" aria-label="Toggle sidebar" aria-expanded="true" aria-controls="sidebar">
+            <i class="fa fa-bars"></i>
+        </label>
+
+        <div id="page-wrapper" class="page-wrapper">
+            <div class="page">
+                <!-- Search Results -->
+                <div id="searchresults-outer" class="searchresults-outer hidden">
+                    <div id="searchresults-header" class="searchresults-header"></div>
+                    <ul id="searchresults"></ul>
+                </div>
+
+                <!-- Content -->
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="mcp-integration"><a class="header" href="#mcp-integration">MCP Integration</a></h1>
+<p>The Model Context Protocol (MCP) allows AI agents to interact with your Yeti tables using a standardized JSON-RPC 2.0 protocol over HTTP. When enabled, Yeti auto-generates tools, resources, and prompts from your schema — no code required.</p>
+<h2 id="what-is-mcp"><a class="header" href="#what-is-mcp">What is MCP</a></h2>
+<p>MCP is a protocol for connecting AI models to external data sources and tools. It uses JSON-RPC 2.0 over HTTP with a simple session lifecycle:</p>
+<ol>
+<li><strong>Initialize</strong> — client and server exchange capabilities</li>
+<li><strong>Discover</strong> — client lists available tools, resources, and prompts</li>
+<li><strong>Execute</strong> — client calls tools to read and write data</li>
+<li><strong>Terminate</strong> — client ends the session</li>
+</ol>
+<p>Yeti implements MCP protocol version <code>2025-03-26</code> with streamable HTTP transport.</p>
+<h2 id="enabling-mcp"><a class="header" href="#enabling-mcp">Enabling MCP</a></h2>
+<p>MCP is enabled by default at the server level. To expose tables via MCP, add <code>@export</code> to your schema (MCP is enabled by default when <code>@export</code> is present):</p>
+<pre><code class="language-graphql">type Product @table @export {
+  id: ID! @primaryKey
+  name: String!
+  price: Float!
+  category: String
+}
+
+type Order @table @export {
+  id: ID! @primaryKey
+  productId: String!
+  quantity: Int!
+  createdAt: Float! @createdAt
+}
+
+# Exclude a table from MCP
+type InternalCache @table @export(mcp: false) {
+  id: ID! @primaryKey
+  data: String!
+}
+</code></pre>
+<p>MCP can be toggled at the server level in <code>yeti-config.yaml</code>:</p>
+<pre><code class="language-yaml">interfaces:
+  mcp:
+    enabled: true
+    audit: true    # Log MCP tool calls (enabled by default)
+</code></pre>
+<h2 id="endpoint"><a class="header" href="#endpoint">Endpoint</a></h2>
+<p>MCP requests are sent to:</p>
+<pre><code>POST /{app}/mcp
+</code></pre>
+<p>For example, if your app is called <code>my-api</code>:</p>
+<pre><code>POST /my-api/mcp
+</code></pre>
+<p>A <code>GET</code> request to the same endpoint returns a JSON description of the MCP capabilities:</p>
+<pre><code>GET /my-api/mcp
+</code></pre>
+<p>Sessions are terminated with:</p>
+<pre><code>DELETE /my-api/mcp
+</code></pre>
+<h2 id="auto-generated-tools"><a class="header" href="#auto-generated-tools">Auto-Generated Tools</a></h2>
+<p>For each MCP-enabled table, Yeti generates six tools:</p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th><th>Annotations</th></tr></thead><tbody>
+<tr><td><code>{table}_get</code></td><td>Get a record by ID</td><td>readOnly, idempotent</td></tr>
+<tr><td><code>{table}_list</code></td><td>List records with pagination and sorting</td><td>readOnly, idempotent</td></tr>
+<tr><td><code>{table}_create</code></td><td>Create a new record</td><td>mutating</td></tr>
+<tr><td><code>{table}_update</code></td><td>Update an existing record by ID</td><td>mutating, idempotent</td></tr>
+<tr><td><code>{table}_delete</code></td><td>Delete a record by ID</td><td>mutating, destructive, idempotent</td></tr>
+<tr><td><code>{table}_search</code></td><td>Search records with a FIQL filter or text query</td><td>readOnly, idempotent</td></tr>
+</tbody></table>
+</div>
+<p>Table names in tool names are lowercased. A <code>Product</code> table generates <code>product_get</code>, <code>product_list</code>, etc.</p>
+<h3 id="tool-input-schemas"><a class="header" href="#tool-input-schemas">Tool Input Schemas</a></h3>
+<p>Tool input schemas are generated from your GraphQL field definitions:</p>
+<ul>
+<li><strong>get/delete</strong>: <code>{"id": "string"}</code> (required)</li>
+<li><strong>create</strong>: All non-computed, non-auto-timestamp fields. Non-nullable fields are required.</li>
+<li><strong>update</strong>: <code>{"id": "string"}</code> (required) plus all updatable fields as optional.</li>
+<li><strong>list</strong>: <code>{"limit": integer, "offset": integer, "order_by": string}</code> (all optional)</li>
+<li><strong>search</strong>: <code>{"filter": string, "limit": integer, "offset": integer}</code> (all optional)</li>
+</ul>
+<p>The <code>search</code> tool accepts either a FIQL expression (<code>price=gt=5.00;category==electronics</code>) or a plain text query (which becomes a wildcard search on the <code>name</code> field).</p>
+<h2 id="resources"><a class="header" href="#resources">Resources</a></h2>
+<p>MCP resources provide read access to table data via URIs:</p>
+<div class="table-wrapper"><table><thead><tr><th>Resource</th><th>URI</th></tr></thead><tbody>
+<tr><td>Table listing</td><td><code>yeti://{app}/{table}</code></td></tr>
+<tr><td>Record by ID</td><td><code>yeti://{app}/{table}/{id}</code></td></tr>
+</tbody></table>
+</div>
+<p>Resource templates use <code>{id}</code> as a parameterized URI component.</p>
+<h2 id="prompts"><a class="header" href="#prompts">Prompts</a></h2>
+<p>For each table, three prompts are generated:</p>
+<div class="table-wrapper"><table><thead><tr><th>Prompt</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>list_{table}</code></td><td>List records (accepts optional <code>limit</code> argument)</td></tr>
+<tr><td><code>search_{table}</code></td><td>Search records (accepts required <code>query</code> argument)</td></tr>
+<tr><td><code>describe_{table}</code></td><td>Describe the table schema and fields</td></tr>
+</tbody></table>
+</div>
+<h2 id="authentication"><a class="header" href="#authentication">Authentication</a></h2>
+<p>MCP uses the same authentication pipeline as REST. If your app requires authentication, MCP tool calls must include valid credentials:</p>
+<pre><code class="language-bash"># With Basic auth
+curl -X POST https://localhost/my-api/mcp \
+  -u admin:password \
+  -H "Content-Type: application/json" \
+  -d '...'
+
+# With Bearer token
+curl -X POST https://localhost/my-api/mcp \
+  -H "Authorization: Bearer eyJ..." \
+  -H "Content-Type: application/json" \
+  -d '...'
+</code></pre>
+<p>Auth context is propagated to each tool call — table-level access control is enforced on every operation.</p>
+<h2 id="protocol-walkthrough"><a class="header" href="#protocol-walkthrough">Protocol Walkthrough</a></h2>
+<p>Here is a complete MCP session using curl.</p>
+<h3 id="step-1-initialize"><a class="header" href="#step-1-initialize">Step 1: Initialize</a></h3>
+<pre><code class="language-bash">curl -s -X POST https://localhost/my-api/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "2025-03-26",
+      "capabilities": {},
+      "clientInfo": {
+        "name": "my-agent",
+        "version": "1.0"
+      }
+    }
+  }'
+</code></pre>
+<p>Response (note the <code>mcp-session-id</code> header):</p>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2025-03-26",
+    "capabilities": {
+      "tools": { "listChanged": false },
+      "resources": { "listChanged": false },
+      "prompts": { "listChanged": false }
+    },
+    "serverInfo": {
+      "name": "yeti/my-api",
+      "version": "1.0.0"
+    }
+  }
+}
+</code></pre>
+<h3 id="step-2-send-initialized-notification"><a class="header" href="#step-2-send-initialized-notification">Step 2: Send Initialized Notification</a></h3>
+<pre><code class="language-bash">curl -s -X POST https://localhost/my-api/mcp \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: &lt;session-id-from-step-1&gt;" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "notifications/initialized"
+  }'
+</code></pre>
+<p>Returns HTTP 202 (no body for notifications).</p>
+<h3 id="step-3-list-available-tools"><a class="header" href="#step-3-list-available-tools">Step 3: List Available Tools</a></h3>
+<pre><code class="language-bash">curl -s -X POST https://localhost/my-api/mcp \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: &lt;session-id&gt;" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/list",
+    "params": {}
+  }'
+</code></pre>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "tools": [
+      {
+        "name": "product_get",
+        "description": "Get a Product record by ID",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "description": "Record ID" }
+          },
+          "required": ["id"]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true
+        }
+      },
+      {
+        "name": "product_list",
+        "description": "List Product records",
+        "inputSchema": { "..." : "..." }
+      },
+      {
+        "name": "product_create",
+        "description": "Create a new Product record",
+        "inputSchema": { "..." : "..." }
+      }
+    ],
+    "nextCursor": null
+  }
+}
+</code></pre>
+<h3 id="step-4-call-a-tool"><a class="header" href="#step-4-call-a-tool">Step 4: Call a Tool</a></h3>
+<p>Create a product:</p>
+<pre><code class="language-bash">curl -s -X POST https://localhost/my-api/mcp \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: &lt;session-id&gt;" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+      "name": "product_create",
+      "arguments": {
+        "name": "Widget",
+        "price": 9.99,
+        "category": "gadgets"
+      }
+    }
+  }'
+</code></pre>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"id\": \"01JEXAMPLE\",\n  \"name\": \"Widget\",\n  \"price\": 9.99,\n  \"category\": \"gadgets\"\n}"
+      }
+    ]
+  }
+}
+</code></pre>
+<p>Search for products:</p>
+<pre><code class="language-bash">curl -s -X POST https://localhost/my-api/mcp \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: &lt;session-id&gt;" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "tools/call",
+    "params": {
+      "name": "product_search",
+      "arguments": {
+        "filter": "price=gt=5.00",
+        "limit": 10
+      }
+    }
+  }'
+</code></pre>
+<h3 id="step-5-read-a-resource"><a class="header" href="#step-5-read-a-resource">Step 5: Read a Resource</a></h3>
+<pre><code class="language-bash">curl -s -X POST https://localhost/my-api/mcp \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: &lt;session-id&gt;" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 5,
+    "method": "resources/read",
+    "params": {
+      "uri": "yeti://my-api/product/01JEXAMPLE"
+    }
+  }'
+</code></pre>
+<h3 id="step-6-terminate-session"><a class="header" href="#step-6-terminate-session">Step 6: Terminate Session</a></h3>
+<pre><code class="language-bash">curl -s -X DELETE https://localhost/my-api/mcp \
+  -H "Mcp-Session-Id: &lt;session-id&gt;"
+</code></pre>
+<h2 id="supported-methods"><a class="header" href="#supported-methods">Supported Methods</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>initialize</code></td><td>Start a session, exchange capabilities</td></tr>
+<tr><td><code>notifications/initialized</code></td><td>Client confirms initialization (notification, no response)</td></tr>
+<tr><td><code>ping</code></td><td>Health check</td></tr>
+<tr><td><code>tools/list</code></td><td>List available tools (with optional cursor pagination)</td></tr>
+<tr><td><code>tools/call</code></td><td>Execute a tool</td></tr>
+<tr><td><code>resources/list</code></td><td>List available resources</td></tr>
+<tr><td><code>resources/templates/list</code></td><td>List resource URI templates</td></tr>
+<tr><td><code>resources/read</code></td><td>Read a resource by URI</td></tr>
+<tr><td><code>prompts/list</code></td><td>List available prompts</td></tr>
+<tr><td><code>prompts/get</code></td><td>Get a prompt with arguments expanded</td></tr>
+</tbody></table>
+</div>
+<h2 id="integration-with-ai-agents"><a class="header" href="#integration-with-ai-agents">Integration with AI Agents</a></h2>
+<h3 id="claude-desktop--claude-code"><a class="header" href="#claude-desktop--claude-code">Claude Desktop / Claude Code</a></h3>
+<p>Add your Yeti MCP endpoint to the Claude configuration:</p>
+<pre><code class="language-json">{
+  "mcpServers": {
+    "my-api": {
+      "url": "https://localhost/my-api/mcp",
+      "headers": {
+        "Authorization": "Bearer &lt;your-token&gt;"
+      }
+    }
+  }
+}
+</code></pre>
+<h3 id="other-mcp-aware-agents"><a class="header" href="#other-mcp-aware-agents">Other MCP-Aware Agents</a></h3>
+<p>Any agent that supports MCP protocol version <code>2025-03-26</code> with streamable HTTP transport can connect to Yeti's MCP endpoint. The auto-generated tools provide full CRUD access to your tables through a standardized interface.</p>
+<h2 id="audit-logging"><a class="header" href="#audit-logging">Audit Logging</a></h2>
+<p>When <code>interfaces.mcp.audit</code> is enabled (the default), Yeti logs every MCP tool call with:</p>
+<ul>
+<li>Timestamp, app ID, session ID</li>
+<li>Client name and version (from <code>initialize</code>)</li>
+<li>Method and tool name</li>
+<li>Operation (get, list, create, update, delete, search)</li>
+<li>Tool arguments</li>
+<li>Status (ok/error) and duration</li>
+<li>Client IP and request ID</li>
+</ul>
+<p>Audit entries are emitted through the standard telemetry pipeline. Protocol handshake methods (<code>initialize</code>, <code>ping</code>, notifications) are excluded from audit logging.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <a rel="prev" href="../guides/grpc.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <i class="fa fa-angle-left"></i>
+                            <span class="nav-label">gRPC</span>
+                        </a>
+                        <a rel="next" href="../guides/troubleshooting.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <span class="nav-label">Troubleshooting</span>
+                            <i class="fa fa-angle-right"></i>
+                        </a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="../elasticlunr.min.js"></script>
+    <script src="../mark.min.js"></script>
+    <script src="../searcher.js"></script>
+
+    <script src="../clipboard.min.js"></script>
+    <script src="../highlight.js"></script>
+    <script>
+    // Register GraphQL language for highlight.js
+    if (window.hljs) {
+      hljs.registerLanguage('graphql', function(hljs) {
+        return {
+          name: 'GraphQL',
+          aliases: ['gql'],
+          keywords: {
+            keyword: 'type input enum union interface implements extend schema directive scalar fragment query mutation subscription on',
+            literal: 'true false null',
+          },
+          contains: [
+            hljs.HASH_COMMENT_MODE,
+            hljs.QUOTE_STRING_MODE,
+            hljs.NUMBER_MODE,
+            // Directives (@table, @export, etc.) — meta class = yellow
+            { className: 'meta', begin: '\\@[a-zA-Z_]\\w*' },
+            // Built-in types (ID, String, Int, Float, Boolean, Date) — type class = green
+            { className: 'type', begin: '\\b(ID|String|Int|Float|Boolean|Date)\\b' },
+            // Field names (word followed by colon) — attr class = purple
+            { className: 'attr', begin: '[a-zA-Z_]\\w*(?=\\s*:)' },
+            // Punctuation
+            { className: 'punctuation', begin: '[!{}()\\[\\]:=|]' },
+            // Variables
+            { className: 'variable', begin: '\\$[a-zA-Z_]\\w*' },
+          ],
+        };
+      });
+      // Re-highlight any graphql blocks
+      document.querySelectorAll('code.language-graphql').forEach(function(block) {
+        hljs.highlightElement(block);
+      });
+    }
+    </script>
+    <script src="../book.js"></script>
+    <script>
+    // Override scroll-to-top to only scroll the content area, not the sidebar
+    (function() {
+        var pw = document.getElementById('page-wrapper');
+        if (pw) {
+            // Patch: book.js uses document.scrollingElement.scrollTo — redirect to #page-wrapper
+            var origScrollTo = Element.prototype.scrollTo;
+            Object.defineProperty(document.scrollingElement, 'scrollTo', {
+                value: function(opts) { origScrollTo.call(pw, opts); },
+                writable: true
+            });
+            Object.defineProperty(document.scrollingElement, 'scrollTop', {
+                get: function() { return pw.scrollTop; },
+                set: function(v) { pw.scrollTop = v; }
+            });
+        }
+    })();
+    </script>
+
+
+    <!-- Eagerly load search index since searchbar is always visible -->
+    <script>
+    (function() {
+        // Trigger search index load by simulating showSearch
+        const searchbar = document.getElementById('searchbar');
+        if (searchbar) {
+            searchbar.addEventListener('focus', function onFirstFocus() {
+                // Click the hidden search-toggle to trigger index load
+                const toggle = document.getElementById('search-toggle');
+                if (toggle) toggle.click();
+                searchbar.removeEventListener('focus', onFirstFocus);
+            }, { once: true });
+            // Also load immediately if search param is in URL
+            if (window.location.search.includes('search=')) {
+                const toggle = document.getElementById('search-toggle');
+                if (toggle) setTimeout(() => toggle.click(), 100);
+            }
+        }
+    })();
+    </script>
+</body>
+</html>
