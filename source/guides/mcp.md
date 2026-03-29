@@ -371,6 +371,45 @@ Add your Yeti MCP endpoint to the Claude configuration:
 
 Any agent that supports MCP protocol version `2025-03-26` with streamable HTTP transport can connect to Yeti's MCP endpoint. The auto-generated tools provide full CRUD access to your tables through a standardized interface.
 
+## Platform Developer Tools (yeti-mcp)
+
+In addition to per-app table tools, every yeti instance includes `yeti-mcp` -- a built-in MCP endpoint that provides platform-level knowledge and tooling for developer agents.
+
+**Endpoint**: `POST /yeti-mcp/agent`
+
+This is separate from your app's `/my-api/mcp` endpoint. While your app's MCP tools handle table CRUD, yeti-mcp helps agents understand the platform itself:
+
+| Tool | Description |
+|------|-------------|
+| `docs_search` | Search platform documentation by natural language query |
+| `docs_get` | Retrieve a specific documentation page |
+| `docs_list_topics` | List all available documentation topics |
+| `app_list` | List installed applications |
+| `app_inspect` | Get config, schema, and resource details for an app |
+| `app_endpoints` | List all endpoints (REST, MCP, SSE, MQTT) for an app |
+| `sdk_reference` | Look up SDK documentation (prelude, macros, errors, types) |
+| `deploy_checklist` | Validate an app's config before deployment |
+| `troubleshoot` | Get fixes for common symptoms |
+
+yeti-mcp also serves 12 static resources (`yeti://guides/*`, `yeti://sdk/*`, `yeti://constraints`, `yeti://anti-patterns`) and 4 prompt templates (`create_application`, `add_resource`, `add_table`, `debug_plugin`).
+
+### Connecting AI Agents to yeti-mcp
+
+```json
+{
+  "mcpServers": {
+    "yeti-platform": {
+      "url": "https://localhost/yeti-mcp/agent",
+      "headers": {
+        "Authorization": "Bearer <your-token>"
+      }
+    }
+  }
+}
+```
+
+This gives agents like Claude Code, Cursor, and Windsurf the ability to search documentation, inspect running apps, and generate scaffolding -- all through the standard MCP protocol.
+
 ## Audit Logging
 
 When `interfaces.mcp.audit` is enabled (the default), Yeti logs every MCP tool call with:
