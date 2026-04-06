@@ -1,0 +1,180 @@
+/* RustRover Dark theme — extracted from Dark.icls */
+
+/* Base */
+.hljs {
+  display: block;
+  overflow-x: auto;
+  background: #1A1714;
+  color: #bcbec4;
+}
+
+/* Comments */
+.hljs-comment {
+  color: #7a7e85;
+  font-style: italic;
+}
+
+/* Doc comments */
+.hljs-doctag {
+  color: #5f826b;
+  font-style: italic;
+}
+
+/* Keywords (fn, let, mut, pub, use, struct, impl, for, if, match, etc.) */
+.hljs-keyword {
+  color: #cf8e6d;
+}
+
+/* Strings */
+.hljs-string,
+.hljs-value,
+.hljs-inheritance,
+.hljs-header,
+.xml .hljs-cdata {
+  color: #6aab73;
+}
+
+/* String escapes */
+.hljs-subst {
+  color: #cf8e6d;
+}
+
+/* Numbers */
+.hljs-number {
+  color: #2aacb8;
+}
+
+/* Literals (true, false, null) */
+.hljs-literal {
+  color: #2aacb8;
+}
+
+/* Constants / static fields */
+.hljs-constant {
+  color: #c77dbb;
+}
+
+/* Types / Structs / Classes / Enums */
+.hljs-type,
+.hljs-title.class_,
+.hljs-section {
+  color: #a6bb77;
+}
+
+/* Function / Method names */
+.hljs-title,
+.hljs-title.function_ {
+  color: #6aa2d7;
+}
+
+/* Function calls in JS/TS */
+.javascript .hljs-title.function_,
+.coffeescript .hljs-title {
+  color: #6aa2d7;
+}
+
+/* Built-in types and functions */
+.hljs-built_in {
+  color: #cf8e6d;
+}
+
+/* Attributes / Metadata / Decorators (#[...], @directives) */
+.hljs-meta,
+.hljs-attribute {
+  color: #b3ae60;
+}
+
+/* Properties / Fields / Instance members */
+.hljs-attr,
+.hljs-symbol,
+.ruby .hljs-symbol {
+  color: #c77dbb;
+}
+
+/* YAML/JSON keys — attr is used for these */
+.hljs-selector-id,
+.hljs-selector-class,
+.css .hljs-id,
+.css .hljs-class,
+.css .hljs-pseudo {
+  color: #c77dbb;
+}
+
+/* Variables / Identifiers */
+.hljs-variable {
+  color: #bcbec4;
+}
+
+/* Parameters */
+.hljs-params {
+  color: #bcbec4;
+}
+
+/* Tags (HTML/XML) */
+.hljs-name,
+.hljs-tag {
+  color: #d5b778;
+}
+
+/* XML/HTML tag attributes */
+.xml .hljs-tag .hljs-title,
+.xml .hljs-pi,
+.xml .hljs-doctype,
+.html .hljs-doctype {
+  color: #d5b778;
+}
+
+/* Regex */
+.hljs-regexp {
+  color: #42c3d4;
+}
+
+/* Links */
+.hljs-link {
+  color: #548af7;
+}
+
+/* Preprocessor / Pragma */
+.hljs-preprocessor,
+.hljs-pragma {
+  color: #b3ae60;
+}
+
+/* Bullet (YAML list markers, markdown) */
+.hljs-bullet {
+  color: #2aacb8;
+}
+
+/* Diff */
+.hljs-addition {
+  color: #6aab73;
+}
+
+.hljs-deletion {
+  color: #f75464;
+}
+
+/* Template variables */
+.hljs-template-variable {
+  color: #b189f5;
+}
+
+/* Emphasis / Strong in markdown */
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 700;
+}
+
+/* Nested language fading */
+.coffeescript .javascript,
+.javascript .xml,
+.tex .hljs-formula,
+.xml .javascript,
+.xml .vbscript,
+.xml .css,
+.xml .hljs-cdata {
+  opacity: 0.5;
+}

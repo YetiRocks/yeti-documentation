@@ -1,11 +1,14 @@
 # Application metadata
 name: "Documentation"
-app_id: "yeti-documentation"
+app_id: "documentation"
 customer_id: "yeti"
-route_prefix: "/documentation"
 version: "1.0.0"
 description: "Yeti's documentation, powered by mdBook"
 
-static_files:
+static:
   path: web
+  route: /
   notFound: 404.html
+  build:
+    source: source
+    command: mdbook build --dest-dir ../web

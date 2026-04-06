@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-KGB7BN8B');</script>
+    <!-- End Google Tag Manager -->
+    <meta charset="UTF-8">
+    <title>Documentation | Yeti | Response Helpers</title>
+    <meta name="description" content="Distributed application platform built in Rust">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#121212">
+
+    <link rel="icon" href="../favicon.png">
+    <link rel="shortcut icon" href="../favicon.png">
+
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+
+    <!-- Yeti design system + documentation overrides (no mdbook CSS) -->
+    <link rel="stylesheet" href="../theme/yeti.css">
+    <link rel="stylesheet" href="../theme/custom.css">
+
+
+    <!-- Search -->
+    <script>
+        const path_to_root = "../";
+        const default_light_theme = "rust";
+        const default_dark_theme = "navy";
+        window.path_to_searchindex_js = "../searchindex.js";
+        window.playground_copyable = true;
+    </script>
+    <script src="../toc.js"></script>
+    <script>
+        (function(){var t=['#0e0e0e','#0a0e14','#0a120a','#120e0a'];try{var s=localStorage.getItem('yeti-theme');if(s!==null){var i=parseInt(s,10);if(i>=0&&i<t.length)document.documentElement.style.setProperty('--color-black',t[i]);}}catch(e){}})();
+    </script>
+</head>
+<body class="sidebar-visible coal">
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe
+      src="https://www.googletagmanager.com/ns.html?id=GTM-KGB7BN8B" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+    <!-- Force coal (dark) theme -->
+    <script>
+        const html = document.documentElement;
+        html.classList.add("coal");
+        html.classList.add("js");
+        localStorage.setItem('mdbook-theme', 'coal');
+    </script>
+
+    <!-- Yeti Header — matches demo app nav structure -->
+    <nav class="nav">
+        <div class="nav-left">
+            <a href="/"><img src="../logo_white.svg" class="nav-logo" alt="Yeti"></a>
+        </div>
+        <span class="nav-title">Documentation</span>
+        <div class="nav-right">
+            <div id="search-wrapper" class="header-search">
+                <i class="fa fa-search header-search-icon"></i>
+                <form id="searchbar-outer" class="header-search-form">
+                    <input type="search" id="searchbar" name="searchbar" placeholder="Search..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                </form>
+            </div>
+        </div>
+    </nav>
+    <!-- Hidden search-toggle stub for searcher.js compatibility -->
+    <button id="search-toggle" style="display:none" aria-expanded="false"></button>
+
+    <div id="body-container">
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Sidebar visibility -->
+        <script>
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            let sidebarState = 'visible';
+            if (document.body.clientWidth < 1080) {
+                sidebarState = 'hidden';
+            } else {
+                try { sidebarState = localStorage.getItem('mdbook-sidebar') || 'visible'; } catch(e) {}
+            }
+            sidebar_toggle.checked = (sidebarState === 'visible');
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+        </nav>
+
+        <!-- Hamburger toggle — always visible, attached to sidebar's right edge -->
+        <label id="sidebar-toggle" class="sidebar-hamburger" for="sidebar-toggle-anchor" title="Toggle sidebar" aria-label="Toggle sidebar" aria-expanded="true" aria-controls="sidebar">
+            <i class="fa fa-bars"></i>
+        </label>
+
+        <div id="page-wrapper" class="page-wrapper">
+            <div class="page">
+                <!-- Search Results -->
+                <div id="searchresults-outer" class="searchresults-outer hidden">
+                    <div id="searchresults-header" class="searchresults-header"></div>
+                    <ul id="searchresults"></ul>
+                </div>
+
+                <!-- Content -->
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="response-helpers"><a class="header" href="#response-helpers">Response Helpers</a></h1>
+<p>Three layers of response building, from simplest to most flexible.</p>
+<h2 id="layer-1-free-functions"><a class="header" href="#layer-1-free-functions">Layer 1: Free Functions</a></h2>
+<p>Return a response in one call. All return <code>Result&lt;Response&lt;ResponseBody&gt;&gt;</code>.</p>
+<h3 id="success-responses"><a class="header" href="#success-responses">Success responses</a></h3>
+<pre><code class="language-rust ignore">fn ok&lt;T: Serialize&gt;(data: T) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn created&lt;T: Serialize&gt;(data: T) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn created_with_location(id: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn no_content() -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;</code></pre>
+<pre><code class="language-rust ignore">ok(json!({"status": "active"}))              // 200 + JSON
+created(json!({"id": "new-123"}))            // 201 + JSON
+created_with_location("abc-123")             // 201 + Location header
+no_content()                                  // 204 empty</code></pre>
+<h3 id="error-responses"><a class="header" href="#error-responses">Error responses</a></h3>
+<pre><code class="language-rust ignore">fn bad_request(message: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn not_found(message: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn unauthorized(message: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn internal_error(message: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn error&lt;T: Serialize&gt;(data: T) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn error_response(status: u16, message: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn json_response&lt;T: Serialize&gt;(status: u16, data: T) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;</code></pre>
+<pre><code class="language-rust ignore">bad_request("Invalid email format")          // 400 + {"error": "..."}
+not_found("User not found")                  // 404 + {"error": "..."}
+unauthorized("Token expired")                // 401 + {"error": "..."}
+internal_error("Database connection failed") // 500 + {"error": "..."}
+error(json!({"field": "email", "msg": "required"}))  // 400 + custom JSON
+error_response(422, "Validation failed")     // custom status + {"error": "..."}
+json_response(200, json!({"custom": true}))  // custom status + JSON body</code></pre>
+<h3 id="content-type-responses"><a class="header" href="#content-type-responses">Content type responses</a></h3>
+<pre><code class="language-rust ignore">fn ok_html(html: impl AsRef&lt;str&gt;) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn ok_text(text: impl AsRef&lt;str&gt;) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn ok_with_content_type(content_type: &amp;str, data: impl Into&lt;Vec&lt;u8&gt;&gt;) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn html_response(status: u16, html: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn text_response(status: u16, text: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;</code></pre>
+<pre><code class="language-rust ignore">ok_html("&lt;h1&gt;Hello&lt;/h1&gt;")                         // 200 + text/html
+ok_text("plain text")                              // 200 + text/plain
+ok_with_content_type("image/png", png_bytes)       // 200 + custom MIME
+html_response(404, "&lt;h1&gt;Not Found&lt;/h1&gt;")           // custom status + HTML
+text_response(503, "Service unavailable")          // custom status + text</code></pre>
+<h3 id="domain-specific-helpers"><a class="header" href="#domain-specific-helpers">Domain-specific helpers</a></h3>
+<pre><code class="language-rust ignore">fn record_not_found(key: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn missing_param(param: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn get_or_not_found(result: Result&lt;Option&lt;Vec&lt;u8&gt;&gt;&gt;, id: &amp;str) -&gt; StdResult&lt;Vec&lt;u8&gt;, Box&lt;Response&lt;ResponseBody&gt;&gt;&gt;</code></pre>
+<pre><code class="language-rust ignore">record_not_found("user-123")                 // 404: "Record not found: user-123"
+missing_param("email")                       // 400: "Missing 'email' parameter"
+
+// Pattern for raw storage lookups
+let data = match get_or_not_found(backend.get(key).await, &amp;id) {
+    Ok(data) =&gt; data,
+    Err(response) =&gt; return Ok(*response),
+};</code></pre>
+<h2 id="layer-2-reply-builder"><a class="header" href="#layer-2-reply-builder">Layer 2: Reply Builder</a></h2>
+<p>Chain methods for custom status codes, headers, and content types. Start with <code>reply()</code>.</p>
+<pre><code class="language-rust ignore">fn reply() -&gt; ReplyBuilder</code></pre>
+<h3 id="replybuilder-methods"><a class="header" href="#replybuilder-methods">ReplyBuilder methods</a></h3>
+<pre><code class="language-rust ignore">impl ReplyBuilder {
+    fn code(self, status: u16) -&gt; Self          // set status code
+    fn status(self, status: u16) -&gt; Self        // alias for code()
+    fn header(self, key: &amp;str, value: &amp;str) -&gt; Self  // add a header
+    fn headers(self, map: HashMap&lt;&amp;str, &amp;str&gt;) -&gt; Self  // add multiple headers
+    fn type_header(self, content_type: &amp;str) -&gt; Self    // set Content-Type
+
+    // Terminal methods (consume the builder):
+    fn json(self, value: impl Serialize) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+    fn html(self, html: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+    fn text(self, text: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+    fn csv(self, csv_data: impl AsRef&lt;str&gt;) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+    fn messagepack(self, value: impl Serialize) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+    fn cbor(self, value: impl Serialize) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+    fn redirect(self, url: &amp;str, code: Option&lt;u16&gt;) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+    fn send(self, body: Vec&lt;u8&gt;) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+}</code></pre>
+<h3 id="examples"><a class="header" href="#examples">Examples</a></h3>
+<pre><code class="language-rust ignore">reply().json(data)                                // 200 + JSON
+reply().code(201).json(data)                      // 201 + JSON
+reply().code(201).header("x-id", &amp;id).json(data)  // 201 + custom header + JSON
+reply().html(content)                              // 200 + text/html
+reply().text(content)                              // 200 + text/plain
+reply().csv(csv_string)                            // 200 + text/csv
+reply().messagepack(&amp;data)                         // 200 + application/msgpack
+reply().cbor(&amp;data)                                // 200 + application/cbor
+reply().redirect("/new-location", Some(302))       // 302 redirect
+reply().redirect("/new-location", None)            // 302 redirect (default)
+reply().code(204).send(Vec::new())                 // 204 no body
+reply().type_header("application/xml").send(xml_bytes)  // custom content type</code></pre>
+<p>Multiple Set-Cookie headers are supported via <code>.header()</code>:</p>
+<pre><code class="language-rust ignore">reply()
+    .header("set-cookie", "a=1; Path=/")
+    .header("set-cookie", "b=2; Path=/")
+    .json(json!({"ok": true}))</code></pre>
+<h2 id="layer-3-macros"><a class="header" href="#layer-3-macros">Layer 3: Macros</a></h2>
+<p>For inline use inside <code>resource!</code> blocks.</p>
+<h3 id="ok_json"><a class="header" href="#ok_json">ok_json!</a></h3>
+<pre><code class="language-rust ignore">ok_json!({"key": "value", "count": 42})   // inline JSON object
+ok_json!(some_variable)                     // any serializable expression</code></pre>
+<h3 id="created_json"><a class="header" href="#created_json">created_json!</a></h3>
+<pre><code class="language-rust ignore">created_json!({"id": new_id})</code></pre>
+<h3 id="error_json"><a class="header" href="#error_json">error_json!</a></h3>
+<pre><code class="language-rust ignore">error_json!(400, {"error": "Validation failed"})
+error_json!(422, {"errors": validation_errors})</code></pre>
+<h3 id="html--text"><a class="header" href="#html--text">html! / text!</a></h3>
+<pre><code class="language-rust ignore">html!("&lt;h1&gt;Title&lt;/h1&gt;")
+text!("plain response")</code></pre>
+<p>The JSON macros accept both bare expressions and inline <code>json!</code>-style object syntax.</p>
+<h2 id="responseext-trait"><a class="header" href="#responseext-trait">ResponseExt trait</a></h2>
+<p>Add headers to any response or result:</p>
+<pre><code class="language-rust ignore">pub trait ResponseExt {
+    fn add_header(self, name: &amp;str, value: &amp;str) -&gt; Self;
+}</code></pre>
+<p>Works on both <code>Response&lt;ResponseBody&gt;</code> and <code>Result&lt;Response&lt;ResponseBody&gt;&gt;</code>:</p>
+<pre><code class="language-rust ignore">ok_html(html).add_header("x-cache", "HIT")
+ok(data).add_header("x-request-id", &amp;id)</code></pre>
+<h2 id="response-headers-via-context"><a class="header" href="#response-headers-via-context">Response headers via context</a></h2>
+<p>Use <code>ctx.response_headers()</code> alongside any response helper:</p>
+<pre><code class="language-rust ignore">resource!(Cached {
+    get(request, ctx) =&gt; {
+        ctx.response_headers().append("x-cache", "HIT");
+        ctx.response_headers().set("cache-control", "max-age=3600");
+        ok(json!({"data": "cached"}))
+    }
+});</code></pre>
+<h2 id="decision-table"><a class="header" href="#decision-table">Decision Table</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Need</th><th>Use</th></tr></thead><tbody>
+<tr><td>Simple JSON 200</td><td><code>ok(data)</code></td></tr>
+<tr><td>Simple JSON 201</td><td><code>created(data)</code></td></tr>
+<tr><td>No body (204)</td><td><code>no_content()</code></td></tr>
+<tr><td>Error with message</td><td><code>bad_request(msg)</code>, <code>not_found(msg)</code>, <code>unauthorized(msg)</code></td></tr>
+<tr><td>Error with custom status</td><td><code>error_response(422, msg)</code></td></tr>
+<tr><td>Custom status + headers</td><td><code>reply().code(201).header(...).json(data)</code></td></tr>
+<tr><td>Inside <code>resource!</code> macro</td><td><code>ok_json!({...})</code>, <code>created_json!({...})</code></td></tr>
+<tr><td>HTML/text content</td><td><code>ok_html(content)</code> or <code>html!(content)</code></td></tr>
+<tr><td>Redirect</td><td><code>reply().redirect(url, Some(302))</code></td></tr>
+<tr><td>Binary formats</td><td><code>reply().messagepack(data)</code> or <code>reply().cbor(data)</code></td></tr>
+<tr><td>CSV download</td><td><code>reply().csv(csv_string)</code></td></tr>
+<tr><td>Custom MIME type</td><td><code>ok_with_content_type(mime, data)</code></td></tr>
+<tr><td>Add header to any response</td><td><code>.add_header("name", "value")</code></td></tr>
+</tbody></table>
+</div>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <a rel="prev" href="../sdk/request-parsing.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <i class="fa fa-angle-left"></i>
+                            <span class="nav-label">Request Parsing</span>
+                        </a>
+                        <a rel="next" href="../sdk/table-access.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <span class="nav-label">Table Access</span>
+                            <i class="fa fa-angle-right"></i>
+                        </a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="../elasticlunr.min.js"></script>
+    <script src="../mark.min.js"></script>
+    <script src="../searcher.js"></script>
+
+    <script src="../clipboard.min.js"></script>
+    <script src="../highlight.js"></script>
+    <script>
+    // Register GraphQL language for highlight.js
+    if (window.hljs) {
+      hljs.registerLanguage('graphql', function(hljs) {
+        return {
+          name: 'GraphQL',
+          aliases: ['gql'],
+          keywords: {
+            keyword: 'type input enum union interface implements extend schema directive scalar fragment query mutation subscription on',
+            literal: 'true false null',
+          },
+          contains: [
+            hljs.HASH_COMMENT_MODE,
+            hljs.QUOTE_STRING_MODE,
+            hljs.NUMBER_MODE,
+            // Directives (@table, @export, etc.) — meta class = yellow
+            { className: 'meta', begin: '\\@[a-zA-Z_]\\w*' },
+            // Built-in types (ID, String, Int, Float, Boolean, Date) — type class = green
+            { className: 'type', begin: '\\b(ID|String|Int|Float|Boolean|Date)\\b' },
+            // Field names (word followed by colon) — attr class = purple
+            { className: 'attr', begin: '[a-zA-Z_]\\w*(?=\\s*:)' },
+            // Punctuation
+            { className: 'punctuation', begin: '[!{}()\\[\\]:=|]' },
+            // Variables
+            { className: 'variable', begin: '\\$[a-zA-Z_]\\w*' },
+          ],
+        };
+      });
+      // Re-highlight any graphql blocks
+      document.querySelectorAll('code.language-graphql').forEach(function(block) {
+        hljs.highlightElement(block);
+      });
+    }
+    </script>
+    <script src="../book.js"></script>
+    <script>
+    // Override scroll-to-top to only scroll the content area, not the sidebar
+    (function() {
+        var pw = document.getElementById('page-wrapper');
+        if (pw) {
+            // Patch: book.js uses document.scrollingElement.scrollTo — redirect to #page-wrapper
+            var origScrollTo = Element.prototype.scrollTo;
+            Object.defineProperty(document.scrollingElement, 'scrollTo', {
+                value: function(opts) { origScrollTo.call(pw, opts); },
+                writable: true
+            });
+            Object.defineProperty(document.scrollingElement, 'scrollTop', {
+                get: function() { return pw.scrollTop; },
+                set: function(v) { pw.scrollTop = v; }
+            });
+        }
+    })();
+    </script>
+
+
+    <!-- Eagerly load search index since searchbar is always visible -->
+    <script>
+    (function() {
+        // Trigger search index load by simulating showSearch
+        const searchbar = document.getElementById('searchbar');
+        if (searchbar) {
+            searchbar.addEventListener('focus', function onFirstFocus() {
+                // Click the hidden search-toggle to trigger index load
+                const toggle = document.getElementById('search-toggle');
+                if (toggle) toggle.click();
+                searchbar.removeEventListener('focus', onFirstFocus);
+            }, { once: true });
+            // Also load immediately if search param is in URL
+            if (window.location.search.includes('search=')) {
+                const toggle = document.getElementById('search-toggle');
+                if (toggle) setTimeout(() => toggle.click(), 100);
+            }
+        }
+    })();
+    </script>
+</body>
+</html>
