@@ -50,7 +50,7 @@ Restart yeti. No compilation required -- this is a static-files-only application
 Open your browser to:
 
 ```
-https://localhost:9996/documentation/
+https://localhost/documentation/
 ```
 
 The full documentation site is available immediately, including search.
@@ -183,8 +183,9 @@ route_prefix: "/documentation"
 version: "1.0.0"
 description: "Yeti's documentation, powered by mdBook"
 
-static_files:
+static:
   path: web
+  route: /
   notFound: 404.html
 ```
 
