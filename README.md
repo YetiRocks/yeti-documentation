@@ -50,7 +50,7 @@ Restart yeti. No compilation required -- this is a static-files-only application
 Open your browser to:
 
 ```
-https://localhost/documentation/
+https://localhost:9996/documentation/
 ```
 
 The full documentation site is available immediately, including search.
