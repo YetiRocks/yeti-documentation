@@ -6,31 +6,31 @@
 yeti [COMMAND] [OPTIONS]
 ```
 
-Running `yeti` with no command will launch the install wizard if Yeti is not yet set up, or display a status screen if already installed.
+With no command: install wizard (first run) or status screen (already installed).
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `yeti` | Status screen (installed) or install wizard (not installed) |
-| `yeti start [-f]` | Start the server (background by default, `-f` for foreground) |
-| `yeti stop` | Stop the running background server |
-| `yeti restart [-f]` | Stop and restart the server |
-| `yeti install` | Run or re-run the setup wizard |
-| `yeti update` | Self-update to the latest binary |
-| `yeti logs` | Tail the server log |
-| `yeti help` | Print help message |
+| `yeti` | Status screen or install wizard |
+| `yeti start [-f]` | Start server (background default, `-f` foreground) |
+| `yeti stop` | Stop background server |
+| `yeti restart [-f]` | Stop and restart |
+| `yeti install` | Run/re-run setup wizard |
+| `yeti update` | Self-update binary |
+| `yeti logs` | Tail server log |
+| `yeti help` | Print help |
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `-f`, `--foreground` | Run in foreground (default: background) |
+| `-f`, `--foreground` | Foreground mode |
 | `-V`, `--version` | Print version |
 | `-h`, `--help` | Print help |
-| `--buildonly` | Compile plugins only, then exit |
-| `--apps <a,b,c>` | Only load specified applications (comma-separated) |
-| `--port <PORT>` | HTTP port (default: 9996) |
+| `--buildonly` | Compile plugins, then exit |
+| `--apps <a,b,c>` | Load only specified apps (comma-separated) |
+| `--port <PORT>` | HTTPS port (default: 9996) |
 | `--dir <PATH>` | Root directory (default: ~/yeti) |
 
 ### Install Options
@@ -38,8 +38,8 @@ Running `yeti` with no command will launch the install wizard if Yeti is not yet
 | Option | Description |
 |--------|-------------|
 | `--admin-user <USER>` | Admin username (default: YETI_ADMIN) |
-| `--admin-password <PW>` | Admin password (required for headless install) |
-| `--agree-to-terms` | Accept terms of use (required for headless install) |
+| `--admin-password <PW>` | Admin password (required for headless) |
+| `--agree-to-terms` | Accept terms (required for headless) |
 
 ## Examples
 
@@ -76,17 +76,17 @@ yeti --version
 4. Filter by `--apps` if specified
 5. Compile application plugins (~2 min per plugin on first run, ~10 seconds cached)
 6. Load plugins and register resources
-7. Start HTTPS server on configured port (default 9996). Use `--port 8443` for a custom port.
+7. Start HTTPS server on configured port (default 9996)
 
 ## Plugin Cache
 
-Clear the plugin cache when builds are stale:
+Clear stale builds:
 
 ```bash
 rm -rf ~/yeti/cache/builds/target/
 ```
 
-Clear copied source files too (required when fixing plugin errors):
+Clear copied source (required when fixing plugin errors):
 
 ```bash
 rm -rf ~/yeti/cache/builds/*/src/

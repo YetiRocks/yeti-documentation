@@ -7447,16 +7447,16 @@ priority: Int @default(value: 0)
 score: Float @default(value: 1.0)
 active: Boolean @default(value: true)
 </code></pre>
-<p>When a new field with <code>@default</code> is added to an existing schema, stored records are reconciled with the default value on next access.</p>
+<p>Adding a <code>@default</code> field to an existing schema reconciles stored records on next access.</p>
 <h3 id="crdt"><a class="header" href="#crdt">@crdt</a></h3>
-<p>Declares a field as a Conflict-free Replicated Data Type for automatic merge resolution in distributed deployments.</p>
+<p>Conflict-free Replicated Data Type for automatic merge in distributed deployments.</p>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>type</code></td><td>String</td><td>yes</td><td>CRDT type: <code>"counter"</code>, <code>"pn-counter"</code>, or <code>"or-set"</code></td></tr>
 </tbody></table>
 </div><div class="table-wrapper"><table><thead><tr><th>CRDT Type</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>counter</code></td><td>Increment-only counter</td></tr>
-<tr><td><code>pn-counter</code></td><td>Increment and decrement counter (positive-negative)</td></tr>
-<tr><td><code>or-set</code></td><td>Observed-remove set (add/remove elements, last-writer-wins on conflicts)</td></tr>
+<tr><td><code>pn-counter</code></td><td>Increment/decrement counter (positive-negative)</td></tr>
+<tr><td><code>or-set</code></td><td>Observed-remove set (last-writer-wins on conflicts)</td></tr>
 </tbody></table>
 </div>
 <pre><code class="language-graphql">viewCount: Int @crdt(type: "counter")
@@ -7478,7 +7478,7 @@ tags: String @crdt(type: "or-set")
 <p>The <code>!</code> suffix means the field is required (non-nullable).</p>
 <hr />
 <h2 id="comprehensive-example-1"><a class="header" href="#comprehensive-example-1">Comprehensive Example</a></h2>
-<p>A schema using all four type-level directives together:</p>
+<p>All type-level directives together:</p>
 <pre><code class="language-graphql">type Transaction @table(database: "finance", expiration: 7776000)
     @export(name: "transactions", rest: true, sse: true, mqtt: false, public: [read])
     @distribute(consistency: "strong", replicationFactor: 3, sharding: "hash")
@@ -7517,7 +7517,7 @@ tags: String @crdt(type: "or-set")
 <tr><td><code>ENVIRONMENT</code></td><td>Override <code>environment</code></td><td><code>"development"</code></td></tr>
 </tbody></table>
 </div>
-<p>The <code>--dir</code> CLI argument overrides both <code>ROOT_DIRECTORY</code> and <code>YETI_ROOT_DIR</code>.</p>
+<p><code>--dir</code> overrides both <code>ROOT_DIRECTORY</code> and <code>YETI_ROOT_DIR</code>.</p>
 <h2 id="authentication-secrets"><a class="header" href="#authentication-secrets">Authentication Secrets</a></h2>
 <h3 id="jwt"><a class="header" href="#jwt">JWT</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Variable</th><th>Description</th><th>Default</th></tr></thead><tbody>
@@ -7548,7 +7548,7 @@ tags: String @crdt(type: "or-set")
 </tbody></table>
 </div>
 <h2 id="variable-substitution"><a class="header" href="#variable-substitution">Variable Substitution</a></h2>
-<p>Application <code>config.yaml</code> files support <code>${VAR:-default}</code> syntax:</p>
+<p><code>config.yaml</code> supports <code>${VAR:-default}</code> syntax:</p>
 <pre><code class="language-yaml">custom:
   jwt:
     secret: "${JWT_SECRET:-development-secret-change-in-production}"
@@ -7556,18 +7556,18 @@ tags: String @crdt(type: "or-set")
     github:
       client_id: "${GITHUB_CLIENT_ID:-}"
 </code></pre>
-<p>The <code>:-</code> separator provides a default value. An empty default (<code>${VAR:-}</code>) results in an empty string.</p>
-<p>Variables can also be set in <code>yeti-config.yaml</code> under the <code>env:</code> key:</p>
+<p><code>:-</code> provides a default value. <code>${VAR:-}</code> yields an empty string.</p>
+<p>Variables can also be set in <code>yeti-config.yaml</code>:</p>
 <pre><code class="language-yaml">env:
   JWT_SECRET_KEY: "my-secret"
   GOOGLE_CLIENT_ID: "123456.apps.googleusercontent.com"
 </code></pre>
-<p>Real environment variables take precedence over values in the <code>env:</code> section.</p>
+<p>Real environment variables take precedence over <code>env:</code> values.</p>
 <h2 id="security-notes-3"><a class="header" href="#security-notes-3">Security Notes</a></h2>
 <ul>
-<li>Never commit secrets to version control.</li>
-<li>Use <code>${VAR:-}</code> substitution in config files to reference secrets from the environment.</li>
-<li>Use the <code>env:</code> section in yeti-config.yaml for non-sensitive defaults.</li>
+<li>Never commit secrets to version control</li>
+<li>Use <code>${VAR:-}</code> substitution to reference secrets from the environment</li>
+<li>Use <code>env:</code> in yeti-config.yaml for non-sensitive defaults only</li>
 </ul>
 <h2 id="see-also-29"><a class="header" href="#see-also-29">See Also</a></h2>
 <ul>
@@ -7579,35 +7579,35 @@ tags: String @crdt(type: "or-set")
 <h2 id="usage-1"><a class="header" href="#usage-1">Usage</a></h2>
 <pre><code class="language-bash">yeti [COMMAND] [OPTIONS]
 </code></pre>
-<p>Running <code>yeti</code> with no command will launch the install wizard if Yeti is not yet set up, or display a status screen if already installed.</p>
+<p>With no command: install wizard (first run) or status screen (already installed).</p>
 <h2 id="commands"><a class="header" href="#commands">Commands</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Command</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>yeti</code></td><td>Status screen (installed) or install wizard (not installed)</td></tr>
-<tr><td><code>yeti start [-f]</code></td><td>Start the server (background by default, <code>-f</code> for foreground)</td></tr>
-<tr><td><code>yeti stop</code></td><td>Stop the running background server</td></tr>
-<tr><td><code>yeti restart [-f]</code></td><td>Stop and restart the server</td></tr>
-<tr><td><code>yeti install</code></td><td>Run or re-run the setup wizard</td></tr>
-<tr><td><code>yeti update</code></td><td>Self-update to the latest binary</td></tr>
-<tr><td><code>yeti logs</code></td><td>Tail the server log</td></tr>
-<tr><td><code>yeti help</code></td><td>Print help message</td></tr>
+<tr><td><code>yeti</code></td><td>Status screen or install wizard</td></tr>
+<tr><td><code>yeti start [-f]</code></td><td>Start server (background default, <code>-f</code> foreground)</td></tr>
+<tr><td><code>yeti stop</code></td><td>Stop background server</td></tr>
+<tr><td><code>yeti restart [-f]</code></td><td>Stop and restart</td></tr>
+<tr><td><code>yeti install</code></td><td>Run/re-run setup wizard</td></tr>
+<tr><td><code>yeti update</code></td><td>Self-update binary</td></tr>
+<tr><td><code>yeti logs</code></td><td>Tail server log</td></tr>
+<tr><td><code>yeti help</code></td><td>Print help</td></tr>
 </tbody></table>
 </div>
 <h2 id="options-1"><a class="header" href="#options-1">Options</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Option</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>-f</code>, <code>--foreground</code></td><td>Run in foreground (default: background)</td></tr>
+<tr><td><code>-f</code>, <code>--foreground</code></td><td>Foreground mode</td></tr>
 <tr><td><code>-V</code>, <code>--version</code></td><td>Print version</td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>Print help</td></tr>
-<tr><td><code>--buildonly</code></td><td>Compile plugins only, then exit</td></tr>
-<tr><td><code>--apps &lt;a,b,c&gt;</code></td><td>Only load specified applications (comma-separated)</td></tr>
-<tr><td><code>--port &lt;PORT&gt;</code></td><td>HTTP port (default: 9996)</td></tr>
+<tr><td><code>--buildonly</code></td><td>Compile plugins, then exit</td></tr>
+<tr><td><code>--apps &lt;a,b,c&gt;</code></td><td>Load only specified apps (comma-separated)</td></tr>
+<tr><td><code>--port &lt;PORT&gt;</code></td><td>HTTPS port (default: 9996)</td></tr>
 <tr><td><code>--dir &lt;PATH&gt;</code></td><td>Root directory (default: ~/yeti)</td></tr>
 </tbody></table>
 </div>
 <h3 id="install-options"><a class="header" href="#install-options">Install Options</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Option</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>--admin-user &lt;USER&gt;</code></td><td>Admin username (default: YETI_ADMIN)</td></tr>
-<tr><td><code>--admin-password &lt;PW&gt;</code></td><td>Admin password (required for headless install)</td></tr>
-<tr><td><code>--agree-to-terms</code></td><td>Accept terms of use (required for headless install)</td></tr>
+<tr><td><code>--admin-password &lt;PW&gt;</code></td><td>Admin password (required for headless)</td></tr>
+<tr><td><code>--agree-to-terms</code></td><td>Accept terms (required for headless)</td></tr>
 </tbody></table>
 </div>
 <h2 id="examples-3"><a class="header" href="#examples-3">Examples</a></h2>
@@ -7641,13 +7641,13 @@ yeti --version
 <li>Filter by <code>--apps</code> if specified</li>
 <li>Compile application plugins (~2 min per plugin on first run, ~10 seconds cached)</li>
 <li>Load plugins and register resources</li>
-<li>Start HTTPS server on configured port (default 9996). Use <code>--port 8443</code> for a custom port.</li>
+<li>Start HTTPS server on configured port (default 9996)</li>
 </ol>
 <h2 id="plugin-cache-1"><a class="header" href="#plugin-cache-1">Plugin Cache</a></h2>
-<p>Clear the plugin cache when builds are stale:</p>
+<p>Clear stale builds:</p>
 <pre><code class="language-bash">rm -rf ~/yeti/cache/builds/target/
 </code></pre>
-<p>Clear copied source files too (required when fixing plugin errors):</p>
+<p>Clear copied source (required when fixing plugin errors):</p>
 <pre><code class="language-bash">rm -rf ~/yeti/cache/builds/*/src/
 </code></pre>
 <h2 id="see-also-30"><a class="header" href="#see-also-30">See Also</a></h2>
@@ -7657,7 +7657,7 @@ yeti --version
 <li><a href="reference/app-config.html">Application Configuration</a> - Per-app config files</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="tls--https"><a class="header" href="#tls--https">TLS &amp; HTTPS</a></h1>
-<p>Yeti serves HTTPS on port 9996 using Rustls with the ring cryptography provider -- no OpenSSL dependency.</p>
+<p>HTTPS on port 9996 via Rustls with the ring provider. No OpenSSL dependency.</p>
 <h2 id="configuration-11"><a class="header" href="#configuration-11">Configuration</a></h2>
 <pre><code class="language-yaml">tls:
   autoGenerate: false
@@ -7665,19 +7665,18 @@ yeti --version
   certificate: null
 </code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>tls.autoGenerate</code></td><td>boolean</td><td><code>false</code></td><td>Auto-generate self-signed certificates on startup</td></tr>
-<tr><td><code>tls.privateKey</code></td><td>string</td><td><code>null</code></td><td>Path to PEM-encoded private key</td></tr>
-<tr><td><code>tls.certificate</code></td><td>string</td><td><code>null</code></td><td>Path to PEM-encoded certificate (or chain)</td></tr>
+<tr><td><code>tls.autoGenerate</code></td><td>boolean</td><td><code>false</code></td><td>Auto-generate self-signed certs on startup</td></tr>
+<tr><td><code>tls.privateKey</code></td><td>string</td><td><code>null</code></td><td>PEM private key path</td></tr>
+<tr><td><code>tls.certificate</code></td><td>string</td><td><code>null</code></td><td>PEM certificate (or chain) path</td></tr>
 </tbody></table>
 </div>
 <h2 id="auto-generated-certificates"><a class="header" href="#auto-generated-certificates">Auto-Generated Certificates</a></h2>
-<p>For development:</p>
 <pre><code class="language-yaml">tls:
   autoGenerate: true
 </code></pre>
 <p>Creates certificates at <code>$rootDirectory/certs/localhost/</code>, valid for <code>localhost</code> and <code>127.0.0.1</code>.</p>
 <h2 id="mkcert-recommended-for-development"><a class="header" href="#mkcert-recommended-for-development">mkcert (Recommended for Development)</a></h2>
-<p>For browser-trusted local development certificates, use <a href="https://github.com/FiloSottile/mkcert">mkcert</a>:</p>
+<p>Browser-trusted local development certificates via <a href="https://github.com/FiloSottile/mkcert">mkcert</a>:</p>
 <pre><code class="language-bash"># Install mkcert
 brew install mkcert
 
@@ -7688,23 +7687,23 @@ mkcert -install
 cd ~/yeti/certs/localhost
 mkcert localhost 127.0.0.1
 </code></pre>
-<p>This creates <code>localhost+1.pem</code> (certificate) and <code>localhost+1-key.pem</code> (private key). Configure Yeti to use them:</p>
+<p>Creates <code>localhost+1.pem</code> (certificate) and <code>localhost+1-key.pem</code> (private key):</p>
 <pre><code class="language-yaml">tls:
   certificate: certs/localhost/localhost+1.pem
   privateKey: certs/localhost/localhost+1-key.pem
 </code></pre>
-<p>Certificate paths are resolved relative to the root directory. With mkcert, browsers will trust the certificate without warnings, and you do not need <code>-k</code> with curl.</p>
+<p>Paths resolve relative to the root directory. With mkcert, browsers trust the certificate without warnings.</p>
 <h2 id="manual-certificates"><a class="header" href="#manual-certificates">Manual Certificates</a></h2>
 <pre><code class="language-yaml">tls:
   privateKey: /etc/ssl/private/yeti.key
   certificate: /etc/ssl/certs/yeti.crt
 </code></pre>
-<p>Requirements: PEM format, RSA (2048+) or ECDSA (P-256/P-384), no password on private key. The certificate file can contain a full chain.</p>
+<p>PEM format, RSA (2048+) or ECDSA (P-256/P-384), no password on private key. Certificate file can contain a full chain.</p>
 <h3 id="lets-encrypt"><a class="header" href="#lets-encrypt">Let's Encrypt</a></h3>
 <pre><code class="language-bash">sudo certbot certonly --standalone -d yeti.example.com
 </code></pre>
 <h2 id="development-workflow"><a class="header" href="#development-workflow">Development Workflow</a></h2>
-<p>Self-signed certificates (from <code>autoGenerate: true</code>) require <code>-k</code> with curl:</p>
+<p>Self-signed certificates require <code>-k</code> with curl:</p>
 <pre><code class="language-bash">curl -sk https://localhost:9996/my-app/TableName
 </code></pre>
 <p>With mkcert certificates, curl works without <code>-k</code>:</p>

@@ -1,6 +1,6 @@
 # TLS & HTTPS
 
-Yeti serves HTTPS on port 9996 using Rustls with the ring cryptography provider -- no OpenSSL dependency.
+HTTPS on port 9996 via Rustls with the ring provider. No OpenSSL dependency.
 
 ## Configuration
 
@@ -13,13 +13,11 @@ tls:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `tls.autoGenerate` | boolean | `false` | Auto-generate self-signed certificates on startup |
-| `tls.privateKey` | string | `null` | Path to PEM-encoded private key |
-| `tls.certificate` | string | `null` | Path to PEM-encoded certificate (or chain) |
+| `tls.autoGenerate` | boolean | `false` | Auto-generate self-signed certs on startup |
+| `tls.privateKey` | string | `null` | PEM private key path |
+| `tls.certificate` | string | `null` | PEM certificate (or chain) path |
 
 ## Auto-Generated Certificates
-
-For development:
 
 ```yaml
 tls:
@@ -30,7 +28,7 @@ Creates certificates at `$rootDirectory/certs/localhost/`, valid for `localhost`
 
 ## mkcert (Recommended for Development)
 
-For browser-trusted local development certificates, use [mkcert](https://github.com/FiloSottile/mkcert):
+Browser-trusted local development certificates via [mkcert](https://github.com/FiloSottile/mkcert):
 
 ```bash
 # Install mkcert
@@ -44,7 +42,7 @@ cd ~/yeti/certs/localhost
 mkcert localhost 127.0.0.1
 ```
 
-This creates `localhost+1.pem` (certificate) and `localhost+1-key.pem` (private key). Configure Yeti to use them:
+Creates `localhost+1.pem` (certificate) and `localhost+1-key.pem` (private key):
 
 ```yaml
 tls:
@@ -52,7 +50,7 @@ tls:
   privateKey: certs/localhost/localhost+1-key.pem
 ```
 
-Certificate paths are resolved relative to the root directory. With mkcert, browsers will trust the certificate without warnings, and you do not need `-k` with curl.
+Paths resolve relative to the root directory. With mkcert, browsers trust the certificate without warnings.
 
 ## Manual Certificates
 
@@ -62,7 +60,7 @@ tls:
   certificate: /etc/ssl/certs/yeti.crt
 ```
 
-Requirements: PEM format, RSA (2048+) or ECDSA (P-256/P-384), no password on private key. The certificate file can contain a full chain.
+PEM format, RSA (2048+) or ECDSA (P-256/P-384), no password on private key. Certificate file can contain a full chain.
 
 ### Let's Encrypt
 
@@ -72,7 +70,7 @@ sudo certbot certonly --standalone -d yeti.example.com
 
 ## Development Workflow
 
-Self-signed certificates (from `autoGenerate: true`) require `-k` with curl:
+Self-signed certificates require `-k` with curl:
 
 ```bash
 curl -sk https://localhost:9996/my-app/TableName

@@ -12,7 +12,7 @@
 | `LOG_LEVEL` | Override `logging.level` | `"info"` |
 | `ENVIRONMENT` | Override `environment` | `"development"` |
 
-The `--dir` CLI argument overrides both `ROOT_DIRECTORY` and `YETI_ROOT_DIR`.
+`--dir` overrides both `ROOT_DIRECTORY` and `YETI_ROOT_DIR`.
 
 ## Authentication Secrets
 
@@ -50,7 +50,7 @@ The `--dir` CLI argument overrides both `ROOT_DIRECTORY` and `YETI_ROOT_DIR`.
 
 ## Variable Substitution
 
-Application `config.yaml` files support `${VAR:-default}` syntax:
+`config.yaml` supports `${VAR:-default}` syntax:
 
 ```yaml
 custom:
@@ -61,9 +61,9 @@ custom:
       client_id: "${GITHUB_CLIENT_ID:-}"
 ```
 
-The `:-` separator provides a default value. An empty default (`${VAR:-}`) results in an empty string.
+`:-` provides a default value. `${VAR:-}` yields an empty string.
 
-Variables can also be set in `yeti-config.yaml` under the `env:` key:
+Variables can also be set in `yeti-config.yaml`:
 
 ```yaml
 env:
@@ -71,13 +71,13 @@ env:
   GOOGLE_CLIENT_ID: "123456.apps.googleusercontent.com"
 ```
 
-Real environment variables take precedence over values in the `env:` section.
+Real environment variables take precedence over `env:` values.
 
 ## Security Notes
 
-- Never commit secrets to version control.
-- Use `${VAR:-}` substitution in config files to reference secrets from the environment.
-- Use the `env:` section in yeti-config.yaml for non-sensitive defaults.
+- Never commit secrets to version control
+- Use `${VAR:-}` substitution to reference secrets from the environment
+- Use `env:` in yeti-config.yaml for non-sensitive defaults only
 
 ## See Also
 

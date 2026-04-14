@@ -355,8 +355,8 @@ Conflict-free Replicated Data Type for automatic merge in distributed deployment
 | CRDT Type | Description |
 |-----------|-------------|
 | `counter` | Increment-only counter |
-| `pn-counter` | Increment and decrement counter (positive-negative) |
-| `or-set` | Observed-remove set (add/remove elements, last-writer-wins on conflicts) |
+| `pn-counter` | Increment/decrement counter (positive-negative) |
+| `or-set` | Observed-remove set (last-writer-wins on conflicts) |
 
 ```graphql
 viewCount: Int @crdt(type: "counter")
@@ -384,7 +384,7 @@ The `!` suffix means the field is required (non-nullable).
 
 ## Comprehensive Example
 
-A schema using all four type-level directives together:
+All type-level directives together:
 
 ```graphql
 type Transaction @table(database: "finance", expiration: 7776000)

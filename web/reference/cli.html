@@ -111,35 +111,35 @@
 <h2 id="usage"><a class="header" href="#usage">Usage</a></h2>
 <pre><code class="language-bash">yeti [COMMAND] [OPTIONS]
 </code></pre>
-<p>Running <code>yeti</code> with no command will launch the install wizard if Yeti is not yet set up, or display a status screen if already installed.</p>
+<p>With no command: install wizard (first run) or status screen (already installed).</p>
 <h2 id="commands"><a class="header" href="#commands">Commands</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Command</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>yeti</code></td><td>Status screen (installed) or install wizard (not installed)</td></tr>
-<tr><td><code>yeti start [-f]</code></td><td>Start the server (background by default, <code>-f</code> for foreground)</td></tr>
-<tr><td><code>yeti stop</code></td><td>Stop the running background server</td></tr>
-<tr><td><code>yeti restart [-f]</code></td><td>Stop and restart the server</td></tr>
-<tr><td><code>yeti install</code></td><td>Run or re-run the setup wizard</td></tr>
-<tr><td><code>yeti update</code></td><td>Self-update to the latest binary</td></tr>
-<tr><td><code>yeti logs</code></td><td>Tail the server log</td></tr>
-<tr><td><code>yeti help</code></td><td>Print help message</td></tr>
+<tr><td><code>yeti</code></td><td>Status screen or install wizard</td></tr>
+<tr><td><code>yeti start [-f]</code></td><td>Start server (background default, <code>-f</code> foreground)</td></tr>
+<tr><td><code>yeti stop</code></td><td>Stop background server</td></tr>
+<tr><td><code>yeti restart [-f]</code></td><td>Stop and restart</td></tr>
+<tr><td><code>yeti install</code></td><td>Run/re-run setup wizard</td></tr>
+<tr><td><code>yeti update</code></td><td>Self-update binary</td></tr>
+<tr><td><code>yeti logs</code></td><td>Tail server log</td></tr>
+<tr><td><code>yeti help</code></td><td>Print help</td></tr>
 </tbody></table>
 </div>
 <h2 id="options"><a class="header" href="#options">Options</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Option</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>-f</code>, <code>--foreground</code></td><td>Run in foreground (default: background)</td></tr>
+<tr><td><code>-f</code>, <code>--foreground</code></td><td>Foreground mode</td></tr>
 <tr><td><code>-V</code>, <code>--version</code></td><td>Print version</td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>Print help</td></tr>
-<tr><td><code>--buildonly</code></td><td>Compile plugins only, then exit</td></tr>
-<tr><td><code>--apps &lt;a,b,c&gt;</code></td><td>Only load specified applications (comma-separated)</td></tr>
-<tr><td><code>--port &lt;PORT&gt;</code></td><td>HTTP port (default: 9996)</td></tr>
+<tr><td><code>--buildonly</code></td><td>Compile plugins, then exit</td></tr>
+<tr><td><code>--apps &lt;a,b,c&gt;</code></td><td>Load only specified apps (comma-separated)</td></tr>
+<tr><td><code>--port &lt;PORT&gt;</code></td><td>HTTPS port (default: 9996)</td></tr>
 <tr><td><code>--dir &lt;PATH&gt;</code></td><td>Root directory (default: ~/yeti)</td></tr>
 </tbody></table>
 </div>
 <h3 id="install-options"><a class="header" href="#install-options">Install Options</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Option</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>--admin-user &lt;USER&gt;</code></td><td>Admin username (default: YETI_ADMIN)</td></tr>
-<tr><td><code>--admin-password &lt;PW&gt;</code></td><td>Admin password (required for headless install)</td></tr>
-<tr><td><code>--agree-to-terms</code></td><td>Accept terms of use (required for headless install)</td></tr>
+<tr><td><code>--admin-password &lt;PW&gt;</code></td><td>Admin password (required for headless)</td></tr>
+<tr><td><code>--agree-to-terms</code></td><td>Accept terms (required for headless)</td></tr>
 </tbody></table>
 </div>
 <h2 id="examples"><a class="header" href="#examples">Examples</a></h2>
@@ -173,13 +173,13 @@ yeti --version
 <li>Filter by <code>--apps</code> if specified</li>
 <li>Compile application plugins (~2 min per plugin on first run, ~10 seconds cached)</li>
 <li>Load plugins and register resources</li>
-<li>Start HTTPS server on configured port (default 9996). Use <code>--port 8443</code> for a custom port.</li>
+<li>Start HTTPS server on configured port (default 9996)</li>
 </ol>
 <h2 id="plugin-cache"><a class="header" href="#plugin-cache">Plugin Cache</a></h2>
-<p>Clear the plugin cache when builds are stale:</p>
+<p>Clear stale builds:</p>
 <pre><code class="language-bash">rm -rf ~/yeti/cache/builds/target/
 </code></pre>
-<p>Clear copied source files too (required when fixing plugin errors):</p>
+<p>Clear copied source (required when fixing plugin errors):</p>
 <pre><code class="language-bash">rm -rf ~/yeti/cache/builds/*/src/
 </code></pre>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>

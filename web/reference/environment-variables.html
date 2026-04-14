@@ -119,7 +119,7 @@
 <tr><td><code>ENVIRONMENT</code></td><td>Override <code>environment</code></td><td><code>"development"</code></td></tr>
 </tbody></table>
 </div>
-<p>The <code>--dir</code> CLI argument overrides both <code>ROOT_DIRECTORY</code> and <code>YETI_ROOT_DIR</code>.</p>
+<p><code>--dir</code> overrides both <code>ROOT_DIRECTORY</code> and <code>YETI_ROOT_DIR</code>.</p>
 <h2 id="authentication-secrets"><a class="header" href="#authentication-secrets">Authentication Secrets</a></h2>
 <h3 id="jwt"><a class="header" href="#jwt">JWT</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Variable</th><th>Description</th><th>Default</th></tr></thead><tbody>
@@ -150,7 +150,7 @@
 </tbody></table>
 </div>
 <h2 id="variable-substitution"><a class="header" href="#variable-substitution">Variable Substitution</a></h2>
-<p>Application <code>config.yaml</code> files support <code>${VAR:-default}</code> syntax:</p>
+<p><code>config.yaml</code> supports <code>${VAR:-default}</code> syntax:</p>
 <pre><code class="language-yaml">custom:
   jwt:
     secret: "${JWT_SECRET:-development-secret-change-in-production}"
@@ -158,18 +158,18 @@
     github:
       client_id: "${GITHUB_CLIENT_ID:-}"
 </code></pre>
-<p>The <code>:-</code> separator provides a default value. An empty default (<code>${VAR:-}</code>) results in an empty string.</p>
-<p>Variables can also be set in <code>yeti-config.yaml</code> under the <code>env:</code> key:</p>
+<p><code>:-</code> provides a default value. <code>${VAR:-}</code> yields an empty string.</p>
+<p>Variables can also be set in <code>yeti-config.yaml</code>:</p>
 <pre><code class="language-yaml">env:
   JWT_SECRET_KEY: "my-secret"
   GOOGLE_CLIENT_ID: "123456.apps.googleusercontent.com"
 </code></pre>
-<p>Real environment variables take precedence over values in the <code>env:</code> section.</p>
+<p>Real environment variables take precedence over <code>env:</code> values.</p>
 <h2 id="security-notes"><a class="header" href="#security-notes">Security Notes</a></h2>
 <ul>
-<li>Never commit secrets to version control.</li>
-<li>Use <code>${VAR:-}</code> substitution in config files to reference secrets from the environment.</li>
-<li>Use the <code>env:</code> section in yeti-config.yaml for non-sensitive defaults.</li>
+<li>Never commit secrets to version control</li>
+<li>Use <code>${VAR:-}</code> substitution to reference secrets from the environment</li>
+<li>Use <code>env:</code> in yeti-config.yaml for non-sensitive defaults only</li>
 </ul>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>

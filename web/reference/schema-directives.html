@@ -370,16 +370,16 @@ priority: Int @default(value: 0)
 score: Float @default(value: 1.0)
 active: Boolean @default(value: true)
 </code></pre>
-<p>When a new field with <code>@default</code> is added to an existing schema, stored records are reconciled with the default value on next access.</p>
+<p>Adding a <code>@default</code> field to an existing schema reconciles stored records on next access.</p>
 <h3 id="crdt"><a class="header" href="#crdt">@crdt</a></h3>
-<p>Declares a field as a Conflict-free Replicated Data Type for automatic merge resolution in distributed deployments.</p>
+<p>Conflict-free Replicated Data Type for automatic merge in distributed deployments.</p>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>type</code></td><td>String</td><td>yes</td><td>CRDT type: <code>"counter"</code>, <code>"pn-counter"</code>, or <code>"or-set"</code></td></tr>
 </tbody></table>
 </div><div class="table-wrapper"><table><thead><tr><th>CRDT Type</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>counter</code></td><td>Increment-only counter</td></tr>
-<tr><td><code>pn-counter</code></td><td>Increment and decrement counter (positive-negative)</td></tr>
-<tr><td><code>or-set</code></td><td>Observed-remove set (add/remove elements, last-writer-wins on conflicts)</td></tr>
+<tr><td><code>pn-counter</code></td><td>Increment/decrement counter (positive-negative)</td></tr>
+<tr><td><code>or-set</code></td><td>Observed-remove set (last-writer-wins on conflicts)</td></tr>
 </tbody></table>
 </div>
 <pre><code class="language-graphql">viewCount: Int @crdt(type: "counter")
@@ -401,7 +401,7 @@ tags: String @crdt(type: "or-set")
 <p>The <code>!</code> suffix means the field is required (non-nullable).</p>
 <hr />
 <h2 id="comprehensive-example"><a class="header" href="#comprehensive-example">Comprehensive Example</a></h2>
-<p>A schema using all four type-level directives together:</p>
+<p>All type-level directives together:</p>
 <pre><code class="language-graphql">type Transaction @table(database: "finance", expiration: 7776000)
     @export(name: "transactions", rest: true, sse: true, mqtt: false, public: [read])
     @distribute(consistency: "strong", replicationFactor: 3, sharding: "hash")
