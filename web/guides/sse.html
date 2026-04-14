@@ -127,7 +127,7 @@
 <h2 id="event-types"><a class="header" href="#event-types">Event Types</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Event</th><th>Description</th><th>Trigger</th></tr></thead><tbody>
 <tr><td><code>message</code></td><td>Connection confirmed, retained data</td><td>Connect</td></tr>
-<tr><td><code>update</code></td><td>Record created or updated</td><td>POST, PUT</td></tr>
+<tr><td><code>update</code></td><td>Record created or updated</td><td>POST, PUT, PATCH</td></tr>
 <tr><td><code>delete</code></td><td>Record deleted</td><td>DELETE</td></tr>
 <tr><td><code>publish</code></td><td>Custom message</td><td>PubSub</td></tr>
 <tr><td><code>ping</code></td><td>Heartbeat</td><td>Timer</td></tr>
@@ -166,10 +166,10 @@ source.close();
 <pre><code class="language-bash">curl -sk "https://localhost:9996/realtime-demo/message/msg-1?stream=sse"
 </code></pre>
 <h2 id="testing"><a class="header" href="#testing">Testing</a></h2>
-<p><strong>Terminal 1</strong> - listen:</p>
+<p><strong>Terminal 1</strong> -- listen:</p>
 <pre><code class="language-bash">curl -sk --max-time 60 "https://localhost:9996/realtime-demo/message?stream=sse"
 </code></pre>
-<p><strong>Terminal 2</strong> - write:</p>
+<p><strong>Terminal 2</strong> -- write:</p>
 <pre><code class="language-bash">curl -sk -X POST https://localhost:9996/realtime-demo/message \
   -H "Content-Type: application/json" \
   -d '{"id":"test-1","title":"Live","content":"SSE is working"}'
@@ -183,9 +183,9 @@ source.close();
 </code></pre>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
-<li><a href="realtime-overview.html">Real-Time Overview</a> - All real-time features</li>
-<li><a href="websocket.html">WebSocket</a> - Bidirectional alternative</li>
-<li><a href="pubsub.html">PubSub</a> - Underlying messaging system</li>
+<li><a href="realtime-overview.html">Real-Time Overview</a> -- All real-time features</li>
+<li><a href="websocket.html">WebSocket</a> -- Bidirectional alternative</li>
+<li><a href="pubsub.html">PubSub</a> -- Underlying messaging backbone</li>
 </ul>
 
                     </main>

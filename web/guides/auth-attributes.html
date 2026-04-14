@@ -110,7 +110,7 @@
                         <h1 id="attribute-level-access"><a class="header" href="#attribute-level-access">Attribute-Level Access</a></h1>
 <p>Beyond table-level CRUD, Yeti supports field-level access control. Different roles see different fields from the same table.</p>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
-<p>Add <code>attribute_permissions</code> within a table's permission block:</p>
+<p>Add <code>attribute_permissions</code> within a table's permission block in the role's <code>permissions</code> JSON:</p>
 <pre><code class="language-json">{
   "databases": {
     "data": {
@@ -130,24 +130,46 @@
   }
 }
 </code></pre>
-<h2 id="read-projection"><a class="header" href="#read-projection">Read Projection</a></h2>
-<p>Restricted fields are <strong>omitted entirely</strong> from responses - not null, not redacted.</p>
+<p>The <code>AttributePermission</code> struct has two fields:</p>
+<ul>
+<li><code>read</code> -- whether this field can be returned in query results</li>
+<li><code>write</code> -- whether this field can be included in insert/update payloads</li>
+</ul>
+<p>Fields without an explicit <code>attribute_permissions</code> entry default to allowed (<code>read: true, write: true</code>).</p>
+<h2 id="read-filtering"><a class="header" href="#read-filtering">Read Filtering</a></h2>
+<p>The <code>restrict_select_fields()</code> function strips unauthorized fields from the query's select list <strong>before</strong> the storage resolver runs. The resolver never sees restricted fields.</p>
 <p><strong>Admin</strong> (full access):</p>
 <pre><code class="language-json">{"id": "emp-1", "name": "Alice Smith", "department": "Engineering", "salary": 150000, "ssn": "123-45-6789"}
 </code></pre>
 <p><strong>Viewer</strong> (salary/ssn restricted):</p>
 <pre><code class="language-json">{"id": "emp-1", "name": "Alice Smith", "department": "Engineering"}
 </code></pre>
+<p>Restricted fields are <strong>omitted entirely</strong> from responses -- not null, not redacted.</p>
+<p>For nested relationship sub-fields, <code>restrict_select_fields()</code> recursively checks permissions against the target table's definition using the schema.</p>
 <h2 id="write-validation"><a class="header" href="#write-validation">Write Validation</a></h2>
-<p>Attempting to write restricted fields returns 403:</p>
+<p>The <code>check_table_write()</code> function rejects write operations that include unauthorized fields. Attempting to write restricted fields returns 403:</p>
 <pre><code class="language-bash">curl -sk -u viewer:password -X PUT https://localhost:9996/my-app/Employee/emp-1 \
   -H "Content-Type: application/json" \
   -d '{"id":"emp-1","name":"Alice Smith","salary":200000}'
 </code></pre>
-<pre><code class="language-json">{"error": "Access denied: cannot write attributes [salary] in data.Employee"}
+<pre><code class="language-json">{
+  "type": "urn:yeti:error:forbidden",
+  "title": "Forbidden",
+  "status": 403,
+  "detail": "Access denied: cannot write attribute 'salary'"
+}
 </code></pre>
+<p>The <code>id</code> field (primary key) is always allowed in write payloads regardless of attribute permissions.</p>
+<h2 id="fast-path"><a class="header" href="#fast-path">Fast Path</a></h2>
+<p>The <code>has_unrestricted_attributes()</code> method provides a fast path: if no <code>attribute_permissions</code> are configured for a table, the system skips all per-field checks and uses <code>FullAccess</code> mode. This means attribute-level enforcement has zero cost for roles that do not use it.</p>
+<p>The dispatch layer pre-computes a <code>TablePermission</code> enum per request:</p>
+<ul>
+<li><code>Public</code> -- no auth required (from <code>@export(public: [...])</code>)</li>
+<li><code>FullAccess</code> -- authenticated with no attribute restrictions</li>
+<li><code>AttributeRestricted { readable, writable }</code> -- pre-computed field sets for this user's role</li>
+</ul>
 <h2 id="example-roles"><a class="header" href="#example-roles">Example Roles</a></h2>
-<p><strong>standard</strong> - restricted sensitive fields:</p>
+<p><strong>standard</strong> -- restricted sensitive fields:</p>
 <pre><code class="language-json">{
   "super_user": false,
   "databases": {
@@ -166,19 +188,11 @@
 }
 </code></pre>
 <pre><code class="language-bash"># Admin sees all fields
-curl -sk -u admin:admin https://localhost:9996/web-auth-demo/Employee
+curl -sk -u admin:admin https://localhost:9996/my-app/Employee
 
-# Standard user - salary and ssn omitted
-curl -sk -u user:password https://localhost:9996/web-auth-demo/Employee
+# Standard user -- salary and ssn omitted from results
+curl -sk -u user:password https://localhost:9996/my-app/Employee
 </code></pre>
-<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<p>The <code>PermissionContext</code> calculates readable attributes once per query:</p>
-<ol>
-<li><code>from_params()</code> - intersects schema fields with role's read permissions</li>
-<li><code>needs_projection()</code> - true if any fields need filtering</li>
-<li><code>project_record()</code> / <code>project_records()</code> - removes restricted fields</li>
-</ol>
-<p>Super users bypass all attribute checks.</p>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
 <li><a href="auth-rbac.html">Roles &amp; Permissions</a> - Table-level CRUD permissions</li>

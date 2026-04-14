@@ -20,13 +20,13 @@ https://localhost:9996/studio/
 
 See [Studio](../guides/studio.md) for details.
 
-## Telemetry Extension
+## Telemetry Service
 
 ### REST Queries
 
 ```bash
 curl -sk "https://localhost:9996/yeti-telemetry/Log?limit=50&sort=-timestamp"
-curl -sk "https://localhost:9996/yeti-telemetry/Log?filter=level==ERROR"
+curl -sk "https://localhost:9996/yeti-telemetry/Log?level==ERROR"
 curl -sk "https://localhost:9996/yeti-telemetry/Span?sort=-durationMs&limit=20"
 ```
 
@@ -53,7 +53,7 @@ telemetry:
   otlpEndpoint: "http://otel-collector:4317"
 ```
 
-OTLP export is owned entirely by the `yeti-telemetry` extension (core has zero OpenTelemetry code). Exports via OpenTelemetry Protocol to Grafana, Datadog, Jaeger, Prometheus, etc.
+OTLP export is owned entirely by the `yeti-telemetry` service (core has zero OpenTelemetry code). Exports via OpenTelemetry Protocol to Grafana, Datadog, Jaeger, Prometheus, etc.
 
 Also configurable via `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
 

@@ -24,7 +24,6 @@ export ENVIRONMENT="production"
 
 ```yaml
 storage:
-  mode: embedded
   path: "/var/lib/yeti/data"
   caching: true
   compression: true
@@ -37,7 +36,6 @@ Use SSDs. Configure regular backups (see [Backup & Recovery](backup.md)).
 ```yaml
 logging:
   level: "warn"
-  auditLog: true
 ```
 
 ## Interfaces
@@ -72,7 +70,7 @@ Do not use `"*"` in production.
 ## Application Review
 
 - Remove or disable unused example applications
-- Verify OAuth rules per extension config
+- Verify OAuth rules per app auth config
 - Check that seed data is appropriate for production
 - Ensure `app_id` values are stable (changing breaks client URLs)
 
@@ -93,4 +91,4 @@ curl -v https://your-server:9996/documentation/ 2>&1 | grep "SSL certificate"
 
 ## Yeti Cloud
 
-As an alternative to self-hosting, [Yeti Cloud](../architecture/overview.md) provides managed hosting with built-in replication, cgroup isolation, and automated backups.
+As an alternative to self-hosting, [Yeti Cloud](cloud.md) provides managed hosting with built-in replication, cgroup isolation, and automated backups.

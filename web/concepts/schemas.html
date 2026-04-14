@@ -108,39 +108,56 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="schemas--tables"><a class="header" href="#schemas--tables">Schemas &amp; Tables</a></h1>
-<p>Yeti uses GraphQL SDL to define tables, fields, indexes, and relationships. Yeti generates REST, GraphQL, and real-time endpoints from your schema.</p>
-<h2 id="example"><a class="header" href="#example">Example</a></h2>
-<pre><code class="language-graphql">type Author @table(database: "my-app") @export(rest: true, graphql: true) {
+<p>Yeti uses GraphQL SDL to define tables, fields, indexes, and relationships. Four type-level directives control identity, interfaces, topology, and compliance. Yeti generates REST, GraphQL, and real-time endpoints from your schema.</p>
+<h2 id="comprehensive-example"><a class="header" href="#comprehensive-example">Comprehensive Example</a></h2>
+<pre><code class="language-graphql">type Author
+    @table(database: "bookstore")
+    @export(rest: true, graphql: true, sse: true, public: [read])
+    @audit(operations: [create, update, delete], retention: 365, state: true)
+{
     id: ID! @primaryKey
     name: String!
     email: String @indexed
     bio: String
+    joinedAt: Float @createdTime
+    updatedAt: Float @updatedTime
     books: [Book] @relationship(to: "authorId")
 }
 
-type Book @table(database: "my-app") @export(rest: true, graphql: true) {
+type Book
+    @table(database: "bookstore")
+    @export(rest: true, graphql: true, mcp: true)
+    @distribute(sharding: "hash", replicationFactor: 3, consistency: "eventual")
+{
     id: ID! @primaryKey
-    title: String!
+    title: String! @indexed
     isbn: String! @indexed
-    genre: String @indexed
-    price: Float
+    genre: String @indexed @default(value: "uncategorized")
+    price: Float @default(value: "0.0")
     authorId: ID! @indexed
     author: Author @relationship(from: "authorId")
+    embedding: Vector @indexed(source: "title", model: "BAAI/bge-small-en-v1.5")
     reviews: [Review] @relationship(to: "bookId")
 }
 
-type Review @table(database: "my-app") @export(rest: true, graphql: true) {
+type Review
+    @table(database: "bookstore", expiration: 31536000)
+    @export(rest: true, public: [read, create])
+{
     id: ID! @primaryKey
     bookId: ID! @indexed
     rating: Int!
     content: String
     reviewer: String
+    votes: Int @crdt(type: "counter")
+    createdAt: Float @createdTime
+    expiresAt: Float @expiresAt
     book: Book @relationship(from: "bookId")
 }
 </code></pre>
 <p>Reference schemas in <code>config.yaml</code>:</p>
 <pre><code class="language-yaml">schemas:
-  - schema.graphql
+  path: "schemas/*.graphql"
 </code></pre>
 <h2 id="data-types"><a class="header" href="#data-types">Data Types</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>GraphQL Type</th><th>Storage</th></tr></thead><tbody>
@@ -154,25 +171,76 @@ type Review @table(database: "my-app") @export(rest: true, graphql: true) {
 </tbody></table>
 </div>
 <p>The <code>!</code> suffix means non-nullable.</p>
-<h2 id="type-directives"><a class="header" href="#type-directives">Type Directives</a></h2>
-<p><strong><code>@table(database: "name")</code></strong> - Declares a persistent table in the named database.</p>
-<p><strong><code>@export</code></strong> - Exposes the table as API endpoints:</p>
-<pre><code class="language-graphql">type Product @table(database: "my-app") @export(rest: true, graphql: true) { ... }
+<h2 id="type-level-directives"><a class="header" href="#type-level-directives">Type-Level Directives</a></h2>
+<h3 id="table----identity--storage"><a class="header" href="#table----identity--storage"><code>@table</code> -- Identity &amp; Storage</a></h3>
+<p>Declares a persistent table with storage configuration.</p>
+<pre><code class="language-graphql">type Product @table(database: "shop", table: "products", expiration: 3600) { ... }
 </code></pre>
-<p>Transport flags: <code>rest</code>, <code>graphql</code>, <code>ws</code>, <code>sse</code>, <code>mqtt</code>, <code>grpc</code>, <code>mcp</code> -- all default to <code>true</code> when <code>@export</code> is present. Without <code>@export</code>, the table exists internally but has no HTTP endpoints.</p>
-<p><strong><code>@export(public: [...])</code></strong> - Declares operations that bypass authentication:</p>
+<div class="table-wrapper"><table><thead><tr><th>Argument</th><th>Purpose</th><th>Default</th></tr></thead><tbody>
+<tr><td><code>database</code></td><td>Database namespace</td><td><code>"data"</code></td></tr>
+<tr><td><code>table</code></td><td>Physical table name</td><td>Type name</td></tr>
+<tr><td><code>storage</code></td><td>Storage backend (<code>"rocksdb"</code>)</td><td><code>"rocksdb"</code></td></tr>
+<tr><td><code>expiration</code></td><td>TTL in seconds for all records</td><td>None (no expiry)</td></tr>
+</tbody></table>
+</div>
+<h3 id="export----interfaces"><a class="header" href="#export----interfaces"><code>@export</code> -- Interfaces</a></h3>
+<p>Exposes the table as API endpoints. Without <code>@export</code>, the table exists internally but has no HTTP endpoints.</p>
+<pre><code class="language-graphql">type Product @table @export(rest: true, graphql: true, ws: false, mcp: true) { ... }
+</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Argument</th><th>Purpose</th><th>Default (when @export present)</th></tr></thead><tbody>
+<tr><td><code>rest</code></td><td>REST API endpoints</td><td><code>true</code></td></tr>
+<tr><td><code>graphql</code></td><td>GraphQL schema inclusion</td><td><code>true</code></td></tr>
+<tr><td><code>ws</code></td><td>WebSocket subscriptions</td><td><code>true</code></td></tr>
+<tr><td><code>sse</code></td><td>Server-Sent Events stream</td><td><code>true</code></td></tr>
+<tr><td><code>mqtt</code></td><td>MQTT topic publishing</td><td><code>true</code></td></tr>
+<tr><td><code>mcp</code></td><td>Model Context Protocol tool</td><td><code>true</code></td></tr>
+<tr><td><code>grpc</code></td><td>gRPC tables service</td><td><code>true</code></td></tr>
+<tr><td><code>name</code></td><td>Custom endpoint path</td><td>Lowercase type name</td></tr>
+<tr><td><code>public</code></td><td>Operations bypassing auth</td><td>None</td></tr>
+</tbody></table>
+</div>
+<p><strong>Public access</strong> declares operations that skip authentication:</p>
 <pre><code class="language-graphql">type Chat @table @export(public: [read, create, subscribe]) { ... }
 </code></pre>
 <p>Values: <code>read</code>, <code>create</code>, <code>update</code>, <code>delete</code>, <code>subscribe</code>, <code>connect</code>, <code>publish</code>.</p>
+<h3 id="distribute----topology"><a class="header" href="#distribute----topology"><code>@distribute</code> -- Topology</a></h3>
+<p>Controls sharding, replication, and consistency for distributed deployments.</p>
+<pre><code class="language-graphql">type Session @table @export @distribute(sharding: "hash", residency: "sharded", replicationFactor: 3, consistency: "strong") { ... }
+</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Argument</th><th>Purpose</th><th>Default</th></tr></thead><tbody>
+<tr><td><code>sharding</code></td><td>Strategy: <code>"hash"</code>, <code>"range"</code></td><td>None</td></tr>
+<tr><td><code>residency</code></td><td>Mode: <code>"full"</code>, <code>"sharded"</code>, <code>"mirrored"</code>, <code>"adaptive"</code></td><td><code>"full"</code></td></tr>
+<tr><td><code>replicationFactor</code></td><td>Number of replicas (1-255)</td><td>Cluster default</td></tr>
+<tr><td><code>consistency</code></td><td><code>"strong"</code> or <code>"eventual"</code></td><td><code>"eventual"</code></td></tr>
+</tbody></table>
+</div>
+<p>Bare <code>@distribute</code> with no arguments inherits cluster defaults.</p>
+<h3 id="audit----compliance"><a class="header" href="#audit----compliance"><code>@audit</code> -- Compliance</a></h3>
+<p>Enables audit logging for table operations.</p>
+<pre><code class="language-graphql">type Transaction @table @export @audit(operations: [create, update, delete], retention: 365, state: true) { ... }
+</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Argument</th><th>Purpose</th><th>Default</th></tr></thead><tbody>
+<tr><td><code>operations</code></td><td>Which operations to audit</td><td><code>[create, update, delete]</code></td></tr>
+<tr><td><code>retention</code></td><td>Retention period in days (0 = forever)</td><td>90</td></tr>
+<tr><td><code>state</code></td><td>Capture before/after record snapshots</td><td><code>false</code></td></tr>
+</tbody></table>
+</div>
+<p>Bare <code>@audit</code> enables auditing with defaults (all mutations, 90-day retention, no state capture). Audit entries are fire-and-forget -- they never block the write path.</p>
 <h2 id="field-directives"><a class="header" href="#field-directives">Field Directives</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Directive</th><th>Purpose</th></tr></thead><tbody>
 <tr><td><code>@primaryKey</code></td><td>Record identifier. Every table needs one.</td></tr>
 <tr><td><code>@indexed</code></td><td>Secondary index for fast FIQL filtering</td></tr>
+<tr><td><code>@indexed(type: "fulltext")</code></td><td>Full-text search index with tokenization</td></tr>
 <tr><td><code>@relationship(from: "field")</code></td><td>Belongs-to join (this table has the FK)</td></tr>
 <tr><td><code>@relationship(to: "field")</code></td><td>Has-many join (other table has the FK)</td></tr>
 <tr><td><code>@createdTime</code></td><td>Auto-set to Unix timestamp on creation</td></tr>
 <tr><td><code>@updatedTime</code></td><td>Auto-set to Unix timestamp on every write</td></tr>
-<tr><td><code>@expiresAt</code></td><td>TTL - records auto-delete after this time</td></tr>
+<tr><td><code>@expiresAt</code></td><td>TTL -- records auto-delete after this time</td></tr>
+<tr><td><code>@default(value: "...")</code></td><td>Default value injected when field is absent (type-validated at parse time)</td></tr>
+<tr><td><code>@crdt(type: "...")</code></td><td>CRDT type for conflict-free replication (<code>"counter"</code>, <code>"pn-counter"</code>, <code>"or-set"</code>)</td></tr>
+<tr><td><code>@indexed(source: "field", model: "id")</code></td><td>On a <code>Vector</code> field, auto-embed the source field using the named model (HNSW index)</td></tr>
+<tr><td><code>@computed(from: "expr")</code></td><td>Virtual field computed at read time</td></tr>
+<tr><td><code>@compositeIndex(fields: "a,b")</code></td><td>Multi-field composite index (type-level)</td></tr>
 </tbody></table>
 </div>
 <h2 id="generated-endpoints"><a class="header" href="#generated-endpoints">Generated Endpoints</a></h2>
@@ -185,6 +253,7 @@ PATCH  /{app-id}/{Table}/{id}   # Partial update
 DELETE /{app-id}/{Table}/{id}   # Delete
 </code></pre>
 <p>With <code>graphql: true</code>, the table is also queryable via <code>POST /{app-id}/graphql</code>.</p>
+<p>With <code>sse: true</code>, changes stream via <code>GET /{app-id}/{Table}?stream=sse</code>.</p>
 <h2 id="storage"><a class="header" href="#storage">Storage</a></h2>
 <p>Tables use <a href="https://rocksdb.org/">RocksDB</a> with MessagePack serialization. Primary key lookups are sub-millisecond. <code>@indexed</code> fields use prefix-scanned column families for range queries.</p>
 

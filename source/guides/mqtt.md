@@ -1,6 +1,6 @@
 # MQTT
 
-Yeti includes a native MQTT 5.0 broker for IoT devices, sensors, and machine-to-machine communication.
+Native MQTT 5.0 broker for IoT devices, sensors, and machine-to-machine communication.
 
 ## Enabling MQTT
 
@@ -74,7 +74,7 @@ mosquitto_sub -h localhost -p 8883 \
   -t "my-app/SensorReading/#"
 
 # Publish (writes go through REST)
-curl -sk -X POST https://localhost/my-app/SensorReading \
+curl -sk -X POST https://localhost:9996/my-app/SensorReading \
   -H "Content-Type: application/json" \
   -d '{"id":"r1","deviceId":"sensor-001","temperature":22.5,"humidity":45.0}'
 ```
@@ -86,7 +86,7 @@ Connect to `wss://host/mqtt` using any MQTT-over-WebSocket client library (e.g.,
 ```javascript
 import mqtt from 'mqtt'
 
-const client = mqtt.connect('wss://localhost/mqtt')
+const client = mqtt.connect('wss://localhost:9996/mqtt')
 
 client.on('connect', () => {
   client.subscribe('my-app/SensorReading/#')
@@ -106,9 +106,11 @@ client.on('message', (topic, message) => {
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `interfaces.mqtt.enabled` | `false` | Enable the MQTT broker |
+| `interfaces.mqtt.enabled` | `true` | Enable the MQTT broker |
 | `interfaces.mqtt.port` | `8883` | MQTTS listen port |
-| `interfaces.mqtt.maxClients` | `10000` | Maximum concurrent MQTT connections |
+| `interfaces.mqtt.max_clients` | `10000` | Maximum concurrent MQTT connections |
+| `interfaces.mqtt.qos` | `2` | Default QoS level for bridge-published messages (0, 1, or 2) |
+| `interfaces.mqtt.audit` | `false` | Enable audit logging for MQTT operations |
 
 ## Public Access
 
@@ -126,7 +128,7 @@ type SensorReading @table(database: "my-app") @export(
 
 ## See Also
 
-- [Real-Time Overview](realtime-overview.md) - All streaming options
-- [SSE](sse.md) - Server-Sent Events
-- [WebSocket](websocket.md) - WebSocket connections
-- [PubSub](pubsub.md) - Internal event system
+- [Real-Time Overview](realtime-overview.md) -- All streaming options
+- [SSE](sse.md) -- Server-Sent Events
+- [WebSocket](websocket.md) -- WebSocket connections
+- [PubSub](pubsub.md) -- Internal event backbone

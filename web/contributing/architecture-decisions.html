@@ -119,10 +119,10 @@
 <p><strong>Why</strong>: Zero-cost abstractions, memory safety without GC pauses, predictable performance, single binary deployment.</p>
 <p><strong>Rejected</strong>: Go (GC latency spikes), C++ (memory safety concerns), Node.js (single-threaded, GC pauses).</p>
 <p><strong>Benchmarks</strong>: p50 &lt;500us, p99 &lt;5ms, no GC-related latency spikes.</p>
-<h2 id="adr-003-actix-web-for-http"><a class="header" href="#adr-003-actix-web-for-http">ADR-003: Actix-Web for HTTP</a></h2>
-<p><strong>Decision</strong>: Actix-web as HTTP framework.</p>
-<p><strong>Why</strong>: Among fastest Rust web frameworks, built-in TLS via rustls, streaming support, WebSocket support, mature and battle-tested.</p>
-<p><strong>Rejected</strong>: Axum (less proven at the time), Rocket (sync-first), Warp (smaller community).</p>
+<h2 id="adr-003-axum-for-http"><a class="header" href="#adr-003-axum-for-http">ADR-003: Axum for HTTP</a></h2>
+<p><strong>Decision</strong>: Axum as HTTP framework.</p>
+<p><strong>Why</strong>: Tower-native middleware ecosystem, first-class WebSocket support, built-in TLS via rustls, strong async ergonomics, actively maintained by the Tokio team.</p>
+<p><strong>Rejected</strong>: Actix-web (macro-heavy API, separate runtime), Rocket (sync-first), Warp (smaller community).</p>
 <h2 id="adr-004-fiql-for-query-language"><a class="header" href="#adr-004-fiql-for-query-language">ADR-004: FIQL for Query Language</a></h2>
 <p><strong>Decision</strong>: FIQL (Feed Item Query Language) for REST filtering.</p>
 <p><strong>Why</strong>: URL-safe, human-readable (<code>name==john;age&gt;18</code>), composable with AND/OR operators, widely understood.</p>
@@ -135,7 +135,7 @@
 <div class="table-wrapper"><table><thead><tr><th>Component</th><th>Choice</th></tr></thead><tbody>
 <tr><td>Language</td><td>Rust</td></tr>
 <tr><td>Storage</td><td>RocksDB</td></tr>
-<tr><td>HTTP Server</td><td>actix-web</td></tr>
+<tr><td>HTTP Server</td><td>Axum</td></tr>
 <tr><td>Query Language</td><td>FIQL</td></tr>
 <tr><td>TLS</td><td>Rustls + ring</td></tr>
 </tbody></table>

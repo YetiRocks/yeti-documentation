@@ -9,7 +9,7 @@
     })(window,document,'script','dataLayer','GTM-KGB7BN8B');</script>
     <!-- End Google Tag Manager -->
     <meta charset="UTF-8">
-    <title>Documentation | Yeti | Troubleshooting</title>
+    <title>Documentation | Yeti | AI &amp; Inference</title>
     <meta name="description" content="Distributed application platform built in Rust">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#121212">
@@ -107,101 +107,92 @@
                 <!-- Content -->
                 <div id="content" class="content">
                     <main>
-                        <h1 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h1>
-<h2 id="plugin-compilation"><a class="header" href="#plugin-compilation">Plugin Compilation</a></h2>
-<p><strong>Plugin won't compile</strong></p>
-<p>Check the compiler output in the terminal. Common causes:</p>
-<ul>
-<li>Missing <code>use yeti_sdk::prelude::*;</code> at top of resource file</li>
-<li>Syntax error in <code>schema.graphql</code> (mismatched braces, missing <code>@primaryKey</code>)</li>
-<li>Bad dependency version in <code>config.yaml</code> <code>dependencies:</code> section</li>
-</ul>
-<p><strong>Source changes aren't taking effect</strong></p>
-<p>The compiler caches source at <code>cache/builds/{app}/src/</code>. Clear it:</p>
-<pre><code class="language-bash">rm -rf ~/yeti/cache/builds/{app}/src/
+                        <h1 id="ai--inference"><a class="header" href="#ai--inference">AI &amp; Inference</a></h1>
+<p>Yeti embeds a Candle-based ML runtime for local embeddings and inference. No external API calls. No data exfiltration. Models download from HuggingFace Hub and run in-process.</p>
+<h2 id="auto-embedding"><a class="header" href="#auto-embedding">Auto-Embedding</a></h2>
+<p>Add a <code>Vector</code> field with <code>@indexed(source:)</code> to any table:</p>
+<pre><code class="language-graphql">type Document @table @export {
+  id: ID! @primaryKey
+  content: String!
+  embedding: Vector @indexed(source: "content")
+}
 </code></pre>
-<p><strong>Segfault on startup (no panic, no backtrace)</strong></p>
-<p>Stale <code>.dylib</code> files from a previous yeti build. Clear the plugin cache:</p>
-<pre><code class="language-bash">rm -rf ~/yeti/cache/builds/*/target/
+<p>When you write a record, the embedding generates automatically:</p>
+<pre><code class="language-bash">curl -X POST https://localhost:9996/my-app/Document \
+  -H 'Content-Type: application/json' \
+  -d '{"content": "Yeti runs everything in a single binary"}'
 </code></pre>
-<p>Always clear after <code>cargo clean</code> or rebuilding yeti.</p>
-<h2 id="dylib-boundary"><a class="header" href="#dylib-boundary">Dylib Boundary</a></h2>
-<p>These issues only affect custom resources and extensions (code compiled as dynamic libraries).</p>
-<p><strong><code>tokio::spawn</code> crashes with "cannot catch foreign exceptions"</strong></p>
-<p><code>tokio::spawn()</code> cannot be called from dylib code. Use <code>futures::stream::unfold</code> instead of spawn+channel patterns. For event subscribers, use <code>ctx.set_event_subscriber()</code> and let the host spawn after <code>on_ready()</code> returns.</p>
-<p><strong><code>tracing::info!()</code> produces no output</strong></p>
-<p>Tracing macros use thread-local storage, which is duplicated in the dylib. Messages go to the dylib's subscriber, not the host's. Use <code>tracing::warn!()</code> anyway for consistency -- it remains the standard API even though output may not reach the host subscriber.</p>
-<p><strong>Host statics have wrong values</strong></p>
-<p><code>OnceLock</code> and other statics in yeti-core are duplicated in the dylib. The host's copy and the dylib's copy are independent. Use dylib-local statics for state shared between an extension and its resources.</p>
-<p><strong>Methods on host types don't work as expected</strong></p>
-<p>Methods defined on host-compiled structs (like <code>ExtensionContext</code>) run in dylib context when called from dylib code. The dylib has its own compiled copy. Creating tokio channels or futures in such methods silently corrupts the host runtime. Fix: set flags in dylib, let the host check flags after <code>on_ready()</code> returns.</p>
-<p><strong><code>reqwest::blocking::Client</code> crashes</strong></p>
-<p>Reqwest's blocking client creates an internal tokio runtime that conflicts with the dylib boundary. This crashes in async handlers AND in <code>std::thread::spawn</code> threads. For table access, use <code>ctx.get_table("Name")?.get_all().await?</code>. For external HTTP, use the <code>fetch!</code> macro from <code>yeti_sdk::prelude</code> -- wraps curl subprocess for dylib safety:</p>
-<pre><code class="language-rust ignore">let data = fetch!("https://api.example.com/data").json()?;</code></pre>
-<h2 id="networking--tls"><a class="header" href="#networking--tls">Networking &amp; TLS</a></h2>
-<p><strong><code>curl: (60) SSL certificate problem</code></strong></p>
-<p>Development server uses self-signed certificates. Always use <code>-sk</code> flags:</p>
-<pre><code class="language-bash">curl -sk https://localhost:9996/health
+<p>The <code>embedding</code> field is populated by the yeti-ai service using the configured model.</p>
+<h2 id="vector-search"><a class="header" href="#vector-search">Vector Search</a></h2>
+<p>Query by similarity with FIQL or JSON:</p>
+<pre><code class="language-bash"># FIQL — search by text similarity
+curl 'https://localhost:9996/my-app/Document?filter=embedding=vector="single binary deployment"&amp;limit=5'
 </code></pre>
-<p><strong>Connection refused on port 9996</strong></p>
-<p>Check that the server is running and the port matches <code>yeti-config.yaml</code>:</p>
-<pre><code class="language-yaml">interfaces:
-  port: 9996
-</code></pre>
-<p><strong>Port already in use</strong></p>
-<p>Another process is using the configured port. Find it and stop it, or change the port in <code>yeti-config.yaml</code>:</p>
-<pre><code class="language-bash">lsof -i :9996
-</code></pre>
-<h2 id="data--queries"><a class="header" href="#data--queries">Data &amp; Queries</a></h2>
-<p><strong><code>GET /{app}/{Table}</code> returns schema, not records</strong></p>
-<p>Add <code>?limit=N</code> to list records:</p>
-<pre><code class="language-bash">curl -sk "https://localhost:9996/my-app/Product?limit=100"
-</code></pre>
-<p>Plain <code>GET /{app}/{Table}</code> without query parameters returns table metadata.</p>
-<p><strong>FIQL filter returns empty results</strong></p>
-<p>Check that the filtered field has <code>@indexed</code> in schema.graphql. Non-indexed fields require table scans.</p>
-<p><strong>Seed data not loading</strong></p>
-<p>Seed data loads once when the table is empty. If the table already has records, seed data is skipped. To reload, delete all records first or clear the database directory.</p>
-<h2 id="general"><a class="header" href="#general">General</a></h2>
-<p><strong>App not detected on startup</strong></p>
-<p>Yeti scans <code>~/yeti/applications/*/config.yaml</code>. Check that:</p>
-<ul>
-<li>The directory is directly under <code>applications/</code> (not nested)</li>
-<li><code>config.yaml</code> exists and is valid YAML</li>
-<li><code>enabled: true</code> is set (or not set to <code>false</code>)</li>
-</ul>
-<p><strong><code>@export</code> table has no REST endpoints</strong></p>
-<p>Tables need <code>@export</code> in schema.graphql. Without <code>@export</code>, the table exists in storage but has no HTTP endpoints.</p>
-<p><strong>Database lock errors in tests</strong></p>
-<pre><code class="language-bash">rm -rf /tmp/yeti-test-*
-</code></pre>
-<h2 id="plugin-cache"><a class="header" href="#plugin-cache">Plugin Cache</a></h2>
-<p>When in doubt, clear the plugin cache. This forces a full recompile on next startup (~2 min per plugin):</p>
-<pre><code class="language-bash"># Clear all plugin caches
-rm -rf ~/yeti/cache/builds/*/target/
-rm -rf ~/yeti/cache/builds/*/src/
+<p>Results are ranked by cosine similarity. The HNSW index provides sub-millisecond lookups at any dataset size.</p>
+<h2 id="local-inference"><a class="header" href="#local-inference">Local Inference</a></h2>
+<p>The yeti-ai service provides chat completion and text generation via the <code>AiHook</code> trait. AI hooks are registered at the service level (via <code>RegistrationContext::add_ai_hook()</code>) and are not directly accessible from resource handler context. To expose inference to application code, build a service that wraps the <code>AiHook</code>:</p>
+<pre><code class="language-rust ignore">// In a service's register():
+ctx.add_ai_hook(Arc::new(MyAiHook::new()));
 
-# Clear a single app
-rm -rf ~/yeti/cache/builds/my-app/target/
-rm -rf ~/yeti/cache/builds/my-app/src/
+// AiHook methods are sync (no .await) for dylib boundary safety:
+let response = ai_hook.complete("Summarize this:", 256)
+    .map_err(|e| YetiError::Internal(e))?;</code></pre>
+<h3 id="supported-operations"><a class="header" href="#supported-operations">Supported Operations</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>complete(prompt, max_tokens)</code></td><td>Single-turn text completion</td></tr>
+<tr><td><code>chat(messages, max_tokens)</code></td><td>Multi-turn conversation</td></tr>
+<tr><td><code>complete_json(prompt, max_tokens)</code></td><td>Structured JSON output</td></tr>
+<tr><td><code>models()</code></td><td>List available models</td></tr>
+<tr><td><code>is_loaded(model)</code></td><td>Check if a model is loaded</td></tr>
+</tbody></table>
+</div>
+<h2 id="model-management"><a class="header" href="#model-management">Model Management</a></h2>
+<p>Manage models through the yeti-ai REST API:</p>
+<pre><code class="language-bash"># List available models
+curl https://localhost:9996/yeti-ai/models
+
+# Download a model from HuggingFace
+curl -X POST https://localhost:9996/yeti-ai/models \
+  -d '{"id": "BAAI/bge-small-en-v1.5"}'
+
+# Load into memory
+curl -X POST https://localhost:9996/yeti-ai/models/load \
+  -d '{"id": "BAAI/bge-small-en-v1.5"}'
+
+# Unload from memory
+curl -X POST https://localhost:9996/yeti-ai/models/unload \
+  -d '{"id": "BAAI/bge-small-en-v1.5"}'
 </code></pre>
-<p>Always clear after:</p>
+<h2 id="hardware-acceleration"><a class="header" href="#hardware-acceleration">Hardware Acceleration</a></h2>
+<p>Yeti-ai detects available hardware and uses the fastest backend:</p>
+<div class="table-wrapper"><table><thead><tr><th>Platform</th><th>Backend</th><th>Flag</th></tr></thead><tbody>
+<tr><td>Apple Silicon</td><td>Metal GPU</td><td><code>--features metal</code> (default on macOS)</td></tr>
+<tr><td>Intel CPU</td><td>MKL BLAS</td><td><code>--features mkl</code> (separate binary)</td></tr>
+<tr><td>NVIDIA GPU</td><td>CUDA</td><td><code>--features cuda</code> (separate binary)</td></tr>
+<tr><td>Any CPU</td><td>Candle native</td><td>Default (no flag needed)</td></tr>
+</tbody></table>
+</div>
+<h2 id="multi-tenant-isolation"><a class="header" href="#multi-tenant-isolation">Multi-Tenant Isolation</a></h2>
 <ul>
-<li>Rebuilding yeti from source (<code>cargo clean &amp;&amp; cargo build</code>)</li>
-<li>Upgrading yeti to a new version</li>
-<li>Changing plugin dependencies in config.yaml</li>
-<li>Seeing unexplained segfaults or ABI errors</li>
+<li><strong>Public models</strong> in <code>{root}/models/</code> — shared across all apps</li>
+<li><strong>Custom models</strong> in <code>{root}/deployments/{hash}/models/</code> — per-deployment isolation</li>
+</ul>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
+<ul>
+<li><a href="vector-search.html">Vector Search</a> — Query patterns and index configuration</li>
+<li><a href="../reference/schema-directives.html">Schema Directives</a> — <code>@indexed</code> directive reference</li>
+<li><a href="../sdk/extension-api.html">Service API</a> — <code>AiHook</code> and <code>VectorHook</code> traits</li>
 </ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
-                        <a rel="prev" href="../guides/mcp.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <a rel="prev" href="../guides/kafka.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                             <i class="fa fa-angle-left"></i>
-                            <span class="nav-label">MCP Integration</span>
+                            <span class="nav-label">Kafka Integration</span>
                         </a>
-                        <a rel="next" href="../sdk/overview.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                            <span class="nav-label">Overview</span>
+                        <a rel="next" href="../guides/telemetry.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <span class="nav-label">Telemetry &amp; Observability</span>
                             <i class="fa fa-angle-right"></i>
                         </a>
                     </nav>

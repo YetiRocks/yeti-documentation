@@ -123,7 +123,6 @@ export ENVIRONMENT="production"
 </code></pre>
 <h2 id="storage-required"><a class="header" href="#storage-required">Storage (Required)</a></h2>
 <pre><code class="language-yaml">storage:
-  mode: embedded
   path: "/var/lib/yeti/data"
   caching: true
   compression: true
@@ -132,7 +131,6 @@ export ENVIRONMENT="production"
 <h2 id="logging"><a class="header" href="#logging">Logging</a></h2>
 <pre><code class="language-yaml">logging:
   level: "warn"
-  auditLog: true
 </code></pre>
 <h2 id="interfaces"><a class="header" href="#interfaces">Interfaces</a></h2>
 <p>The <code>interfaces</code> section controls the listening port and protocol toggles:</p>
@@ -157,7 +155,7 @@ export ENVIRONMENT="production"
 <h2 id="application-review"><a class="header" href="#application-review">Application Review</a></h2>
 <ul>
 <li>Remove or disable unused example applications</li>
-<li>Verify OAuth rules per extension config</li>
+<li>Verify OAuth rules per app auth config</li>
 <li>Check that seed data is appropriate for production</li>
 <li>Ensure <code>app_id</code> values are stable (changing breaks client URLs)</li>
 </ul>
@@ -170,7 +168,7 @@ export ENVIRONMENT="production"
 curl -v https://your-server:9996/documentation/ 2&gt;&amp;1 | grep "SSL certificate"
 </code></pre>
 <h2 id="yeti-cloud"><a class="header" href="#yeti-cloud">Yeti Cloud</a></h2>
-<p>As an alternative to self-hosting, <a href="../architecture/overview.html">Yeti Cloud</a> provides managed hosting with built-in replication, cgroup isolation, and automated backups.</p>
+<p>As an alternative to self-hosting, <a href="cloud.html">Yeti Cloud</a> provides managed hosting with built-in replication, cgroup isolation, and automated backups.</p>
 
                     </main>
 

@@ -1,6 +1,30 @@
 # Installation
 
-Yeti ships as a single binary with a built-in setup wizard. No package managers, containers, or external dependencies required.
+Single binary with a built-in setup wizard. No package managers, containers, or external dependencies.
+
+## Download
+
+Download for your platform:
+
+```bash
+# macOS (Apple Silicon)
+curl -Lo yeti https://yeti-releases.us-east-1.linodeobjects.com/latest/yeti-darwin-arm64
+chmod +x yeti
+
+# macOS (Intel)
+curl -Lo yeti https://yeti-releases.us-east-1.linodeobjects.com/latest/yeti-darwin-x86_64
+chmod +x yeti
+
+# Linux (x64)
+curl -Lo yeti https://yeti-releases.us-east-1.linodeobjects.com/latest/yeti-linux-x86_64
+chmod +x yeti
+
+# Linux (ARM64)
+curl -Lo yeti https://yeti-releases.us-east-1.linodeobjects.com/latest/yeti-linux-arm64
+chmod +x yeti
+```
+
+Move the binary somewhere on your PATH (e.g., `/usr/local/bin/`) or run it from the current directory.
 
 ## One-Line Install
 
@@ -20,13 +44,13 @@ Press the **Install Yeti** button to continue.
 
 ### 2. Configure
 
-A scrollable form with the following fields. Defaults are shown in parentheses.
+Scrollable form. Defaults shown in parentheses.
 
 | Field | Default | Description |
 |-------|---------|-------------|
 | ROOT DIRECTORY | `~/yeti` | Where Yeti stores applications, data, and configuration |
 | HOSTNAME | `localhost` | Server hostname for TLS certificate generation |
-| PORT | `443` | HTTPS listen port (`interfaces.port` in yeti-config.yaml) |
+| PORT | `9996` | HTTPS listen port (`interfaces.port` in yeti-config.yaml) |
 | ENVIRONMENT | `development` | Toggle with Space between `development` and `production` |
 | ENABLE LOCAL STUDIO | `yes` | Install the Yeti Studio web interface |
 | INCLUDE BASIC DEMO APP | `yes` | Install a sample application to explore |
@@ -39,7 +63,7 @@ Navigate between fields with arrow keys. Press Enter to confirm and proceed to i
 
 ### 3. Progress
 
-A live log stream shows each installation step as it completes. When the server is ready, an **Open Yeti Studio** button appears. Press it to launch Studio in your default browser.
+A live log stream shows each step. When the server is ready, press **Open Yeti Studio** to launch Studio in your browser.
 
 ## Headless Install
 
@@ -57,13 +81,13 @@ yeti install \
   --agree-to-terms \
   --dir ~/yeti \
   --hostname localhost \
-  --port 443 \
+  --port 9996 \
   --environment development
 ```
 
 ## What Gets Installed
 
-Installation creates this structure:
+Installation creates:
 
 ```
 ~/yeti/
@@ -77,14 +101,14 @@ Installation creates this structure:
   keys/                  # API keys and secrets
 ```
 
-No files are installed outside this directory. Uninstalling is `rm -rf ~/yeti`.
+Nothing is installed outside this directory. Uninstall with `rm -rf ~/yeti`.
 
 ## After Install
 
-Yeti starts automatically when installation completes. Studio is accessible at:
+Yeti starts automatically. Studio is at:
 
 ```
-https://localhost/studio/
+https://localhost:9996/studio/
 ```
 
 On subsequent runs, start the server from the root directory:
@@ -101,7 +125,7 @@ cd ~/yeti && yeti
 | Linux | x64, ARM64 |
 | Windows | x64 |
 
-No external dependencies. Yeti embeds its own storage engine, TLS stack, and plugin compiler. A Rust toolchain is required only for applications with custom resources.
+No external dependencies. Yeti embeds its storage engine, TLS stack, and plugin compiler. A Rust toolchain is required only for custom resources.
 
 ## Next Steps
 

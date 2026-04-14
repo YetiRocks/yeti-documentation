@@ -1,13 +1,13 @@
 # GraphQL
 
-Yeti auto-generates a GraphQL API from your schema. Tables with `graphql: true` get query, mutation, and subscription support at `POST /{app-id}/graphql`.
+Yeti auto-generates a GraphQL API from your schema. Tables with `graphql: true` on `@export` (the default) get query, mutation, and subscription support at `POST /{app-id}/graphql`.
 
 ## Setup
 
 ```yaml
 graphql: true
 schemas:
-  - schema.graphql
+  path: "schema.graphql"
 ```
 
 ## Queries

@@ -108,18 +108,38 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="response-helpers"><a class="header" href="#response-helpers">Response Helpers</a></h1>
-<p>Three layers of response building, from simplest to most flexible.</p>
+<p>Three layers of response building, from simplest to most flexible. All error responses use the RFC 9457 Problem Details format.</p>
+<h2 id="rfc-9457-problem-details"><a class="header" href="#rfc-9457-problem-details">RFC 9457 Problem Details</a></h2>
+<p>All error helpers produce <code>application/problem+json</code> responses with a standard structure:</p>
+<pre><code class="language-json">{
+  "type": "urn:yeti:error:404",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "Record not found: user-123"
+}
+</code></pre>
+<p>The <code>ProblemDetails</code> struct (defined in <code>yeti_types::error</code>) carries:</p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>type</code></td><td>URI reference identifying the problem (e.g., <code>urn:yeti:error:not_found</code>)</td></tr>
+<tr><td><code>title</code></td><td>Short human-readable summary (e.g., "Not Found")</td></tr>
+<tr><td><code>status</code></td><td>HTTP status code</td></tr>
+<tr><td><code>detail</code></td><td>Human-readable explanation of this specific occurrence (optional)</td></tr>
+</tbody></table>
+</div>
+<p>Any <code>YetiError</code> can be converted to a <code>ProblemDetails</code> via <code>.to_problem_details()</code>, which maps the error variant to the correct status code, type URI, and title automatically.</p>
 <h2 id="layer-1-free-functions"><a class="header" href="#layer-1-free-functions">Layer 1: Free Functions</a></h2>
 <p>Return a response in one call. All return <code>Result&lt;Response&lt;ResponseBody&gt;&gt;</code>.</p>
 <h3 id="success-responses"><a class="header" href="#success-responses">Success responses</a></h3>
 <pre><code class="language-rust ignore">fn ok&lt;T: Serialize&gt;(data: T) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
 fn created&lt;T: Serialize&gt;(data: T) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
 fn created_with_location(id: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
-fn no_content() -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;</code></pre>
+fn no_content() -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn ok_json_bytes(bytes: Vec&lt;u8&gt;) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;</code></pre>
 <pre><code class="language-rust ignore">ok(json!({"status": "active"}))              // 200 + JSON
 created(json!({"id": "new-123"}))            // 201 + JSON
 created_with_location("abc-123")             // 201 + Location header
-no_content()                                  // 204 empty</code></pre>
+no_content()                                  // 204 empty
+ok_json_bytes(pre_serialized)                 // 200 + pre-serialized JSON (skips serde)</code></pre>
 <h3 id="error-responses"><a class="header" href="#error-responses">Error responses</a></h3>
 <pre><code class="language-rust ignore">fn bad_request(message: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
 fn not_found(message: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
@@ -127,15 +147,19 @@ fn unauthorized(message: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&
 fn internal_error(message: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
 fn error&lt;T: Serialize&gt;(data: T) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
 fn error_response(status: u16, message: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
-fn json_response&lt;T: Serialize&gt;(status: u16, data: T) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;</code></pre>
-<pre><code class="language-rust ignore">bad_request("Invalid email format")          // 400 + {"error": "..."}
-not_found("User not found")                  // 404 + {"error": "..."}
-unauthorized("Token expired")                // 401 + {"error": "..."}
-internal_error("Database connection failed") // 500 + {"error": "..."}
-error(json!({"field": "email", "msg": "required"}))  // 400 + custom JSON
-error_response(422, "Validation failed")     // custom status + {"error": "..."}
-json_response(200, json!({"custom": true}))  // custom status + JSON body</code></pre>
-<h3 id="content-type-responses"><a class="header" href="#content-type-responses">Content type responses</a></h3>
+fn structured_error_response(err: &amp;YetiError) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;</code></pre>
+<p>The named helpers (<code>bad_request</code>, <code>not_found</code>, <code>unauthorized</code>, <code>internal_error</code>) all delegate to <code>error_response()</code>, which produces RFC 9457 Problem Details:</p>
+<pre><code class="language-rust ignore">bad_request("Invalid email format")          // 400 application/problem+json
+not_found("User not found")                  // 404 application/problem+json
+unauthorized("Token expired")                // 401 application/problem+json
+internal_error("Database connection failed") // 500 application/problem+json
+error_response(422, "Validation failed")     // custom status, problem+json</code></pre>
+<p><code>error()</code> is different -- it returns a 400 with a custom JSON body (not Problem Details):</p>
+<pre><code class="language-rust ignore">error(json!({"field": "email", "msg": "required"}))  // 400 + application/json</code></pre>
+<p><code>structured_error_response()</code> converts any <code>YetiError</code> to its Problem Details representation:</p>
+<pre><code class="language-rust ignore">let err = YetiError::NotFound { resource_type: "User".into(), id: "123".into() };
+structured_error_response(&amp;err)  // 404 application/problem+json</code></pre>
+<h3 id="content-type-responses"><a class="header" href="#content-type-responses">Content-type responses</a></h3>
 <pre><code class="language-rust ignore">fn ok_html(html: impl AsRef&lt;str&gt;) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
 fn ok_text(text: impl AsRef&lt;str&gt;) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
 fn ok_with_content_type(content_type: &amp;str, data: impl Into&lt;Vec&lt;u8&gt;&gt;) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
@@ -147,17 +171,50 @@ ok_with_content_type("image/png", png_bytes)       // 200 + custom MIME
 html_response(404, "&lt;h1&gt;Not Found&lt;/h1&gt;")           // custom status + HTML
 text_response(503, "Service unavailable")          // custom status + text</code></pre>
 <h3 id="domain-specific-helpers"><a class="header" href="#domain-specific-helpers">Domain-specific helpers</a></h3>
-<pre><code class="language-rust ignore">fn record_not_found(key: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
-fn missing_param(param: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
-fn get_or_not_found(result: Result&lt;Option&lt;Vec&lt;u8&gt;&gt;&gt;, id: &amp;str) -&gt; StdResult&lt;Vec&lt;u8&gt;, Box&lt;Response&lt;ResponseBody&gt;&gt;&gt;</code></pre>
-<pre><code class="language-rust ignore">record_not_found("user-123")                 // 404: "Record not found: user-123"
-missing_param("email")                       // 400: "Missing 'email' parameter"
-
-// Pattern for raw storage lookups
-let data = match get_or_not_found(backend.get(key).await, &amp;id) {
+<p>These reduce repeated <code>format!</code> patterns in resource handlers:</p>
+<pre><code class="language-rust ignore">fn storage_error&lt;E: Display&gt;(err: E) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn serialization_error&lt;E: Display&gt;(err: E) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn invalid_json&lt;E: Display&gt;(err: E) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn record_not_found(key: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
+fn missing_param(param: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;</code></pre>
+<pre><code class="language-rust ignore">storage_error(err)                           // 500: "Storage error: {err}"
+serialization_error(err)                     // 500: "Serialization error: {err}"
+invalid_json(err)                            // 400: "Invalid JSON: {err}"
+record_not_found("user-123")                 // 404: "Record not found: user-123"
+missing_param("email")                       // 400: "Missing 'email' parameter"</code></pre>
+<h3 id="get_or_not_found-pattern"><a class="header" href="#get_or_not_found-pattern">get_or_not_found pattern</a></h3>
+<p>Eliminates the common match-on-Option boilerplate for raw storage lookups:</p>
+<pre><code class="language-rust ignore">fn get_or_not_found(
+    result: Result&lt;Option&lt;Vec&lt;u8&gt;&gt;&gt;,
+    id: &amp;str,
+) -&gt; StdResult&lt;Vec&lt;u8&gt;, Box&lt;Response&lt;ResponseBody&gt;&gt;&gt;</code></pre>
+<pre><code class="language-rust ignore">let data = match get_or_not_found(backend.get(key).await, &amp;id) {
     Ok(data) =&gt; data,
     Err(response) =&gt; return Ok(*response),
 };</code></pre>
+<p>Returns the raw bytes on <code>Ok(Some(...))</code>, a 404 Problem Details on <code>Ok(None)</code>, or a 500 Problem Details on <code>Err(...)</code>.</p>
+<h3 id="future-helpers"><a class="header" href="#future-helpers">Future helpers</a></h3>
+<p>For <code>Resource</code> trait default implementations and early returns in async contexts:</p>
+<pre><code class="language-rust ignore">fn method_not_allowed_future() -&gt; ResourceFuture
+fn not_implemented_future(method_name: &amp;'static str) -&gt; ResourceFuture
+fn error_future(status: u16, message: impl Into&lt;String&gt;) -&gt; ResourceFuture
+fn ready(result: Result&lt;Response&lt;ResponseBody&gt;&gt;) -&gt; ResourceFuture</code></pre>
+<pre><code class="language-rust ignore">// Default trait implementations
+fn put(&amp;self, _req: Request&lt;Vec&lt;u8&gt;&gt;, _params: Params) -&gt; ResourceFuture {
+    method_not_allowed_future()                        // 405
+}
+
+fn subscribe(&amp;self, _req: Request&lt;Vec&lt;u8&gt;&gt;, _params: Params) -&gt; ResourceFuture {
+    not_implemented_future("subscribe")                // 501
+}
+
+// Early return from a resource handler
+if id.is_empty() {
+    return error_future(400, "ID cannot be empty");    // 400
+}
+
+// Wrap a synchronous result as a future
+return ready(ok(json!({"cached": true})));</code></pre>
 <h2 id="layer-2-reply-builder"><a class="header" href="#layer-2-reply-builder">Layer 2: Reply Builder</a></h2>
 <p>Chain methods for custom status codes, headers, and content types. Start with <code>reply()</code>.</p>
 <pre><code class="language-rust ignore">fn reply() -&gt; ReplyBuilder</code></pre>
@@ -197,20 +254,18 @@ reply().type_header("application/xml").send(xml_bytes)  // custom content type</
     .header("set-cookie", "a=1; Path=/")
     .header("set-cookie", "b=2; Path=/")
     .json(json!({"ok": true}))</code></pre>
-<h2 id="layer-3-macros"><a class="header" href="#layer-3-macros">Layer 3: Macros</a></h2>
-<p>For inline use inside <code>resource!</code> blocks.</p>
+<h2 id="layer-3-macros-deprecated"><a class="header" href="#layer-3-macros-deprecated">Layer 3: Macros (Deprecated)</a></h2>
+<p>These macros are kept for backwards compatibility but are deprecated. Prefer <code>reply()</code> builder or the free functions (<code>ok()</code>, <code>created()</code>, etc.) instead.</p>
 <h3 id="ok_json"><a class="header" href="#ok_json">ok_json!</a></h3>
-<pre><code class="language-rust ignore">ok_json!({"key": "value", "count": 42})   // inline JSON object
-ok_json!(some_variable)                     // any serializable expression</code></pre>
+<pre><code class="language-rust ignore">ok_json!({"key": "value", "count": 42})   // inline JSON object -- prefer ok(json!({...}))</code></pre>
 <h3 id="created_json"><a class="header" href="#created_json">created_json!</a></h3>
-<pre><code class="language-rust ignore">created_json!({"id": new_id})</code></pre>
+<pre><code class="language-rust ignore">created_json!({"id": new_id})              // prefer reply().code(201).json(json!({...}))</code></pre>
 <h3 id="error_json"><a class="header" href="#error_json">error_json!</a></h3>
-<pre><code class="language-rust ignore">error_json!(400, {"error": "Validation failed"})
-error_json!(422, {"errors": validation_errors})</code></pre>
+<pre><code class="language-rust ignore">error_json!(400, {"error": "Validation failed"})   // prefer reply().status(400).json(json!({...}))</code></pre>
 <h3 id="html--text"><a class="header" href="#html--text">html! / text!</a></h3>
-<pre><code class="language-rust ignore">html!("&lt;h1&gt;Title&lt;/h1&gt;")
-text!("plain response")</code></pre>
-<p>The JSON macros accept both bare expressions and inline <code>json!</code>-style object syntax.</p>
+<pre><code class="language-rust ignore">html!("&lt;h1&gt;Title&lt;/h1&gt;")                    // prefer reply().html("...") or ok_html("...")
+text!("plain response")                    // prefer reply().text("...") or ok_text("...")</code></pre>
+<p>The JSON macros accept inline <code>json!</code>-style object syntax (they wrap <code>json!</code> internally).</p>
 <h2 id="responseext-trait"><a class="header" href="#responseext-trait">ResponseExt trait</a></h2>
 <p>Add headers to any response or result:</p>
 <pre><code class="language-rust ignore">pub trait ResponseExt {
@@ -219,13 +274,22 @@ text!("plain response")</code></pre>
 <p>Works on both <code>Response&lt;ResponseBody&gt;</code> and <code>Result&lt;Response&lt;ResponseBody&gt;&gt;</code>:</p>
 <pre><code class="language-rust ignore">ok_html(html).add_header("x-cache", "HIT")
 ok(data).add_header("x-request-id", &amp;id)</code></pre>
-<h2 id="response-headers-via-context"><a class="header" href="#response-headers-via-context">Response headers via context</a></h2>
-<p>Use <code>ctx.response_headers()</code> alongside any response helper:</p>
+<h2 id="response-headers-via-reply-builder"><a class="header" href="#response-headers-via-reply-builder">Response headers via reply builder</a></h2>
+<p>Use <code>reply()</code> with <code>.header()</code> to add custom headers to responses:</p>
 <pre><code class="language-rust ignore">resource!(Cached {
-    get(request, ctx) =&gt; {
-        ctx.response_headers().append("x-cache", "HIT");
-        ctx.response_headers().set("cache-control", "max-age=3600");
+    get(ctx) =&gt; {
+        reply()
+            .header("x-cache", "HIT")
+            .header("cache-control", "max-age=3600")
+            .json(json!({"data": "cached"}))
+    }
+});</code></pre>
+<p>Or use the <code>ResponseExt</code> trait to add headers to any response:</p>
+<pre><code class="language-rust ignore">resource!(Cached {
+    get(ctx) =&gt; {
         ok(json!({"data": "cached"}))
+            .add_header("x-cache", "HIT")
+            .add_header("cache-control", "max-age=3600")
     }
 });</code></pre>
 <h2 id="decision-table"><a class="header" href="#decision-table">Decision Table</a></h2>
@@ -233,8 +297,11 @@ ok(data).add_header("x-request-id", &amp;id)</code></pre>
 <tr><td>Simple JSON 200</td><td><code>ok(data)</code></td></tr>
 <tr><td>Simple JSON 201</td><td><code>created(data)</code></td></tr>
 <tr><td>No body (204)</td><td><code>no_content()</code></td></tr>
+<tr><td>Pre-serialized JSON</td><td><code>ok_json_bytes(bytes)</code></td></tr>
 <tr><td>Error with message</td><td><code>bad_request(msg)</code>, <code>not_found(msg)</code>, <code>unauthorized(msg)</code></td></tr>
 <tr><td>Error with custom status</td><td><code>error_response(422, msg)</code></td></tr>
+<tr><td>Error from YetiError</td><td><code>structured_error_response(&amp;err)</code></td></tr>
+<tr><td>Storage/serialization error</td><td><code>storage_error(err)</code>, <code>serialization_error(err)</code></td></tr>
 <tr><td>Custom status + headers</td><td><code>reply().code(201).header(...).json(data)</code></td></tr>
 <tr><td>Inside <code>resource!</code> macro</td><td><code>ok_json!({...})</code>, <code>created_json!({...})</code></td></tr>
 <tr><td>HTML/text content</td><td><code>ok_html(content)</code> or <code>html!(content)</code></td></tr>
@@ -243,6 +310,8 @@ ok(data).add_header("x-request-id", &amp;id)</code></pre>
 <tr><td>CSV download</td><td><code>reply().csv(csv_string)</code></td></tr>
 <tr><td>Custom MIME type</td><td><code>ok_with_content_type(mime, data)</code></td></tr>
 <tr><td>Add header to any response</td><td><code>.add_header("name", "value")</code></td></tr>
+<tr><td>Sync result as future</td><td><code>ready(ok(data))</code></td></tr>
+<tr><td>Early error return (async)</td><td><code>error_future(400, "message")</code></td></tr>
 </tbody></table>
 </div>
                     </main>

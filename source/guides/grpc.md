@@ -1,6 +1,6 @@
 # gRPC API
 
-Yeti exposes a gRPC Tables service alongside the REST, GraphQL, and other interfaces. gRPC clients connect to the same port as HTTP — Yeti routes HTTP/2 requests with `content-type: application/grpc` to the gRPC handler, while all other requests go to the normal HTTP router.
+gRPC Tables service on the same port as HTTP. Yeti routes HTTP/2 requests with `content-type: application/grpc` to the gRPC handler; all other requests go to the normal HTTP router.
 
 ## Enabling gRPC
 
@@ -206,7 +206,7 @@ grpcurl -plaintext \
   localhost:9996 yeti.tables.Tables/Subscribe
 ```
 
-This opens a server-streaming connection. Records are pushed as they change in real-time via the PubSub system.
+Server-streaming connection. Records push in real-time via PubSub.
 
 ### Delete a Record
 
@@ -229,11 +229,11 @@ grpcurl -plaintext \
 | AI agent integration | MCP |
 | IoT devices | MQTT |
 
-gRPC is best suited for backend service-to-service communication where you benefit from:
+gRPC advantages for service-to-service:
 
 - **Strong typing** via protobuf schemas
 - **Streaming** via `Subscribe` for real-time change feeds
-- **Lower overhead** compared to JSON over HTTP for high-throughput scenarios
+- **Lower overhead** than JSON over HTTP for high-throughput scenarios
 - **Code generation** for type-safe clients in any language
 
 ## TLS

@@ -17,34 +17,34 @@ type Product @table @export(rest: true, graphql: true, sse: true) {
 
 ```bash
 # Create
-curl -sk -X POST https://localhost/my-app/Product \
+curl -sk -X POST https://localhost:9996/my-app/Product \
   -H "Content-Type: application/json" \
   -d '{"name": "Widget", "price": 29.99, "category": "Tools", "inStock": true}'
 
 # Query with FIQL
-curl -sk "https://localhost/my-app/Product?category==Tools&price=lt=50&sort=-price&limit=10"
+curl -sk "https://localhost:9996/my-app/Product?category==Tools&price=lt=50&sort=-price&limit=10"
 
 # Real-time stream
-curl -sk "https://localhost/my-app/Product?stream=sse"
+curl -sk "https://localhost:9996/my-app/Product?stream=sse"
 ```
 
 ## Why Yeti
 
-**Schema-driven** - Define tables in GraphQL. REST, GraphQL, SSE, WebSocket, gRPC, MQTT, and MCP endpoints are generated automatically. No boilerplate.
+**Schema-driven** - Define tables in GraphQL. REST, GraphQL, SSE, WebSocket, gRPC, MQTT, and MCP endpoints generate automatically.
 
-**Custom resources in Rust** - Extend any table with business logic using Rust. Resources compile to dynamic libraries and hot-reload without server restart.
+**Custom resources in Rust** - Extend any table with business logic. Resources compile to dynamic libraries and hot-reload without restart.
 
-**Built-in auth** - Basic, JWT, and OAuth authentication with role-based access control down to individual fields. Add auth to any app with one line of config.
+**Built-in auth** - Basic, JWT, and OAuth with role-based access control down to individual fields. One line of config.
 
-**Real-time by default** - Every table supports Server-Sent Events, WebSocket subscriptions, and MQTT. Clients receive updates as they happen.
+**Real-time by default** - Every table supports SSE, WebSocket, and MQTT. Clients receive updates as they happen.
 
-**Multi-protocol** - REST, GraphQL, WebSocket, SSE, MQTT, gRPC, and MCP (Model Context Protocol) -- all from the same schema. Toggle protocols per app or server-wide.
+**Multi-protocol** - REST, GraphQL, WebSocket, SSE, MQTT, gRPC, and MCP from the same schema. Toggle per app or server-wide.
 
-**Fast** - Single-process architecture, RocksDB embedded storage, and Rust performance. Yeti Cloud provides multi-node replication and clustering.
+**Fast** - Single-process Rust binary with embedded RocksDB. Yeti Cloud adds multi-node replication and clustering.
 
 ## Quick links
 
-- [Installation](getting-started/installation.md) - Install Yeti in minutes
+- [Installation](getting-started/installation.md) - Download and run
 - [Quickstart](getting-started/quickstart.md) - Build a REST API in 5 minutes
 - [Core Concepts](concepts/applications.md) - Understand applications, schemas, and resources
 - [Custom Resources](guides/custom-resources.md) - Add business logic in Rust

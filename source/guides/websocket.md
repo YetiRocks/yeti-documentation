@@ -1,6 +1,6 @@
 # WebSocket
 
-WebSocket provides bidirectional real-time communication. Both client and server can send messages at any time.
+WebSocket provides bidirectional real-time communication. Both client and server can send messages at any time. WebSocket connections subscribe to PubSub topics, receiving the same change events as SSE and MQTT.
 
 ## Schema Configuration
 
@@ -15,19 +15,12 @@ type Message @table(database: "realtime-demo") @export(
 }
 ```
 
-Also set `ws: true` in `config.yaml`:
-
-```yaml
-rest: true
-ws: true
-schemas:
-  - schema.graphql
-```
+WebSocket is enabled at the server level via `interfaces.ws.enabled: true` in `yeti-config.yaml` (the default). No per-app config needed beyond the `@export(ws: true)` directive above.
 
 ## Connection
 
 ```javascript
-const ws = new WebSocket('wss://localhost:443/my-app/Message');
+const ws = new WebSocket('wss://localhost:9996/my-app/Message');
 
 ws.onopen = () => console.log('Connected');
 
@@ -45,6 +38,8 @@ ws.send(JSON.stringify({
 
 ## Message Format
 
+Messages follow the same `SubscriptionMessage` format used by PubSub:
+
 ```json
 {
   "message_type": "Update",
@@ -59,8 +54,12 @@ Types: `Update`, `Delete`, `Publish`, `Retained`.
 ## Record-Level Subscriptions
 
 ```javascript
-const ws = new WebSocket('wss://localhost:443/my-app/Message/msg-1');
+const ws = new WebSocket('wss://localhost:9996/my-app/Message/msg-1');
 ```
+
+## PubSub Integration
+
+WebSocket connections subscribe to PubSub topics. When a record is written via any path (REST, GraphQL, SDK), PubSub broadcasts the change to all subscribed WebSocket connections. A REST write from one client is instantly visible to all WebSocket subscribers.
 
 ## Heartbeat
 
@@ -75,7 +74,7 @@ Most WebSocket libraries handle ping/pong automatically.
 
 ```javascript
 function connect() {
-  const ws = new WebSocket('wss://localhost:443/my-app/Message');
+  const ws = new WebSocket('wss://localhost:9996/my-app/Message');
   ws.onclose = () => setTimeout(connect, 3000);
   ws.onmessage = (event) => handleUpdate(JSON.parse(event.data));
 }
@@ -96,6 +95,6 @@ Use SSE for server-to-client only. Use WebSocket when the client sends data back
 
 ## See Also
 
-- [Real-Time Overview](realtime-overview.md) - All real-time features
-- [Server-Sent Events](sse.md) - One-way streaming
-- [PubSub](pubsub.md) - Underlying messaging system
+- [Real-Time Overview](realtime-overview.md) -- All real-time features
+- [Server-Sent Events](sse.md) -- One-way streaming
+- [PubSub](pubsub.md) -- Underlying messaging backbone

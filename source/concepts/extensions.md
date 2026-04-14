@@ -1,85 +1,113 @@
-# Extensions
+# Services
 
-Extensions provide shared services -- auth, telemetry, middleware -- to any app that opts in.
+Services provide shared capabilities -- authentication, telemetry, AI, auditing -- to any application that opts in. They are binary-embedded Rust crates that implement the `Service` trait.
 
-## Built-in Extensions
+## Built-in Services
 
-| Extension | Purpose |
-|-----------|---------|
+| Service | Purpose |
+|---------|---------|
 | **yeti-auth** | Authentication (Basic, JWT, OAuth) and role-based access control |
 | **yeti-telemetry** | Log collection, span tracing, metrics, and a real-time dashboard |
-| **yeti-vectors** | Embedding models, HNSW vector indexing, and similarity search |
+| **yeti-ai** | Embedding models (HNSW vector indexing), local LLM inference, and model management |
+| **yeti-audit** | Per-table audit logging with configurable retention and state capture |
+| **yeti-admin** | Application management UI, file browser, API keys, schema viewer |
 
-All three are standard Yeti applications with `extension: true`, binary-embedded. Disable, replace, or supplement them as needed.
+All five are statically compiled into the binary. Disable, replace, or supplement as needed.
 
-## Extension Setup
+## Service Trait
 
-Set `extension: true` in config and include a struct implementing the `Extension` trait:
-
-```yaml
-name: "My Extension"
-app_id: "my-extension"
-version: "1.0.0"
-enabled: true
-extension: true
-schemas:
-  - schema.graphql
-resources:
-  - resources/*.rs
-```
+Each service implements the `Service` trait from `yeti-types`:
 
 ```rust,ignore
-use yeti_sdk::prelude::*;
+pub trait Service: Send + Sync + 'static {
+    /// Unique identifier (e.g., "yeti-auth").
+    fn id(&self) -> &'static str;
 
-pub struct MyServiceExtension;
+    /// Human-readable name.
+    fn name(&self) -> &'static str;
 
-impl Extension for MyServiceExtension {
-    fn name(&self) -> &str { "my-service" }
+    /// Semantic version.
+    fn version(&self) -> &'static str { "0.1.0" }
 
-    fn initialize(&self) -> Result<()> {
-        tracing::info!("[my-service] Extension initialized");
-        Ok(())
-    }
+    /// Service IDs this service depends on (for topological ordering).
+    fn depends_on(&self) -> &[&'static str] { &[] }
 
-    fn on_ready(&self, ctx: &ExtensionContext) -> Result<()> {
-        if let Some(table) = ctx.table("config") {
-            tracing::info!("[my-service] Config table available");
-        }
-        Ok(())
-    }
+    /// Whether this service should be activated given the current config.
+    fn is_required(&self, ctx: &StartupContext) -> bool;
+
+    /// Register schemas, resources, hooks, and providers.
+    fn register(&self, ctx: &mut RegistrationContext) -> Result<()>;
+
+    /// Post-registration setup (bootstrap data, background tasks, etc.).
+    fn on_ready(&self, ctx: &ServiceContext) -> Result<()> { Ok(()) }
+
+    /// Whether this is a global extension (loaded before user apps).
+    fn is_extension(&self) -> bool { false }
+
+    /// Whether registration failure should abort startup.
+    fn is_critical(&self) -> bool { false }
+
+    /// Embedded config.yaml content.
+    fn config_yaml(&self) -> Option<&'static str> { None }
+
+    /// Called during graceful shutdown.
+    fn on_shutdown(&self) {}
 }
 ```
 
-The compiler auto-detects the extension type by scanning for `struct {Type}Extension`.
+## Lifecycle
 
-## Extension Trait
+The runtime calls service methods in order:
 
-```rust,ignore
-pub trait Extension: Send + Sync {
-    fn name(&self) -> &str;
-    fn initialize(&self) -> Result<()> { Ok(()) }
-    fn middleware(&self) -> Option<Arc<dyn RequestMiddleware>> { None }
-    fn auth_providers(&self) -> Vec<Arc<dyn AuthProvider>> { Vec::new() }
-    fn auth_hooks(&self) -> Vec<Arc<dyn AuthHook>> { Vec::new() }
-    fn on_ready(&self, ctx: &ExtensionContext) -> Result<()> { Ok(()) }
-}
-```
+### 1. StartupContext -- Activation Check
 
-## ExtensionContext
+`is_required(&StartupContext)` decides whether the service activates. `StartupContext` provides read-only introspection:
 
 | Method | Purpose |
 |--------|---------|
-| `ctx.table("name")` | Get an `Arc<TableResource>` by name |
-| `ctx.root_dir()` | Root directory path |
-| `ctx.auto_router()` | Host-side table lookup |
+| `ctx.any_app_has_config("auth")` | Check if any app has a given config key |
+| `ctx.any_table_has_field_directive("Vector")` | Check if any table uses a field type |
+| `ctx.any_app_requires_auth()` | Check if any app has `required_roles` |
+
+### 2. RegistrationContext -- Resource Registration
+
+`register(&mut RegistrationContext)` adds schemas, resources, providers, and hooks:
+
+| Method | Purpose |
+|--------|---------|
+| `ctx.add_schema(graphql)` | Register a GraphQL schema string |
+| `ctx.add_resource(handler)` | Register a resource handler |
+| `ctx.add_web_files(files)` | Register embedded static files |
+| `ctx.add_auth_provider(provider)` | Register an authentication provider |
+| `ctx.add_vector_hook(hook)` | Register a vector embedding hook |
+| `ctx.add_ai_hook(hook)` | Register an AI inference hook |
+| `ctx.add_middleware(middleware)` | Register request middleware |
+| `ctx.add_event_subscriber(subscriber)` | Register a telemetry event handler |
+
+### 3. ServiceContext -- Post-Registration Setup
+
+`on_ready(&ServiceContext)` runs after all routes and tables are registered:
+
+| Method | Purpose |
+|--------|---------|
+| `ctx.table("name")` | Get a table backend by name |
+| `ctx.require_table("name")` | Get a table backend or return error |
+| `ctx.pubsub("table")` | Get a PubSub manager by table name |
 | `ctx.set_event_subscriber(sub)` | Register a telemetry event handler |
+| `ctx.root_dir()` | Root directory path |
+| `ctx.app_id()` | Application ID |
+
+### 4. Shutdown
+
+`on_shutdown()` runs during graceful server shutdown for cleanup.
 
 ## Consumer Configuration
 
-Apps opt in via top-level keys in config.yaml (`auth:`, `vectors:`) with inline config:
+Apps opt in to services via top-level keys in `config.yaml`:
 
 ```yaml
 auth:
+  methods: [basic, jwt, oauth]
   oauth:
     default_role: "viewer"
     rules:
@@ -89,24 +117,33 @@ auth:
       - strategy: email
         pattern: "*@corp.com"
         role: standard
+
+telemetry:
+  level: "info"
+
+required_roles: [admin, editor]
 ```
 
-The older `extensions:` list format still works but is deprecated. Per-app config is accessible via `params.extension_config("yeti-auth")`.
+Short config keys map to full service IDs:
 
-## Lifecycle
+| Config Key | Service ID |
+|------------|------------|
+| `auth` | `yeti-auth` |
+| `telemetry` | `yeti-telemetry` |
+| `audit` | `yeti-audit` |
+| `vectors` | `yeti-ai` |
 
-1. Extensions are identified during app scanning
-2. Extension dylibs compile and load before regular apps
-3. `initialize()` called at registration
-4. Extension tables and resources registered
-5. `on_ready()` called after routes/tables are in place
-6. Declared extensions' tables and auth providers merge into consuming apps
+Services auto-activate based on configuration introspection. yeti-auth activates when any app has `auth:` config or `required_roles`. yeti-ai activates when any table has `Vector` fields.
+
+## Dependency Ordering
+
+Services declare dependencies via `depends_on()`. The runtime topologically sorts them to ensure correct start order. Telemetry services sort first so the event subscriber captures other services' startup logs.
 
 ## Dylib Boundary Rules
 
-Extensions compile as dynamic libraries with these constraints:
+User-defined extensions (`extension: true`) compile as dynamic libraries and must observe these constraints:
 
-- **No `tokio::spawn`** - Spawning tasks corrupts the host runtime. Use `set_event_subscriber()` for background work.
-- **`tracing` macros in dylib** - Output may not reach the host subscriber due to TLS isolation. Use `tracing::warn!()` and other tracing macros anyway for consistent API. Never use `eprintln!()`.
-- **No host statics** - `OnceLock` statics are duplicated in the dylib. Use dylib-local statics.
-- **Flag-based patterns** - Set flags in `on_ready()`, let the host check them after the call returns.
+- **No `tokio::spawn`** -- Spawning tasks corrupts the host runtime. Use `set_event_subscriber()` for background work.
+- **No host statics** -- `OnceLock` statics are duplicated in the dylib. Use dylib-local statics.
+- **Flag-based patterns** -- Set flags in `on_ready()`, let the host check them after the call returns.
+- **Use `tracing` macros** -- Output may not reach the host subscriber due to TLS isolation, but use `tracing::warn!()` for consistent API. Never use `eprintln!()`.

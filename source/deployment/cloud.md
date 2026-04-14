@@ -1,14 +1,14 @@
 # Yeti Cloud
 
-Yeti Cloud is a managed hosting platform for Yeti applications. It runs the same Yeti binary and SDK you use locally — your apps deploy to the cloud without modification.
+Managed hosting for Yeti applications. Same binary and SDK as local development -- apps deploy without modification.
 
 ## How It Works
 
-Yeti Cloud is itself a Yeti deployment. Every server in the fleet runs one Yeti instance with four internal applications that handle routing, builds, process management, and administration. Your applications run as separate Yeti processes on the same infrastructure, each isolated with its own data directory and resource limits.
+Every server in the fleet runs one Yeti instance with four internal applications for routing, builds, process management, and administration. Your applications run as separate Yeti processes, each isolated with its own data directory and resource limits.
 
 ### Development to Production
 
-The workflow from local development to cloud deployment:
+Workflow:
 
 1. **Develop locally** — build your app with `yeti start` on your machine
 2. **Deploy** — push source via `yeti deploy` or connect a GitHub repository
@@ -28,20 +28,20 @@ Local development:                    Cloud production:
 └── data/
 ```
 
-Your source code is compiled remotely. Only the resulting plugin binaries, configuration, schema, and static assets are deployed to production servers. Source files are never shipped to cloud servers.
+Source compiles remotely. Only plugin binaries, configuration, schema, and static assets reach production servers.
 
 ## Deployment
 
 ### Connected Repository (Recommended)
 
-Connect your GitHub repository for automatic deployments on push:
+Connect a GitHub repository for automatic deployments on push:
 
 1. Navigate to **Deployments > Connect Repository** in Studio
 2. Authenticate with GitHub and select your repository
 3. Yeti Cloud installs a webhook and detects your `yeti-deploy.yaml` manifest
 4. Every push to `main` triggers a build and deploy automatically
 
-Branch deploys are also supported — push to a feature branch and get a preview deployment at `{app}--{branch}.{customer}.dev.cloud.yetirocks.com`.
+Branch deploys: push to a feature branch for a preview at `{app}--{branch}.{customer}.dev.cloud.yetirocks.com`.
 
 ### CLI Deploy
 
@@ -64,11 +64,11 @@ yeti deploy rollback
 yeti deploy logs --app api --follow
 ```
 
-The CLI reads `yeti-deploy.yaml` from your project root, packages source (respecting `.gitignore` and `.yetiignore`), and uploads it to the build server.
+Reads `yeti-deploy.yaml` from project root, packages source (respecting `.gitignore` and `.yetiignore`), and uploads to the build server.
 
 ### Deployment Manifest
 
-The `yeti-deploy.yaml` file in your repository root defines what gets built and how it deploys:
+`yeti-deploy.yaml` in the repository root defines builds and deployment:
 
 ```yaml
 # yeti-deploy.yaml
@@ -103,25 +103,25 @@ deploy:
     memory_limit: 256Mi
 ```
 
-The `latency_ms` target drives regional placement — lower latency targets result in more regions and better global coverage.
+The `latency_ms` target drives regional placement -- lower targets mean more regions.
 
 ## Customer Instances
 
-Each deployed application runs as a separate operating system process with full isolation:
+Each application runs as a separate OS process:
 
-- **Process isolation** — one app crashing cannot affect other apps or the platform
-- **Own RocksDB** — each app has its own data directory that persists across deploys and restarts
-- **Resource limits** — CPU, memory, and I/O are capped per instance via cgroup v2
-- **No network exposure** — apps communicate with the platform via Unix domain sockets, not TCP ports
-- **Subdomain routing** — traffic reaches your app at `{app}.{customer}.cloud.yetirocks.com`
+- **Process isolation** -- one crash cannot affect other apps or the platform
+- **Own RocksDB** -- per-app data directory, persists across deploys and restarts
+- **Resource limits** -- CPU, memory, and I/O capped via cgroup v2
+- **No network exposure** -- apps communicate via Unix domain sockets, not TCP
+- **Subdomain routing** -- traffic at `{app}.{customer}.cloud.yetirocks.com`
 
-All inbound traffic flows through the platform's HTTPS gateway (port 443), which routes requests by `Host` header to the appropriate app via its Unix socket. Your app never binds a network port.
+All traffic flows through the HTTPS gateway (port 443), routing by `Host` header to Unix sockets. Apps never bind network ports.
 
 ## Multi-Region Support
 
 ### Automatic Placement
 
-Yeti Cloud places your app across regions based on the `latency_ms` target in your deployment manifest. Lower latency targets mean more regions:
+Apps place across regions based on `latency_ms` in the deployment manifest:
 
 | Latency Target | Typical Coverage |
 |----------------|-----------------|
@@ -129,25 +129,25 @@ Yeti Cloud places your app across regions based on the `latency_ms` target in yo
 | 1000ms         | 3 regions (baseline) |
 | 2000ms         | 1 region |
 
-Paying customers receive a baseline topology of three regions: `us-west`, `us-east`, and `eu-west`. The auto-scaler expands beyond this based on traffic patterns.
+Paid plans start with three regions (`us-west`, `us-east`, `eu-west`). The auto-scaler expands based on traffic patterns.
 
 ### Data Residency
 
-By default, all instances of your app share the same data via full replication — every region has a complete copy. This means:
+By default, full replication -- every region has a complete copy:
 
-- Reads are always local (no cross-region queries)
-- Writes replicate asynchronously to all regions
-- Conflict resolution uses last-writer-wins with hybrid logical clocks
+- Reads are always local
+- Writes replicate asynchronously
+- Last-writer-wins conflict resolution via hybrid logical clocks
 
-For apps with large datasets (>10GB), sharded replication is available, where data is partitioned and only stored on a subset of nodes.
+For datasets >10GB, sharded replication partitions data across a subset of nodes.
 
 ### Multi-Cloud
 
-Yeti Cloud runs across multiple cloud providers (Linode, GCP, AWS). The platform is provider-agnostic — your app runs identically on any provider. All inter-node communication uses mTLS encryption regardless of provider boundaries.
+Runs across multiple providers (Linode, GCP, AWS). Apps run identically on any provider. All inter-node communication uses mTLS regardless of provider boundaries.
 
 ## Auto-Scaling
 
-The auto-scaler monitors your app continuously and adjusts capacity based on:
+The auto-scaler adjusts capacity based on:
 
 1. **Request latency** — if p95 latency exceeds your SLA target, scale out to closer regions
 2. **CPU utilization** — if CPU exceeds 80% for 10 minutes, add instances
@@ -156,20 +156,20 @@ The auto-scaler monitors your app continuously and adjusts capacity based on:
 
 ### Scaling Proposals
 
-Topology changes (adding or removing regions) go through a proposal system rather than executing immediately. Proposals accumulate confidence points over time based on sustained traffic patterns:
+Topology changes (adding or removing regions) go through a proposal system. Proposals accumulate confidence based on sustained traffic:
 
-- Proposals appear in the Studio UI with evidence (traffic data, latency impact, cost change)
-- You can approve proposals immediately or let them auto-execute when confidence is high
-- Emergency SLA breaches trigger automatic scaling regardless of proposal status
-- Scale-down proposals require a 1-week minimum observation period
+- Proposals appear in Studio with evidence (traffic data, latency impact, cost change)
+- Approve immediately or let them auto-execute when confidence is high
+- Emergency SLA breaches trigger automatic scaling regardless
+- Scale-down requires 1-week minimum observation
 
-Within-region scaling (adding instances to an existing region) happens automatically without proposals.
+Within-region scaling happens automatically without proposals.
 
 ## Monitoring and Observability
 
 ### Built-In Dashboard
 
-Every Yeti Cloud app includes a monitoring dashboard accessible from Studio. Charts update in real-time via SSE (30-second push interval):
+Built-in dashboard in Studio. Charts update via SSE (30-second interval):
 
 - Request rate and error rate
 - Latency percentiles (p50, p95, p99)
@@ -180,7 +180,7 @@ Every Yeti Cloud app includes a monitoring dashboard accessible from Studio. Cha
 
 ### OTLP Export
 
-Connect your existing observability tools (Grafana, Datadog, New Relic) by configuring an OTLP export endpoint. Your app exposes standard OpenTelemetry Protocol endpoints:
+Connect existing observability tools (Grafana, Datadog, New Relic) via OTLP export:
 
 ```
 https://{app}.{customer}.cloud.yetirocks.com/otel/v1/metrics

@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="websocket"><a class="header" href="#websocket">WebSocket</a></h1>
-<p>WebSocket provides bidirectional real-time communication. Both client and server can send messages at any time.</p>
+<p>WebSocket provides bidirectional real-time communication. Both client and server can send messages at any time. WebSocket connections subscribe to PubSub topics, receiving the same change events as SSE and MQTT.</p>
 <h2 id="schema-configuration"><a class="header" href="#schema-configuration">Schema Configuration</a></h2>
 <pre><code class="language-graphql">type Message @table(database: "realtime-demo") @export(
     rest: true
@@ -119,14 +119,9 @@
     content: String!
 }
 </code></pre>
-<p>Also set <code>ws: true</code> in <code>config.yaml</code>:</p>
-<pre><code class="language-yaml">rest: true
-ws: true
-schemas:
-  - schema.graphql
-</code></pre>
+<p>WebSocket is enabled at the server level via <code>interfaces.ws.enabled: true</code> in <code>yeti-config.yaml</code> (the default). No per-app config needed beyond the <code>@export(ws: true)</code> directive above.</p>
 <h2 id="connection"><a class="header" href="#connection">Connection</a></h2>
-<pre><code class="language-javascript">const ws = new WebSocket('wss://localhost:443/my-app/Message');
+<pre><code class="language-javascript">const ws = new WebSocket('wss://localhost:9996/my-app/Message');
 
 ws.onopen = () =&gt; console.log('Connected');
 
@@ -142,6 +137,7 @@ ws.send(JSON.stringify({
 }));
 </code></pre>
 <h2 id="message-format"><a class="header" href="#message-format">Message Format</a></h2>
+<p>Messages follow the same <code>SubscriptionMessage</code> format used by PubSub:</p>
 <pre><code class="language-json">{
   "message_type": "Update",
   "data": {"id": "msg-1", "title": "Hello", "content": "World"},
@@ -151,8 +147,10 @@ ws.send(JSON.stringify({
 </code></pre>
 <p>Types: <code>Update</code>, <code>Delete</code>, <code>Publish</code>, <code>Retained</code>.</p>
 <h2 id="record-level-subscriptions"><a class="header" href="#record-level-subscriptions">Record-Level Subscriptions</a></h2>
-<pre><code class="language-javascript">const ws = new WebSocket('wss://localhost:443/my-app/Message/msg-1');
+<pre><code class="language-javascript">const ws = new WebSocket('wss://localhost:9996/my-app/Message/msg-1');
 </code></pre>
+<h2 id="pubsub-integration"><a class="header" href="#pubsub-integration">PubSub Integration</a></h2>
+<p>WebSocket connections are subscribers to PubSub topics. When a record is written via any path (REST, GraphQL, SDK), PubSub broadcasts the change to all WebSocket connections subscribed to the matching table or record topic. This means a REST write in one client is instantly visible to all WebSocket subscribers.</p>
 <h2 id="heartbeat"><a class="header" href="#heartbeat">Heartbeat</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
 <tr><td>Ping interval</td><td>5 seconds</td></tr>
@@ -162,7 +160,7 @@ ws.send(JSON.stringify({
 <p>Most WebSocket libraries handle ping/pong automatically.</p>
 <h2 id="reconnection"><a class="header" href="#reconnection">Reconnection</a></h2>
 <pre><code class="language-javascript">function connect() {
-  const ws = new WebSocket('wss://localhost:443/my-app/Message');
+  const ws = new WebSocket('wss://localhost:9996/my-app/Message');
   ws.onclose = () =&gt; setTimeout(connect, 3000);
   ws.onmessage = (event) =&gt; handleUpdate(JSON.parse(event.data));
 }
@@ -180,9 +178,9 @@ connect();
 <p>Use SSE for server-to-client only. Use WebSocket when the client sends data back through the same connection.</p>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
-<li><a href="realtime-overview.html">Real-Time Overview</a> - All real-time features</li>
-<li><a href="sse.html">Server-Sent Events</a> - One-way streaming</li>
-<li><a href="pubsub.html">PubSub</a> - Underlying messaging system</li>
+<li><a href="realtime-overview.html">Real-Time Overview</a> -- All real-time features</li>
+<li><a href="sse.html">Server-Sent Events</a> -- One-way streaming</li>
+<li><a href="pubsub.html">PubSub</a> -- Underlying messaging backbone</li>
 </ul>
 
                     </main>

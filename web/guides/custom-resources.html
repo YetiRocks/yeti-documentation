@@ -112,7 +112,7 @@
 <h2 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h2>
 <p>Place <code>.rs</code> files in <code>resources/</code> and reference them in <code>config.yaml</code>:</p>
 <pre><code class="language-yaml">resources:
-  - resources/*.rs
+  path: "resources/*.rs"
 </code></pre>
 <p>Every resource file starts with:</p>
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;</code></pre>
@@ -124,11 +124,12 @@ resource!(Greeting {
     get =&gt; json!({"greeting": "Hello, World!"})
 });</code></pre>
 <p>Creates <code>GET /my-app/greeting</code> returning JSON.</p>
-<h3 id="with-request-and-context"><a class="header" href="#with-request-and-context">With Request and Context</a></h3>
+<h3 id="with-context-access"><a class="header" href="#with-context-access">With Context Access</a></h3>
+<p>The <code>ctx</code> parameter is a <code>Context</code> that provides access to the request, path parameters, tables, and auth identity:</p>
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
 
 resource!(Items {
-    get(request, ctx) =&gt; {
+    get(ctx) =&gt; {
         let table = ctx.get_table("Items")?;
         let id = ctx.require_id()?;
         let item = table.get(id).await?;
@@ -137,11 +138,12 @@ resource!(Items {
             None =&gt; reply().code(404).json(json!({"error": "Not found"})),
         }
     },
-    post(request, ctx) =&gt; {
-        let body = request.json_value()?;
-        let name = body.require_str("name")?;
+    post(ctx) =&gt; {
+        let body = ctx.require_json_body()?.clone();
+        let name = body["name"].as_str()
+            .ok_or_else(|| YetiError::Validation("name is required".into()))?;
         let table = ctx.get_table("Items")?;
-        table.put(&amp;name, body.clone()).await?;
+        table.put(name, body.clone()).await?;
         created(body)
     }
 });</code></pre>
@@ -155,32 +157,33 @@ resource!(MyHandler {
 // Catch-all for unmatched paths
 resource!(Fallback {
     default = true,
-    get(request, ctx) =&gt; {
-        let path = ctx.path_id().unwrap_or("/");
+    get(ctx) =&gt; {
+        let path = ctx.path_id.as_deref().unwrap_or("/");
         reply().code(404).json(json!({"error": "Not found", "path": path}))
     }
 });</code></pre>
-<h2 id="resourceparams-api"><a class="header" href="#resourceparams-api">ResourceParams API</a></h2>
+<h2 id="context-api"><a class="header" href="#context-api">Context API</a></h2>
 <p>The <code>ctx</code> parameter provides access to the application environment.</p>
 <h3 id="table-access"><a class="header" href="#table-access">Table Access</a></h3>
 <pre><code class="language-rust ignore">let table = ctx.get_table("Product")?;
 let record = table.get("prod-123").await?;
 table.put("prod-123", json!({"id": "prod-123", "name": "Widget"})).await?;</code></pre>
 <h3 id="path-parameters"><a class="header" href="#path-parameters">Path Parameters</a></h3>
-<pre><code class="language-rust ignore">let id = ctx.path_id();       // Option&lt;&amp;str&gt; from /Resource/{id}
-let id = ctx.require_id()?;   // Returns 400 if missing</code></pre>
-<h3 id="configuration-access"><a class="header" href="#configuration-access">Configuration Access</a></h3>
-<pre><code class="language-rust ignore">let url = ctx.config().get_str("origin.url", "https://default.com");
-let timeout = ctx.config().get_i64("api.timeout", 30);
-let enabled = ctx.config().get_bool("features.cache", false);</code></pre>
-<h3 id="response-headers"><a class="header" href="#response-headers">Response Headers</a></h3>
-<pre><code class="language-rust ignore">ctx.response_headers().append("x-cache", "HIT");
-ctx.response_headers().set("X-Custom-Header", "value");</code></pre>
-<h2 id="request-parsing"><a class="header" href="#request-parsing">Request Parsing</a></h2>
-<p>The <code>request</code> parameter is <code>http::Request&lt;Vec&lt;u8&gt;&gt;</code>:</p>
-<pre><code class="language-rust ignore">let body = request.json_value()?;
-let name = body.require_str("name")?;
+<pre><code class="language-rust ignore">let id = ctx.path_id.as_deref();   // Option&lt;&amp;str&gt; from /Resource/{id}
+let id = ctx.require_id()?;        // Returns 400 if missing</code></pre>
+<h3 id="request-body"><a class="header" href="#request-body">Request Body</a></h3>
+<pre><code class="language-rust ignore">let body = ctx.require_json_body()?;   // Returns 400 if not valid JSON
+let name = body["name"].as_str()
+    .ok_or_else(|| YetiError::Validation("name is required".into()))?;
 let bio = body.get("bio").and_then(|v| v.as_str());</code></pre>
+<h3 id="auth-identity"><a class="header" href="#auth-identity">Auth Identity</a></h3>
+<pre><code class="language-rust ignore">if let Some(identity) = ctx.auth_identity() {
+    // Access authenticated user info
+}</code></pre>
+<h3 id="cookies"><a class="header" href="#cookies">Cookies</a></h3>
+<pre><code class="language-rust ignore">if let Some(session) = ctx.cookie("session_id") {
+    // Use cookie value
+}</code></pre>
 <h2 id="response-helpers"><a class="header" href="#response-helpers">Response Helpers</a></h2>
 <pre><code class="language-rust ignore">// 200 OK with JSON
 ok_json!({"status": "ok", "count": 42})
@@ -217,18 +220,21 @@ impl Resource for PageCache {
     fn name(&amp;self) -&gt; &amp;str { "PageCache" }
     fn is_default(&amp;self) -&gt; bool { true }
 
-    fn get(&amp;self, _request: Request&lt;Vec&lt;u8&gt;&gt;, ctx: ResourceParams) -&gt; ResourceFuture {
-        async_handler!({
-            let path = ctx.id().unwrap_or("/");
+    fn get(&amp;self, ctx: Context) -&gt; ResourceFuture {
+        Box::pin(async move {
+            let path = ctx.path_id.as_deref().unwrap_or("/");
             let cache = ctx.get_table("PageCache")?;
             match cache.get(path).await? {
                 Some(cached) =&gt; {
-                    ctx.response_headers().append("x-cache", "HIT");
-                    ok_html(cached.as_str().unwrap_or_default())
+                    reply()
+                        .header("x-cache", "HIT")
+                        .html(cached.as_str().unwrap_or_default())
                 }
                 None =&gt; {
-                    ctx.response_headers().append("x-cache", "MISS");
-                    reply().code(404).text("Not cached")
+                    reply()
+                        .code(404)
+                        .header("x-cache", "MISS")
+                        .text("Not cached")
                 }
             }
         })
@@ -238,35 +244,33 @@ impl Resource for PageCache {
 register_resource!(PageCache);</code></pre>
 <p>The <code>resource!</code> macro handles registration automatically. For manual implementations, add <code>register_resource!(MyResource);</code> at the end.</p>
 <h2 id="external-http-requests"><a class="header" href="#external-http-requests">External HTTP Requests</a></h2>
-<p>Use <code>fetch()</code> from <code>yeti_sdk::prelude</code> for external HTTP calls. Do not use <code>reqwest::blocking::Client</code> -- it crashes in the dylib context.</p>
+<p>Use the <code>fetch!</code> macro from <code>yeti_sdk::prelude</code> for external HTTP calls. Do not use <code>reqwest::blocking::Client</code> -- it crashes in the dylib context.</p>
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
 
 resource!(Proxy {
-    get(request, ctx) =&gt; {
-        let res = fetch("https://api.example.com/data", None)
-            .map_err(|e| YetiError::Validation(e))?;
+    get(ctx) =&gt; {
+        let resp = fetch!("https://api.example.com/data").send()?;
 
-        if res.ok() {
-            ok_json!(res.json()?)
+        if resp.ok() {
+            let data = resp.json().map_err(|e| YetiError::Internal(e))?;
+            ok(data)
         } else {
-            reply().code(res.status).text(&amp;format!("Upstream error: {}", res.status))
+            reply().code(resp.status).text(&amp;format!("Upstream error: {}", resp.status))
         }
     },
-    post(request, ctx) =&gt; {
-        let body = request.json_value()?;
-        let res = fetch("https://api.example.com/data", Some(FetchOptions {
-            method: "POST".to_string(),
-            headers: vec![("Content-Type".to_string(), "application/json".to_string())]
-                .into_iter().collect(),
-            body: Some(body.to_string()),
-            ..Default::default()
-        })).map_err(|e| YetiError::Validation(e))?;
+    post(ctx) =&gt; {
+        let body = ctx.require_json_body()?.clone();
+        let data: Value = fetch!("POST", "https://api.example.com/data")
+            .json_body(&amp;body)?
+            .json()?;
 
-        ok_json!(res.json()?)
+        ok(data)
     }
 });</code></pre>
-<p><code>FetchResponse</code> methods: <code>.ok()</code>, <code>.json()</code>, <code>.text()</code>, <code>.header(name)</code>, <code>.status</code>, <code>.url</code>, <code>.redirected</code>.</p>
-<p><code>FetchOptions</code> fields: <code>method</code>, <code>headers</code>, <code>body</code>, <code>redirect</code>, <code>timeout</code>, <code>signal_timeout</code>.</p>
+<p><code>fetch!</code> accepts one or two arguments: <code>fetch!(url)</code> for GET, <code>fetch!(method, url)</code> for other methods. Chain builder methods, then call a terminal method:</p>
+<p><strong>Builder methods:</strong> <code>.header(key, value)</code>, <code>.body(str)</code>, <code>.json_body(&amp;Value)?</code>, <code>.no_redirect()</code>, <code>.timeout(seconds)</code>, <code>.abort_after(seconds)</code>.</p>
+<p><strong>Terminal methods:</strong> <code>.json()</code> (send + parse JSON), <code>.text()</code> (send + return String), <code>.send()</code> (raw <code>FetchResponse</code>).</p>
+<p><strong><code>FetchResponse</code> fields/methods:</strong> <code>.status</code> (u16), <code>.body</code> (String), <code>.url</code> (String), <code>.redirected</code> (bool), <code>.ok()</code> (bool), <code>.json()</code>, <code>.text()</code>, <code>.header(name)</code>.</p>
 <h2 id="supported-http-methods"><a class="header" href="#supported-http-methods">Supported HTTP Methods</a></h2>
 <p><code>get</code>, <code>post</code>, <code>put</code>, <code>patch</code>, <code>delete</code>, <code>search</code>. Unimplemented methods return 405.</p>
 

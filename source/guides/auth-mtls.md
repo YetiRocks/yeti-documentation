@@ -117,7 +117,7 @@ curl -sk --cert client.pem --key client-key.pem \
 
 ## Combining with Other Auth Methods
 
-mTLS can coexist with Basic, JWT, and OAuth. The auth pipeline tries each provider in priority order — mTLS is checked first (highest priority) because the identity is established at the transport layer:
+mTLS coexists with Basic, JWT, and OAuth. The auth pipeline tries each provider in priority order -- mTLS is checked first because identity is established at the transport layer:
 
 ```yaml
 auth:

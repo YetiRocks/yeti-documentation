@@ -108,160 +108,275 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="request-parsing"><a class="header" href="#request-parsing">Request Parsing</a></h1>
-<p>The SDK extends <code>http::Request</code> with three trait extensions: <code>RequestBodyExt</code> for body parsing, <code>RequestExt</code> for request metadata, and <code>JsonValueExt</code> for working with JSON values.</p>
-<h2 id="body-parsing-requestbodyext"><a class="header" href="#body-parsing-requestbodyext">Body Parsing (RequestBodyExt)</a></h2>
-<p>Implemented on <code>Request&lt;Vec&lt;u8&gt;&gt;</code> and <code>Request&lt;&amp;[u8]&gt;</code>.</p>
-<h3 id="jsont"><a class="header" href="#jsont">json&lt;T&gt;()</a></h3>
-<p>Parse the request body into a typed struct.</p>
-<pre><code class="language-rust ignore">fn json&lt;T: DeserializeOwned&gt;(&amp;self) -&gt; Result&lt;T&gt;</code></pre>
+<p>Resource handlers receive a <code>Context</code> struct that accumulates data as the request flows through the pipeline. The <code>ContextExt</code> trait adds convenience methods for common handler patterns.</p>
+<h2 id="context-struct"><a class="header" href="#context-struct">Context Struct</a></h2>
+<p>Each layer of the pipeline populates its fields:</p>
+<pre><code class="language-text">Protocol adapter  -&gt;  Router  -&gt;  Auth  -&gt;  Dispatch  -&gt;  Resource
+     |                  |          |           |             |
+     creates            adds       adds        adds          reads
+     method, path,      app_id,    identity,   json_body,    everything
+     body, headers      resource,  access,     backend
+                        path_id,   permission
+                        query
+</code></pre>
+<h3 id="fields"><a class="header" href="#fields">Fields</a></h3>
+<pre><code class="language-rust ignore">pub struct Context {
+    // -- Protocol adapter --
+    pub method: http::Method,
+    pub path: String,
+    pub body: Bytes,
+    pub headers: http::HeaderMap,
+
+    // -- Router --
+    pub app_id: Arc&lt;str&gt;,
+    pub resource_id: Arc&lt;str&gt;,
+    pub path_id: Option&lt;String&gt;,
+    pub query_params: HashMap&lt;String, String&gt;,
+    pub is_collection: bool,
+
+    // -- Auth layer --
+    pub auth_identity: Option&lt;AuthIdentity&gt;,
+    pub access: Option&lt;Arc&lt;dyn AccessControl&gt;&gt;,
+    pub permission: TablePermission,
+
+    // -- Table registration --
+    pub database: Arc&lt;str&gt;,
+    pub table_name: Arc&lt;str&gt;,
+
+    // -- Dispatch layer --
+    pub json_body: Option&lt;Value&gt;,
+    pub backend_manager: Option&lt;Arc&lt;BackendManager&gt;&gt;,
+}</code></pre>
+<h3 id="built-in-methods-on-context"><a class="header" href="#built-in-methods-on-context">Built-in methods on Context</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>query(name)</code></td><td><code>Option&lt;&amp;str&gt;</code></td><td>Get a query parameter by name</td></tr>
+<tr><td><code>query_int(name, default)</code></td><td><code>i64</code></td><td>Query parameter as integer with default</td></tr>
+<tr><td><code>query_bool(name, default)</code></td><td><code>bool</code></td><td>Query parameter as boolean with default</td></tr>
+<tr><td><code>table(name)</code></td><td><code>Result&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Get the low-level backend for a table</td></tr>
+<tr><td><code>table_context()</code></td><td><code>(&amp;str, &amp;str)</code></td><td>Database and table name pair</td></tr>
+</tbody></table>
+</div>
+<h2 id="contextext-trait"><a class="header" href="#contextext-trait">ContextExt Trait</a></h2>
+<p>Import via <code>use yeti_sdk::prelude::*</code>. Adds higher-level convenience methods to <code>Context</code>.</p>
+<pre><code class="language-rust ignore">pub trait ContextExt {
+    fn get_table(&amp;self, name: &amp;str) -&gt; Result&lt;Table&gt;;
+    fn tables(&amp;self) -&gt; Result&lt;Tables&gt;;
+    fn require_id(&amp;self) -&gt; Result&lt;&amp;str&gt;;
+    fn require_json_body(&amp;self) -&gt; Result&lt;&amp;Value&gt;;
+    fn auth_identity(&amp;self) -&gt; Option&lt;&amp;AuthIdentity&gt;;
+    fn cookie(&amp;self, name: &amp;str) -&gt; Option&lt;String&gt;;
+}</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>get_table(name)</code></td><td><code>Result&lt;Table&gt;</code></td><td>Get a <code>Table</code> accessor by name</td></tr>
+<tr><td><code>tables()</code></td><td><code>Result&lt;Tables&gt;</code></td><td>Get a <code>Tables</code> accessor for all tables</td></tr>
+<tr><td><code>require_id()</code></td><td><code>Result&lt;&amp;str&gt;</code></td><td>Get <code>path_id</code> or return a validation error</td></tr>
+<tr><td><code>require_json_body()</code></td><td><code>Result&lt;&amp;Value&gt;</code></td><td>Get parsed JSON body or return a validation error</td></tr>
+<tr><td><code>auth_identity()</code></td><td><code>Option&lt;&amp;AuthIdentity&gt;</code></td><td>Get the authenticated identity</td></tr>
+<tr><td><code>cookie(name)</code></td><td><code>Option&lt;String&gt;</code></td><td>Get a cookie value from request headers</td></tr>
+</tbody></table>
+</div>
+<h2 id="path-id-and-record-lookup"><a class="header" href="#path-id-and-record-lookup">Path ID and Record Lookup</a></h2>
+<p>The router extracts the path ID from the URL (e.g., <code>"123"</code> from <code>/app/Table/123</code>). Use <code>require_id()</code> when the ID is mandatory.</p>
+<pre><code class="language-rust ignore">fn get(&amp;self, ctx: Context) -&gt; ResourceFuture {
+    Box::pin(async move {
+        let id = ctx.require_id()?;
+        let table = ctx.get_table("Product")?;
+        let product = table.get_or_404(id).await?;
+        ok(product)
+    })
+}</code></pre>
+<p>For collection requests (no ID), <code>ctx.is_collection</code> is <code>true</code> and <code>ctx.path_id</code> is <code>None</code>.</p>
+<pre><code class="language-rust ignore">fn get(&amp;self, ctx: Context) -&gt; ResourceFuture {
+    Box::pin(async move {
+        if ctx.is_collection {
+            let table = ctx.get_table("Product")?;
+            let all = table.get_all().await?;
+            ok(all)
+        } else {
+            let id = ctx.require_id()?;
+            let table = ctx.get_table("Product")?;
+            let product = table.get_or_404(id).await?;
+            ok(product)
+        }
+    })
+}</code></pre>
+<h2 id="request-body-parsing"><a class="header" href="#request-body-parsing">Request Body Parsing</a></h2>
+<p>The dispatch layer eagerly parses JSON bodies into <code>ctx.json_body</code>. Use <code>require_json_body()</code> when a body is required, or read <code>ctx.json_body</code> directly when optional.</p>
+<pre><code class="language-rust ignore">fn post(&amp;self, ctx: Context) -&gt; ResourceFuture {
+    Box::pin(async move {
+        let body = ctx.require_json_body()?;
+        let name = body["name"].as_str()
+            .ok_or_else(|| YetiError::Validation("name is required".into()))?;
+
+        let table = ctx.get_table("User")?;
+        let record = table.create(body.clone()).await?;
+        ok(record)
+    })
+}</code></pre>
+<p>For typed deserialization, parse from the raw bytes:</p>
 <pre><code class="language-rust ignore">#[derive(Deserialize)]
 struct CreateUser {
     name: String,
     email: String,
 }
 
-let user: CreateUser = request.json()?;</code></pre>
-<p>Returns <code>Err(YetiError::Validation)</code> if the body is not valid JSON or does not match the target type.</p>
-<h3 id="json_value"><a class="header" href="#json_value">json_value()</a></h3>
-<p>Parse the body as a generic <code>serde_json::Value</code>.</p>
-<pre><code class="language-rust ignore">fn json_value(&amp;self) -&gt; Result&lt;Value&gt;</code></pre>
-<pre><code class="language-rust ignore">let body: Value = request.json_value()?;
-let name = body["name"].as_str().unwrap_or("unknown");</code></pre>
-<h3 id="json_array"><a class="header" href="#json_array">json_array()</a></h3>
-<p>Normalize a body that may be a single object or an array into <code>Vec&lt;Value&gt;</code>:</p>
-<pre><code class="language-rust ignore">fn json_array(&amp;self) -&gt; Result&lt;Vec&lt;Value&gt;&gt;</code></pre>
-<pre><code class="language-rust ignore">// Accepts both: {"name": "Alice"} and [{"name": "Alice"}, {"name": "Bob"}]
-let items: Vec&lt;Value&gt; = request.json_array()?;
-for item in &amp;items {
-    // process each item
+fn post(&amp;self, ctx: Context) -&gt; ResourceFuture {
+    Box::pin(async move {
+        let user: CreateUser = serde_json::from_slice(&amp;ctx.body)
+            .map_err(|e| YetiError::Validation(e.to_string()))?;
+        // ...
+        ok(json!({"created": user.name}))
+    })
 }</code></pre>
-<h3 id="json_fieldtpath"><a class="header" href="#json_fieldtpath">json_field&lt;T&gt;(path)</a></h3>
-<p>Extract a nested field by dot-path.</p>
-<pre><code class="language-rust ignore">fn json_field&lt;T: DeserializeOwned&gt;(&amp;self, path: &amp;str) -&gt; Result&lt;T&gt;</code></pre>
-<pre><code class="language-rust ignore">// Body: {"user": {"email": "alice@example.com"}}
-let email: String = request.json_field("user.email")?;</code></pre>
-<p>Returns <code>Err(YetiError::Validation)</code> if the field is missing.</p>
-<h3 id="json_field_opttpath"><a class="header" href="#json_field_opttpath">json_field_opt&lt;T&gt;(path)</a></h3>
-<p>Same as <code>json_field</code> but returns <code>None</code> instead of an error when the field is missing.</p>
-<pre><code class="language-rust ignore">fn json_field_opt&lt;T: DeserializeOwned&gt;(&amp;self, path: &amp;str) -&gt; Result&lt;Option&lt;T&gt;&gt;</code></pre>
-<pre><code class="language-rust ignore">let bio: Option&lt;String&gt; = request.json_field_opt("user.bio")?;</code></pre>
-<h3 id="body_bytes"><a class="header" href="#body_bytes">body_bytes()</a></h3>
-<p>Access the raw request body as bytes.</p>
-<pre><code class="language-rust ignore">fn body_bytes(&amp;self) -&gt; &amp;[u8]</code></pre>
-<pre><code class="language-rust ignore">let raw: &amp;[u8] = request.body_bytes();</code></pre>
-<h3 id="content-type-checks"><a class="header" href="#content-type-checks">Content type checks</a></h3>
-<pre><code class="language-rust ignore">fn is_csv(&amp;self) -&gt; bool
-fn is_json(&amp;self) -&gt; bool
-fn content_type_contains(&amp;self, mime: &amp;str) -&gt; bool</code></pre>
-<pre><code class="language-rust ignore">if request.is_csv() {
-    let items = parse_csv(request.body_bytes());
-} else if request.is_json() {
-    let items = request.json_array()?;
-}
+<h2 id="query-parameters"><a class="header" href="#query-parameters">Query Parameters</a></h2>
+<p>Query parameters are parsed by the router into <code>ctx.query_params</code>. Access them with the built-in <code>query()</code>, <code>query_int()</code>, and <code>query_bool()</code> methods.</p>
+<pre><code class="language-rust ignore">fn get(&amp;self, ctx: Context) -&gt; ResourceFuture {
+    Box::pin(async move {
+        let limit = ctx.query_int("limit", 100);
+        let offset = ctx.query_int("offset", 0);
+        let active = ctx.query_bool("active", true);
 
-if request.content_type_contains("application/xml") {
-    // handle XML
+        // Raw string access
+        let sort = ctx.query("sort").unwrap_or("created_at");
+
+        let table = ctx.get_table("Product")?;
+        let results = table.query()
+            .limit(limit as usize)
+            .offset(offset as usize)
+            .execute()
+            .await?;
+        ok(results)
+    })
 }</code></pre>
-<h2 id="request-metadata-requestext"><a class="header" href="#request-metadata-requestext">Request Metadata (RequestExt)</a></h2>
-<p>Implemented on <code>Request&lt;T&gt;</code> for any body type. Provides access to request identity, routing, and headers.</p>
-<h3 id="id"><a class="header" href="#id">id()</a></h3>
-<p>Get the request ID. Uses the <code>X-Request-Id</code> header if present, otherwise generates a UUID v7.</p>
-<pre><code class="language-rust ignore">fn id(&amp;self) -&gt; String</code></pre>
-<pre><code class="language-rust ignore">let req_id = request.id();</code></pre>
-<h3 id="ip"><a class="header" href="#ip">ip()</a></h3>
-<p>Get the client IP address. Checks <code>X-Forwarded-For</code> first, then <code>X-Real-IP</code>.</p>
-<pre><code class="language-rust ignore">fn ip(&amp;self) -&gt; Option&lt;String&gt;</code></pre>
-<pre><code class="language-rust ignore">let client_ip = request.ip().unwrap_or_else(|| "unknown".to_string());</code></pre>
-<h3 id="host--hostname"><a class="header" href="#host--hostname">host() / hostname()</a></h3>
-<p>Get the request host. <code>hostname()</code> strips the port.</p>
-<pre><code class="language-rust ignore">fn host(&amp;self) -&gt; Option&lt;String&gt;
-fn hostname(&amp;self) -&gt; Option&lt;String&gt;</code></pre>
-<pre><code class="language-rust ignore">let host = request.host();         // Some("example.com:8080")
-let name = request.hostname();     // Some("example.com")</code></pre>
-<h3 id="protocol"><a class="header" href="#protocol">protocol()</a></h3>
-<p>Get the protocol. Checks <code>X-Forwarded-Proto</code>, defaults to <code>"https"</code>.</p>
-<pre><code class="language-rust ignore">fn protocol(&amp;self) -&gt; &amp;str</code></pre>
-<h3 id="original_url"><a class="header" href="#original_url">original_url()</a></h3>
-<p>Get the request URI path (before internal routing).</p>
-<pre><code class="language-rust ignore">fn original_url(&amp;self) -&gt; String</code></pre>
-<h3 id="paramkey--path_id"><a class="header" href="#paramkey--path_id">param(key) / path_id()</a></h3>
-<p>Get a path or query parameter by key. <code>path_id()</code> is shorthand for <code>param("_path_id")</code>.</p>
-<pre><code class="language-rust ignore">fn param(&amp;self, key: &amp;str) -&gt; Option&lt;String&gt;
-fn path_id(&amp;self) -&gt; Option&lt;String&gt;</code></pre>
-<h3 id="param_i64--param_u64--param_bool"><a class="header" href="#param_i64--param_u64--param_bool">param_i64 / param_u64 / param_bool</a></h3>
-<p>Get typed parameters with defaults:</p>
-<pre><code class="language-rust ignore">fn param_i64(&amp;self, key: &amp;str, default: i64) -&gt; i64
-fn param_u64(&amp;self, key: &amp;str, default: u64) -&gt; u64
-fn param_bool(&amp;self, key: &amp;str, default: bool) -&gt; bool</code></pre>
-<p><code>param_bool</code> recognizes <code>"true"</code>, <code>"1"</code>, <code>"yes"</code> as true and <code>"false"</code>, <code>"0"</code>, <code>"no"</code> as false.</p>
-<h3 id="header_strname"><a class="header" href="#header_strname">header_str(name)</a></h3>
-<p>Get a header value as a string.</p>
-<pre><code class="language-rust ignore">fn header_str(&amp;self, name: &amp;str) -&gt; Option&lt;&amp;str&gt;</code></pre>
-<pre><code class="language-rust ignore">let auth = request.header_str("authorization");
-let origin = request.header_str("origin");</code></pre>
-<h2 id="json-value-helpers-jsonvalueext"><a class="header" href="#json-value-helpers-jsonvalueext">JSON Value Helpers (JsonValueExt)</a></h2>
-<p>Extension trait on <code>serde_json::Value</code> for ergonomic access with dot notation and defaults.</p>
-<h3 id="typed-access-with-defaults"><a class="header" href="#typed-access-with-defaults">Typed access with defaults</a></h3>
-<pre><code class="language-rust ignore">fn get(&amp;self, path: &amp;str, default: &amp;str) -&gt; String
-fn get_i64(&amp;self, path: &amp;str, default: i64) -&gt; i64
-fn get_u64(&amp;self, path: &amp;str, default: u64) -&gt; u64
-fn get_f64(&amp;self, path: &amp;str, default: f64) -&gt; f64
-fn get_bool(&amp;self, path: &amp;str, default: bool) -&gt; bool</code></pre>
-<pre><code class="language-rust ignore">let body = request.json_value()?;
+<p><code>query_bool</code> recognizes <code>"true"</code>, <code>"1"</code>, <code>"yes"</code>, <code>"on"</code> as true.</p>
+<h2 id="header-access"><a class="header" href="#header-access">Header Access</a></h2>
+<p>Headers are available as a standard <code>http::HeaderMap</code> on <code>ctx.headers</code>.</p>
+<pre><code class="language-rust ignore">fn get(&amp;self, ctx: Context) -&gt; ResourceFuture {
+    Box::pin(async move {
+        let auth = ctx.headers.get("authorization")
+            .and_then(|v| v.to_str().ok());
 
-let name = JsonValueExt::get(&amp;body, "user.name", "anonymous");
-let age = body.get_i64("user.age", 0);
-let score = body.get_f64("metrics.score", 0.0);
-let active = body.get_bool("flags.active", false);</code></pre>
-<h3 id="optional-access"><a class="header" href="#optional-access">Optional access</a></h3>
-<pre><code class="language-rust ignore">fn opt_str(&amp;self, path: &amp;str) -&gt; Option&lt;&amp;str&gt;
-fn opt_bool(&amp;self, path: &amp;str) -&gt; Option&lt;bool&gt;
-fn opt_u64(&amp;self, path: &amp;str) -&gt; Option&lt;u64&gt;</code></pre>
-<h3 id="dot_getpath"><a class="header" href="#dot_getpath">dot_get(path)</a></h3>
-<p>Get the raw <code>&amp;Value</code> at a dot-separated path.</p>
-<pre><code class="language-rust ignore">fn dot_get(&amp;self, path: &amp;str) -&gt; Option&lt;&amp;Value&gt;</code></pre>
-<pre><code class="language-rust ignore">let email = body.dot_get("user.contact.email").and_then(|v| v.as_str());</code></pre>
-<p>Supports nested objects, arrays (by index), and mixed access:</p>
-<pre><code class="language-rust ignore">let data = json!({
-    "teams": [{"name": "Engineering", "members": [{"name": "Alice"}]}]
-});
-let name = data.dot_get("teams.0.members.0.name"); // Some("Alice")</code></pre>
-<h3 id="require_str--require_i64--require_u64--require_bool"><a class="header" href="#require_str--require_i64--require_u64--require_bool">require_str / require_i64 / require_u64 / require_bool</a></h3>
-<p>Get a required field, returning <code>Err(YetiError::Validation)</code> if missing.</p>
-<pre><code class="language-rust ignore">fn require_str(&amp;self, path: &amp;str) -&gt; Result&lt;String&gt;
-fn require_i64(&amp;self, path: &amp;str) -&gt; Result&lt;i64&gt;
-fn require_u64(&amp;self, path: &amp;str) -&gt; Result&lt;u64&gt;
-fn require_bool(&amp;self, path: &amp;str) -&gt; Result&lt;bool&gt;</code></pre>
-<pre><code class="language-rust ignore">let name = body.require_str("name")?;
-let count = body.require_i64("count")?;</code></pre>
+        let origin = ctx.headers.get("origin")
+            .and_then(|v| v.to_str().ok());
+
+        let accept = ctx.headers.get("accept")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("application/json");
+
+        // ...
+        ok(json!({"accept": accept}))
+    })
+}</code></pre>
+<p>For cookies, use the <code>cookie()</code> method from <code>ContextExt</code> which handles HTTP/2 cookie header splitting:</p>
+<pre><code class="language-rust ignore">let session = ctx.cookie("session_id");
+let theme = ctx.cookie("theme").unwrap_or_else(|| "light".to_string());</code></pre>
+<h2 id="auth-identity"><a class="header" href="#auth-identity">Auth Identity</a></h2>
+<p>The auth layer populates <code>ctx.auth_identity</code> and <code>ctx.access</code>. Use <code>auth_identity()</code> from <code>ContextExt</code> to inspect who made the request.</p>
+<pre><code class="language-rust ignore">pub enum AuthIdentity {
+    Basic { username: String },
+    Jwt { username: String, claims: Value },
+    OAuth { email: Option&lt;String&gt;, provider: String, claims: Value },
+    Mtls { username: String, cn: String, sans: Vec&lt;String&gt; },
+}</code></pre>
+<pre><code class="language-rust ignore">fn post(&amp;self, ctx: Context) -&gt; ResourceFuture {
+    Box::pin(async move {
+        let identity = ctx.auth_identity()
+            .ok_or_else(|| YetiError::Validation("Authentication required".into()))?;
+
+        let username = identity.username();
+
+        // Check specific identity type
+        match identity {
+            AuthIdentity::Jwt { claims, .. } =&gt; {
+                let role = claims["role"].as_str();
+                // ...
+            }
+            AuthIdentity::OAuth { provider, .. } =&gt; {
+                tracing::info!("OAuth login via {}", provider);
+            }
+            _ =&gt; {}
+        }
+
+        ok(json!({"user": username}))
+    })
+}</code></pre>
+<h2 id="table-permission"><a class="header" href="#table-permission">Table Permission</a></h2>
+<p>The auth layer pre-computes <code>ctx.permission</code> for field-level access control. The <code>Resource</code> trait's <code>allow_*</code> methods use this automatically, but you can read it directly for custom logic.</p>
+<pre><code class="language-rust ignore">match &amp;ctx.permission {
+    TablePermission::Public =&gt; { /* no auth required */ }
+    TablePermission::FullAccess =&gt; { /* super_user or wildcard */ }
+    TablePermission::AttributeRestricted { readable, writable } =&gt; {
+        // Filter response fields based on readable
+        // Validate input fields based on writable
+    }
+}</code></pre>
+<h2 id="table-access"><a class="header" href="#table-access">Table Access</a></h2>
+<p>The <code>Table</code> struct returned by <code>ctx.get_table()</code> provides CRUD operations, querying, and convenience methods.</p>
+<h3 id="crud-operations"><a class="header" href="#crud-operations">CRUD Operations</a></h3>
+<pre><code class="language-rust ignore">let table = ctx.get_table("Product")?;
+
+// Read
+let product = table.get("prod-123").await?;          // Option&lt;Value&gt;
+let product = table.get_or_404("prod-123").await?;   // Value (404 if missing)
+let all = table.get_all().await?;                     // Vec&lt;Value&gt;
+
+// Create (auto-generates UUID v7 ID)
+let created = table.create(json!({"name": "Widget"})).await?;
+
+// Update
+table.put("prod-123", json!({"name": "Widget", "price": 29.99})).await?;
+table.patch("prod-123", json!({"price": 24.99})).await?;
+
+// Delete
+let existed = table.delete("prod-123").await?;        // bool
+let count = table.delete_all().await?;                 // u64</code></pre>
+<h3 id="query-and-search"><a class="header" href="#query-and-search">Query and Search</a></h3>
+<pre><code class="language-rust ignore">// Fluent query builder
+let results = table.query()
+    .where_eq("status", "active")
+    .limit(10)
+    .execute()
+    .await?;
+
+// Convenience scan methods
+let active = table.find("status", "active").await?;        // Vec&lt;Value&gt;
+let admin = table.find_one("role", "admin").await?;        // Option&lt;Value&gt;
+let total = table.count().await?;                           // u64
+let by_status = table.count_by("status").await?;           // HashMap&lt;String, usize&gt;
+let groups = table.group_by("category").await?;            // HashMap&lt;String, Vec&lt;Value&gt;&gt;</code></pre>
+<h3 id="pubsub-subscriptions"><a class="header" href="#pubsub-subscriptions">PubSub Subscriptions</a></h3>
+<pre><code class="language-rust ignore">// Subscribe to all changes on a table
+let mut rx = table.subscribe_all().await?;
+
+// Subscribe to changes on a specific record
+let mut rx = table.subscribe_id("order-123").await?;
+
+while let Ok(msg) = rx.recv().await {
+    // msg.message_type: Update | Delete | Publish | Retained
+    // msg.data: Value
+    // msg.id: Option&lt;String&gt;
+}</code></pre>
 <h2 id="quick-reference"><a class="header" href="#quick-reference">Quick Reference</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Trait</th><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>RequestBodyExt</code></td><td><code>json::&lt;T&gt;()</code></td><td><code>Result&lt;T&gt;</code></td><td>Parse body as typed struct</td></tr>
-<tr><td></td><td><code>json_value()</code></td><td><code>Result&lt;Value&gt;</code></td><td>Parse body as JSON value</td></tr>
-<tr><td></td><td><code>json_array()</code></td><td><code>Result&lt;Vec&lt;Value&gt;&gt;</code></td><td>Normalize single/array to vec</td></tr>
-<tr><td></td><td><code>json_field::&lt;T&gt;(path)</code></td><td><code>Result&lt;T&gt;</code></td><td>Extract nested field by dot-path</td></tr>
-<tr><td></td><td><code>json_field_opt::&lt;T&gt;(path)</code></td><td><code>Result&lt;Option&lt;T&gt;&gt;</code></td><td>Extract field, None if missing</td></tr>
-<tr><td></td><td><code>body_bytes()</code></td><td><code>&amp;[u8]</code></td><td>Raw request body bytes</td></tr>
-<tr><td></td><td><code>is_csv()</code></td><td><code>bool</code></td><td>Content-Type contains "csv"</td></tr>
-<tr><td></td><td><code>is_json()</code></td><td><code>bool</code></td><td>Content-Type contains "json"</td></tr>
-<tr><td></td><td><code>content_type_contains(mime)</code></td><td><code>bool</code></td><td>Content-Type contains string</td></tr>
-<tr><td><code>RequestExt</code></td><td><code>id()</code></td><td><code>String</code></td><td>Request ID (header or generated)</td></tr>
-<tr><td></td><td><code>ip()</code></td><td><code>Option&lt;String&gt;</code></td><td>Client IP</td></tr>
-<tr><td></td><td><code>host()</code></td><td><code>Option&lt;String&gt;</code></td><td>Host with port</td></tr>
-<tr><td></td><td><code>hostname()</code></td><td><code>Option&lt;String&gt;</code></td><td>Host without port</td></tr>
-<tr><td></td><td><code>protocol()</code></td><td><code>&amp;str</code></td><td>"http" or "https"</td></tr>
-<tr><td></td><td><code>original_url()</code></td><td><code>String</code></td><td>Request URI path</td></tr>
-<tr><td></td><td><code>param(key)</code></td><td><code>Option&lt;String&gt;</code></td><td>Path/query parameter</td></tr>
-<tr><td></td><td><code>path_id()</code></td><td><code>Option&lt;String&gt;</code></td><td>Path ID segment</td></tr>
-<tr><td></td><td><code>param_i64(key, default)</code></td><td><code>i64</code></td><td>Integer parameter</td></tr>
-<tr><td></td><td><code>param_u64(key, default)</code></td><td><code>u64</code></td><td>Unsigned integer parameter</td></tr>
-<tr><td></td><td><code>param_bool(key, default)</code></td><td><code>bool</code></td><td>Boolean parameter</td></tr>
-<tr><td></td><td><code>header_str(name)</code></td><td><code>Option&lt;&amp;str&gt;</code></td><td>Header value</td></tr>
-<tr><td><code>JsonValueExt</code></td><td><code>get(path, default)</code></td><td><code>String</code></td><td>String with default</td></tr>
-<tr><td></td><td><code>get_i64(path, default)</code></td><td><code>i64</code></td><td>Integer with default</td></tr>
-<tr><td></td><td><code>get_bool(path, default)</code></td><td><code>bool</code></td><td>Boolean with default</td></tr>
-<tr><td></td><td><code>dot_get(path)</code></td><td><code>Option&lt;&amp;Value&gt;</code></td><td>Raw value at path</td></tr>
-<tr><td></td><td><code>require_str(path)</code></td><td><code>Result&lt;String&gt;</code></td><td>Required string field</td></tr>
+<div class="table-wrapper"><table><thead><tr><th>Source</th><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>Context</code></td><td><code>method</code></td><td><code>http::Method</code></td><td>HTTP method</td></tr>
+<tr><td></td><td><code>path</code></td><td><code>String</code></td><td>Request path</td></tr>
+<tr><td></td><td><code>body</code></td><td><code>Bytes</code></td><td>Raw request body</td></tr>
+<tr><td></td><td><code>headers</code></td><td><code>HeaderMap</code></td><td>HTTP headers</td></tr>
+<tr><td></td><td><code>app_id</code></td><td><code>Arc&lt;str&gt;</code></td><td>Application ID</td></tr>
+<tr><td></td><td><code>resource_id</code></td><td><code>Arc&lt;str&gt;</code></td><td>Resource name</td></tr>
+<tr><td></td><td><code>path_id</code></td><td><code>Option&lt;String&gt;</code></td><td>Record ID from path</td></tr>
+<tr><td></td><td><code>is_collection</code></td><td><code>bool</code></td><td>No ID in path</td></tr>
+<tr><td></td><td><code>json_body</code></td><td><code>Option&lt;Value&gt;</code></td><td>Eagerly parsed JSON body</td></tr>
+<tr><td></td><td><code>query(name)</code></td><td><code>Option&lt;&amp;str&gt;</code></td><td>Query parameter</td></tr>
+<tr><td></td><td><code>query_int(name, default)</code></td><td><code>i64</code></td><td>Integer query parameter</td></tr>
+<tr><td></td><td><code>query_bool(name, default)</code></td><td><code>bool</code></td><td>Boolean query parameter</td></tr>
+<tr><td></td><td><code>table(name)</code></td><td><code>Result&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Low-level table backend</td></tr>
+<tr><td><code>ContextExt</code></td><td><code>get_table(name)</code></td><td><code>Result&lt;Table&gt;</code></td><td>Table accessor</td></tr>
+<tr><td></td><td><code>tables()</code></td><td><code>Result&lt;Tables&gt;</code></td><td>All-tables accessor</td></tr>
+<tr><td></td><td><code>require_id()</code></td><td><code>Result&lt;&amp;str&gt;</code></td><td>Path ID or 400 error</td></tr>
+<tr><td></td><td><code>require_json_body()</code></td><td><code>Result&lt;&amp;Value&gt;</code></td><td>JSON body or 400 error</td></tr>
+<tr><td></td><td><code>auth_identity()</code></td><td><code>Option&lt;&amp;AuthIdentity&gt;</code></td><td>Authenticated identity</td></tr>
+<tr><td></td><td><code>cookie(name)</code></td><td><code>Option&lt;String&gt;</code></td><td>Cookie value</td></tr>
 </tbody></table>
 </div>
                     </main>

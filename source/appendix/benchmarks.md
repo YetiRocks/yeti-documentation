@@ -1,6 +1,6 @@
 # Performance Benchmarks
 
-Live benchmark results from a single Yeti node running the app-benchmarks application.
+Benchmark results from a single Yeti node running the app-benchmarks application.
 
 ## End-to-End API Throughput
 
@@ -35,14 +35,14 @@ Results from 30-second tests with 100 concurrent clients (5s warmup excluded). A
 
 ## Running Benchmarks
 
-Benchmarks run as a standalone Yeti application at `/app-benchmarks/`. The web UI provides one-click test execution with live progress tracking.
+Benchmarks run as a Yeti application at `/app-benchmarks/` with a web UI for one-click test execution.
 
 ```bash
 # Access the benchmark dashboard
-open https://localhost/app-benchmarks/
+open https://localhost:9996/app-benchmarks/
 ```
 
-Individual load test binaries can also be run directly:
+Or run load test binaries directly:
 
 ```bash
 load-rest --test rest-read --base-url https://localhost --duration 30 --vus 100

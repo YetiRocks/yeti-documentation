@@ -123,48 +123,50 @@
 <pre><code class="language-yaml">name: "Full Page Cache"
 app_id: "full-page-cache"
 schemas:
-  - schema.graphql
+  path: "schema.graphql"
 resources:
-  - resources/*.rs
+  path: "resources/*.rs"
 origin:
   url: "https://www.example.com/"
 </code></pre>
 <h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
-<pre><code class="language-rust ignore">pub struct PageCache;
+<pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
+
+pub struct PageCache;
+
+impl Default for PageCache {
+    fn default() -&gt; Self { Self }
+}
 
 impl Resource for PageCache {
     fn name(&amp;self) -&gt; &amp;str { "PageCache" }
     fn is_default(&amp;self) -&gt; bool { true }
 
-    fn get(&amp;self, _request: Request&lt;Vec&lt;u8&gt;&gt;, ctx: ResourceParams) -&gt; ResourceFuture {
-        async_handler!({
-            let path = ctx.id().unwrap_or("/");
+    fn get(&amp;self, ctx: Context) -&gt; ResourceFuture {
+        Box::pin(async move {
+            let path = ctx.path_id.as_deref().unwrap_or("/");
             let cache = ctx.get_table("PageCache")?;
 
             if let Some(cached) = cache.get(&amp;path).await? {
-                ctx.response_headers().append("x-cache", "HIT");
-                return ok_html(cached.as_str().unwrap_or_default());
+                return ok_html(cached.as_str().unwrap_or_default())
+                    .map(|r| r.add_header("x-cache", "HIT"));
             }
 
-            let origin = ctx.config().get_str("origin.url", "https://example.com/");
-            let url = format!("{}{}", origin.trim_end_matches('/'), &amp;path);
-
-            let (tx, rx) = std::sync::mpsc::channel();
-            std::thread::spawn(move || {
-                let result = reqwest::blocking::get(&amp;url);
-                let _ = tx.send(result);
-            });
-            let html = rx.recv()??.text()?;
+            let url = format!("https://example.com{}", &amp;path);
+            let res = fetch!(&amp;url).send().await
+                .map_err(|e| YetiError::Internal(e.to_string()))?;
+            let html = res.text().await
+                .map_err(|e| YetiError::Internal(e.to_string()))?;
 
             cache.put(&amp;path, json!(html)).await?;
-            ctx.response_headers().append("x-cache", "MISS");
             ok_html(&amp;html)
+                .map(|r| r.add_header("x-cache", "MISS"))
         })
     }
 }
 
 register_resource!(PageCache);</code></pre>
-<p><code>reqwest::blocking</code> on a <code>std::thread</code> is required because dylib plugins have their own tokio runtime copy due to TLS isolation.</p>
+<p>Uses <code>fetch!</code> macro from <code>yeti_sdk::prelude</code> for external HTTP calls. Do not use <code>reqwest::blocking::Client</code> — it crashes in the dylib context.</p>
 <h2 id="testing"><a class="header" href="#testing">Testing</a></h2>
 <pre><code class="language-bash"># Cache miss - fetches from origin
 curl -sk https://localhost:9996/full-page-cache/products

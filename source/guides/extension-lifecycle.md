@@ -1,84 +1,167 @@
-# Extension Lifecycle
+# Service Lifecycle
 
-## Stages
+The runtime calls each `Service` trait method in order, with context objects that expose progressively more capability.
 
-### 1. Compiler Detection
+## Startup Sequence
 
-The compiler scans source files for `struct {Name}Extension` - no config declaration needed.
+### 1. Discovery
+
+All services are registered in the `ServiceRegistry` (a `Vec<Box<dyn Service>>`). Built-in services are compiled into the binary.
+
+### 2. Dependency Sort
+
+Services are sorted topologically based on `depends_on()`. Services with no dependencies start first. Telemetry services are sorted earliest so their event subscriber captures other services' startup events.
 
 ```rust,ignore
-pub struct TelemetryExtension {
-    config: TelemetryConfig,
+fn depends_on(&self) -> &[&'static str] {
+    &["yeti-auth"]  // Start after yeti-auth
 }
 ```
 
-Source files are copied to `cache/builds/{app}/src/` and `lib.rs` is generated with entry points.
+### 3. is_required(StartupContext)
 
-### 2. Dylib Compilation
-
-Compiled as `.dylib` (macOS) or `.so` (Linux). First build ~2 minutes per plugin; cached rebuilds ~10 seconds.
-
-### 3. Dylib Loading
-
-Host loads each dylib via `dlopen`. The extension gets separate copies of thread-local storage, statics, and the tokio runtime.
-
-### 4. initialize()
-
-Earliest point for extension code. Use for lightweight setup only.
+Each service decides whether to activate. The `StartupContext` provides read-only introspection:
 
 ```rust,ignore
-fn initialize(&self) -> Result<()> {
-    tracing::info!("[my-ext] Loaded");
-    Ok(())
+pub struct StartupContext<'a> {
+    pub tables: &'a [TableDefinition],     // All discovered table definitions
+    pub app_configs: &'a [serde_json::Value], // All app configs as raw JSON
 }
 ```
 
-### 5. Auth Provider Registration
+**StartupContext methods:**
 
-Host calls `auth_providers()` and `auth_hooks()` to collect auth components before any requests are processed.
+| Method | Description |
+|--------|-------------|
+| `any_app_has_config(key)` | Check if any app has a top-level config key |
+| `any_table_has_field_directive(directive)` | Check if any table field type matches |
+| `any_app_requires_auth()` | Check if any app has required roles |
 
-### 6. Routes and Tables Registered
-
-Tables created in storage, REST/GraphQL routes mapped, SSE/WebSocket wired up, seed data loaded.
-
-### 7. on_ready()
-
-Main setup hook with full runtime access:
+Example: yeti-kafka only activates when an app has `kafka:` config:
 
 ```rust,ignore
-fn on_ready(&self, ctx: &ExtensionContext) -> Result<()> {
-    let log_table = ctx.table("log").expect("Log table registered");
-
-    let handler = Box::new(MyEventHandler { log_table });
-    ctx.set_event_subscriber(handler);
-    Ok(())
+fn is_required(&self, ctx: &StartupContext) -> bool {
+    ctx.any_app_has_config("kafka")
 }
 ```
 
-### 8. Host Spawns Event Subscriber
+Services with `is_required() == false` are skipped entirely.
 
-After `on_ready()` returns, the host:
-1. Takes the event subscriber
-2. Creates `mpsc::channel(10_000)` in host context
-3. Registers sender with `DispatchLayer`
-4. Spawns `subscriber.run(rx)` on host tokio runtime
+### 4. register(RegistrationContext)
 
-## ExtensionContext Methods
+Active services add their schemas, resources, hooks, and providers:
+
+```rust,ignore
+pub struct RegistrationContext {
+    pub schemas: Vec<String>,
+    pub resources: Vec<Box<dyn Resource>>,
+    pub auth_providers: Vec<Arc<dyn AuthProvider>>,
+    pub auth_hooks: Vec<Arc<dyn AuthHook>>,
+    pub vector_hooks: Vec<Arc<dyn VectorHook>>,
+    pub ai_hooks: Vec<Arc<dyn AiHook>>,
+    pub computed_field_hooks: Vec<Arc<dyn ComputedFieldHook>>,
+    pub middleware: Vec<Arc<dyn RequestMiddleware>>,
+    pub event_subscribers: Vec<Box<dyn EventSubscriber>>,
+    pub web_files: Vec<EmbeddedFile>,
+    pub background_tasks: Vec<Pin<Box<dyn Future<Output = ()> + Send>>>,
+    pub app_id: String,
+    pub root_directory: String,
+}
+```
+
+Helper methods: `add_schema()`, `add_resource()`, `add_auth_provider()`, `add_vector_hook()`, `add_ai_hook()`, `add_middleware()`, `add_event_subscriber()`, `add_web_files()`.
+
+Services with `is_critical() == true` abort startup on registration failure.
+
+### 5. Schema and Table Creation
+
+After all services register, the runtime:
+- Parses GraphQL schemas into `TableDefinition` structs
+- Creates storage backends (RocksDB)
+- Maps REST/GraphQL/SSE/WebSocket/MQTT routes
+- Loads seed data
+
+### 6. on_ready(ServiceContext)
+
+Post-registration hook with full runtime access. Tables exist and are queryable:
+
+```rust,ignore
+pub struct ServiceContext {
+    pub app_id: String,
+    pub root_directory: String,
+    // + private fields for table/pubsub lookup
+}
+```
+
+**ServiceContext methods:**
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `table(name)` | `Option<Arc<TableResource>>` | Get table by lowercase name |
-| `root_dir()` | `&str` | Runtime root directory |
-| `auto_router()` | `&Arc<AutoRouter>` | App's router |
-| `set_event_subscriber(sub)` | - | Store handler for host to spawn |
+| `table(name)` | `Option<Arc<dyn KvBackend>>` | Get table backend by name |
+| `require_table(name)` | `Result<Arc<dyn KvBackend>>` | Get table or error (logs warning) |
+| `pubsub(table_name)` | `Option<Arc<PubSubManager>>` | Get PubSub manager for a table |
+| `set_event_subscriber(sub)` | -- | Store handler for host to spawn |
+| `take_event_subscriber()` | `Option<Box<dyn EventSubscriber>>` | Take the stored subscriber |
+| `app_id()` | `&str` | Application ID |
+| `root_dir()` | `&str` | Root directory path |
 
-## Load Order
+Example: yeti-auth bootstraps admin user from `.bootstrap.json`:
 
-Telemetry extensions are sorted first so the event subscriber captures other extensions' startup events.
+```rust,ignore
+fn on_ready(&self, ctx: &ServiceContext) -> Result<()> {
+    let users = ctx.require_table("User")?;
+    let roles = ctx.require_table("Role")?;
+    // Bootstrap admin user if .bootstrap.json exists
+    bootstrap_from_file(ctx.root_dir(), &users, &roles)?;
+    Ok(())
+}
+```
+
+### 7. Host Spawns Event Subscribers
+
+After `on_ready()` returns, the host:
+1. Takes the event subscriber via `take_event_subscriber()`
+2. Creates `mpsc::channel(10_000)` in host context
+3. Registers the sender with `DispatchLayer`
+4. Spawns `subscriber.run(rx)` on the host tokio runtime
+
+This runs in host context, not dylib context, so all tokio operations are safe.
+
+### 8. on_shutdown()
+
+Called during graceful shutdown in reverse dependency order.
+
+## Complete Sequence Diagram
+
+```
+ServiceRegistry
+    |
+    v
+[topological sort by depends_on()]
+    |
+    v
+for each service:
+    is_required(StartupContext) -----> skip if false
+    register(RegistrationContext) ---> add schemas, resources, hooks
+    |
+[create tables, map routes, load seed data]
+    |
+for each service:
+    on_ready(ServiceContext) ---------> bootstrap data, PubSub, event subscribers
+    |
+[host spawns event subscribers]
+    |
+[server starts accepting requests]
+    |
+[shutdown signal]
+    |
+for each service (reverse order):
+    on_shutdown()
+```
 
 ## See Also
 
-- [Building Extensions](building-extensions.md) - Extension trait overview
-- [Telemetry & Observability](telemetry.md) - Event subscriber example
-- [PubSub](pubsub.md) - Internal messaging
-- [Troubleshooting](troubleshooting.md) - Plugin and dylib issues
+- [Building Services](building-extensions.md) -- `Service` trait overview
+- [Event Subscribers](event-subscribers.md) -- Tracing event capture
+- [Telemetry & Observability](telemetry.md) -- Telemetry service
+- [PubSub](pubsub.md) -- Internal messaging backbone

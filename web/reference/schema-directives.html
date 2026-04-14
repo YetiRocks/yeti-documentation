@@ -108,125 +108,286 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="schema-directives"><a class="header" href="#schema-directives">Schema Directives</a></h1>
-<p>Reference for all GraphQL schema directives. Directives control how types and fields are stored, indexed, and exposed.</p>
-<h2 id="type-directives"><a class="header" href="#type-directives">Type Directives</a></h2>
+<p>Reference for all GraphQL schema directives supported in <code>schema.graphql</code> files. Directives control how types and fields are stored, indexed, exposed, distributed, and audited.</p>
+<hr />
+<h2 id="type-level-directives"><a class="header" href="#type-level-directives">Type-Level Directives</a></h2>
 <h3 id="table"><a class="header" href="#table">@table</a></h3>
-<p>Marks a type as a persistent table.</p>
+<p>Marks a GraphQL type as a persistent table.</p>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>database</code></td><td>string</td><td>app_id</td><td>Database name for storage isolation</td></tr>
-<tr><td><code>table</code></td><td>string</td><td>type name</td><td>Custom table name</td></tr>
-<tr><td><code>storage</code></td><td>string</td><td><code>"rocksdb"</code></td><td>Storage backend</td></tr>
-<tr><td><code>expiration</code></td><td>integer</td><td>none</td><td>TTL in seconds</td></tr>
+<tr><td><code>database</code></td><td>String</td><td><code>"data"</code></td><td>Database namespace for storage isolation</td></tr>
+<tr><td><code>table</code></td><td>String</td><td>type name</td><td>Physical table name (if different from type name)</td></tr>
+<tr><td><code>storage</code></td><td>String</td><td><code>"rocksdb"</code></td><td>Storage backend</td></tr>
+<tr><td><code>expiration</code></td><td>Int</td><td>none</td><td>Table-wide TTL in seconds</td></tr>
 </tbody></table>
 </div>
-<pre><code class="language-graphql">type User @table { ... }
-type User @table(database: "yeti-auth") { ... }
-type Session @table(expiration: 3600) { ... }
-</code></pre>
-<h3 id="export"><a class="header" href="#export">@export</a></h3>
-<p>Controls which APIs expose this table. Without <code>@export</code>, the table is internal-only.</p>
-<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>name</code></td><td>string</td><td>type name</td><td>Custom endpoint path</td></tr>
-<tr><td><code>rest</code></td><td>boolean</td><td>app default</td><td>Expose REST CRUD endpoints</td></tr>
-<tr><td><code>graphql</code></td><td>boolean</td><td>app default</td><td>Include in GraphQL schema</td></tr>
-<tr><td><code>ws</code></td><td>boolean</td><td>app default</td><td>Enable WebSocket subscriptions</td></tr>
-<tr><td><code>sse</code></td><td>boolean</td><td>app default</td><td>Enable Server-Sent Events</td></tr>
-<tr><td><code>mqtt</code></td><td>boolean</td><td>app default</td><td>Enable MQTT publish/subscribe</td></tr>
-<tr><td><code>public</code></td><td>list</td><td><code>[]</code></td><td>Operations accessible without authentication</td></tr>
-</tbody></table>
-</div>
-<pre><code class="language-graphql">type User @table @export { ... }
-type Rule @table @export(name: "rule") { ... }
-type Log @table @export(sse: true) { ... }
-</code></pre>
-<h4 id="public-access"><a class="header" href="#public-access">Public Access</a></h4>
-<p>The <code>public</code> parameter declares which operations bypass authentication entirely -- no login, no token, no session required:</p>
-<pre><code class="language-graphql">type Chat @table @export(public: [read, create, subscribe]) {
+<pre><code class="language-graphql"># Minimal — uses defaults
+type Product @table {
     id: ID! @primaryKey
-    message: String!
-    author: String
-    createdAt: String @createdTime
+    name: String!
+}
+
+# Custom database and table name
+type User @table(database: "yeti-auth", table: "users") {
+    username: String! @primaryKey
+    email: String!
+}
+
+# Ephemeral table with 1-hour TTL
+type Session @table(expiration: 3600) {
+    id: ID! @primaryKey
+    token: String!
 }
 </code></pre>
-<div class="table-wrapper"><table><thead><tr><th>Value</th><th>HTTP Method</th><th>Description</th></tr></thead><tbody>
+<p>Without <code>@table</code>, a type is ignored by the schema loader.</p>
+<hr />
+<h3 id="export"><a class="header" href="#export">@export</a></h3>
+<p>Controls which interfaces expose the table and which operations are public. Without <code>@export</code>, the table exists internally but has no HTTP, WebSocket, MQTT, or other endpoints.</p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>name</code></td><td>String</td><td>type name</td><td>Custom endpoint path</td></tr>
+<tr><td><code>rest</code></td><td>Boolean</td><td><code>true</code></td><td>Expose REST CRUD endpoints</td></tr>
+<tr><td><code>graphql</code></td><td>Boolean</td><td><code>true</code></td><td>Include in GraphQL schema</td></tr>
+<tr><td><code>ws</code></td><td>Boolean</td><td><code>true</code></td><td>Enable WebSocket subscriptions</td></tr>
+<tr><td><code>sse</code></td><td>Boolean</td><td><code>true</code></td><td>Enable Server-Sent Events</td></tr>
+<tr><td><code>mqtt</code></td><td>Boolean</td><td><code>true</code></td><td>Enable MQTT publish/subscribe</td></tr>
+<tr><td><code>mcp</code></td><td>Boolean</td><td><code>true</code></td><td>Enable Model Context Protocol tools</td></tr>
+<tr><td><code>grpc</code></td><td>Boolean</td><td><code>true</code></td><td>Enable gRPC service</td></tr>
+<tr><td><code>public</code></td><td>List</td><td><code>[]</code></td><td>Operations accessible without authentication</td></tr>
+</tbody></table>
+</div>
+<p>All interface flags default to <code>true</code> when <code>@export</code> is present. Set individual flags to <code>false</code> to disable specific interfaces.</p>
+<pre><code class="language-graphql"># All interfaces enabled (defaults)
+type Product @table @export {
+    id: ID! @primaryKey
+    name: String!
+}
+
+# Custom endpoint path: GET /myapp/rule instead of /myapp/Rule
+type Rule @table @export(name: "rule") {
+    id: ID! @primaryKey
+    pattern: String!
+}
+
+# SSE-only streaming table
+type LogEntry @table @export(rest: false, graphql: false, ws: false, sse: true, mqtt: false) {
+    id: ID! @primaryKey
+    message: String!
+    timestamp: String @createdTime
+}
+</code></pre>
+<h4 id="public-access"><a class="header" href="#public-access">Public Access</a></h4>
+<p>The <code>public</code> parameter declares operations that bypass authentication entirely -- no login, no token, no session required.</p>
+<div class="table-wrapper"><table><thead><tr><th>Value</th><th>Maps To</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>read</code></td><td>GET</td><td>Read records and list queries</td></tr>
 <tr><td><code>create</code></td><td>POST</td><td>Create new records</td></tr>
 <tr><td><code>update</code></td><td>PUT</td><td>Update existing records</td></tr>
 <tr><td><code>delete</code></td><td>DELETE</td><td>Delete records</td></tr>
-<tr><td><code>subscribe</code></td><td>GET (SSE)</td><td>Subscribe to change streams</td></tr>
+<tr><td><code>subscribe</code></td><td>SSE</td><td>Subscribe to change streams</td></tr>
 <tr><td><code>connect</code></td><td>WebSocket</td><td>Establish WebSocket connections</td></tr>
 <tr><td><code>publish</code></td><td>MQTT</td><td>Publish MQTT messages</td></tr>
 </tbody></table>
 </div>
-<p>Operations not listed in <code>public</code> still require authentication. This is useful for tables that need anonymous reads but authenticated writes, or public chat rooms where anyone can post but only admins can delete.</p>
-<h2 id="field-directives"><a class="header" href="#field-directives">Field Directives</a></h2>
-<h3 id="primarykey"><a class="header" href="#primarykey">@primaryKey</a></h3>
-<p>Designates the primary key. Every table needs exactly one. Typical types: <code>ID!</code>, <code>String</code>, <code>String!</code>.</p>
-<pre><code class="language-graphql">type User @table @export {
+<p>Operations not listed still require authentication.</p>
+<pre><code class="language-graphql"># Anonymous reads and subscriptions, authenticated writes
+type ChatMessage @table @export(public: [read, subscribe]) {
     id: ID! @primaryKey
-    name: String!
+    author: String!
+    message: String!
+    createdAt: String @createdTime
+}
+
+# Fully public table
+type Announcement @table @export(public: [read, create, update, delete]) {
+    id: ID! @primaryKey
+    text: String!
+}
+</code></pre>
+<hr />
+<h3 id="distribute"><a class="header" href="#distribute">@distribute</a></h3>
+<p>Declares distribution topology for clustered deployments. Bare <code>@distribute</code> with no arguments inherits cluster defaults.</p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>sharding</code></td><td>String</td><td>none</td><td>Sharding strategy: <code>"hash"</code> or <code>"range"</code></td></tr>
+<tr><td><code>residency</code></td><td>String</td><td><code>"full"</code></td><td>Data residency: <code>"sharded"</code>, <code>"full"</code>, <code>"mirrored"</code>, <code>"adaptive"</code></td></tr>
+<tr><td><code>replicationFactor</code></td><td>Int</td><td>cluster default</td><td>Number of replicas (1--255)</td></tr>
+<tr><td><code>consistency</code></td><td>String</td><td><code>"eventual"</code></td><td><code>"strong"</code> or <code>"eventual"</code></td></tr>
+<tr><td><code>replication</code></td><td>String</td><td>none</td><td><code>"false"</code> to disable, <code>"global"</code> for all regions</td></tr>
+</tbody></table>
+</div>
+<pre><code class="language-graphql"># Strong consistency with 3 replicas
+type Account @table @export @distribute(consistency: "strong", replicationFactor: 3) {
+    id: ID! @primaryKey
+    balance: Float!
+}
+
+# Hash-sharded with eventual consistency
+type Event @table @export @distribute(sharding: "hash", residency: "sharded") {
+    id: ID! @primaryKey
+    payload: String!
+}
+
+# Node-local only, no replication
+type Cache @table @export @distribute(replication: "false") {
+    key: String! @primaryKey
+    value: String!
+}
+</code></pre>
+<hr />
+<h3 id="audit"><a class="header" href="#audit">@audit</a></h3>
+<p>Enables compliance audit logging for a table. Bare <code>@audit</code> enables auditing with defaults: all mutations logged, 90-day retention, no state capture.</p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>operations</code></td><td>List</td><td><code>[create, update, delete]</code></td><td>Which operations to audit</td></tr>
+<tr><td><code>retention</code></td><td>Int</td><td><code>90</code></td><td>Retention period in days (0 = forever)</td></tr>
+<tr><td><code>state</code></td><td>Boolean</td><td><code>false</code></td><td>Capture before/after record state on mutations</td></tr>
+</tbody></table>
+</div>
+<p>Available operations: <code>read</code>, <code>create</code>, <code>update</code>, <code>delete</code>. Read auditing is excluded from the default set and must be opted in explicitly.</p>
+<pre><code class="language-graphql"># Default audit — log all mutations, 90-day retention
+type Order @table @export @audit {
+    id: ID! @primaryKey
+    total: Float!
+}
+
+# Full audit trail with state capture and 1-year retention
+type FinancialRecord @table @export @audit(
+    operations: [read, create, update, delete],
+    retention: 365,
+    state: true
+) {
+    id: ID! @primaryKey
+    amount: Float!
+    account: String! @indexed
+}
+
+# Audit deletes only, keep forever
+type Document @table @export @audit(operations: [delete], retention: 0) {
+    id: ID! @primaryKey
+    content: String!
+}
+</code></pre>
+<p>Audit entries are emitted asynchronously after successful operations. They include timestamp, app ID, table, record ID, operation, and user identity. When <code>state: true</code>, the before and after record snapshots are included.</p>
+<hr />
+<h3 id="compositeindex"><a class="header" href="#compositeindex">@compositeIndex</a></h3>
+<p>Creates a multi-field index. This directive is repeatable -- apply it multiple times for multiple composite indexes.</p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>fields</code></td><td>String</td><td>yes</td><td>Comma-separated field names</td></tr>
+</tbody></table>
+</div>
+<p>The index name is auto-generated by joining the field names with underscores.</p>
+<pre><code class="language-graphql">type Product @table @export
+    @compositeIndex(fields: "category,price")
+    @compositeIndex(fields: "brand,category,rating")
+{
+    id: ID! @primaryKey
+    category: String!
+    brand: String!
+    price: Float!
+    rating: Float!
+}
+</code></pre>
+<hr />
+<h2 id="field-level-directives"><a class="header" href="#field-level-directives">Field-Level Directives</a></h2>
+<h3 id="primarykey"><a class="header" href="#primarykey">@primaryKey</a></h3>
+<p>Designates the primary key field. Every table needs exactly one. If omitted, defaults to a field named <code>id</code>.</p>
+<pre><code class="language-graphql">type User @table @export {
+    username: String! @primaryKey
+    email: String!
 }
 </code></pre>
 <h3 id="indexed"><a class="header" href="#indexed">@indexed</a></h3>
-<p>Creates a secondary index for fast query lookups.</p>
-<p><strong>Standard index</strong> (hash + range):</p>
-<pre><code class="language-graphql">email: String! @indexed
-</code></pre>
-<p><strong>Full-text search index</strong>:</p>
-<pre><code class="language-graphql">body: String @indexed(type: "fulltext")
-</code></pre>
-<p><strong>Vector index</strong> (on <code>Vector</code> fields):</p>
-<p>The <code>Vector</code> type automatically uses HNSW indexing. Adding <code>@indexed</code> with <code>source</code> enables auto-embedding:</p>
-<pre><code class="language-graphql">embedding: Vector @indexed(source: "content")
-</code></pre>
-<p>With explicit model:</p>
-<pre><code class="language-graphql">embedding: Vector @indexed(source: "content", model: "BAAI/bge-small-en-v1.5")
-</code></pre>
-<p>Without <code>source</code>, the field expects manual vector data on insert.</p>
-<h4 id="hnsw-tuning-parameters"><a class="header" href="#hnsw-tuning-parameters">HNSW Tuning Parameters</a></h4>
+<p>Creates a secondary index on the field. Three index types are available.</p>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>source</code></td><td>string</td><td>-</td><td>Source field for auto-embedding (requires yeti-vectors)</td></tr>
-<tr><td><code>model</code></td><td>string</td><td>app default or <code>BAAI/bge-small-en-v1.5</code></td><td>Embedding model (only used with <code>source</code>)</td></tr>
-<tr><td><code>distance</code></td><td>string</td><td><code>"cosine"</code></td><td><code>"cosine"</code> or <code>"euclidean"</code></td></tr>
-<tr><td><code>optimizeRouting</code></td><td>float</td><td><code>0.5</code></td><td>Routing optimization aggressiveness (0.0–1.0)</td></tr>
-<tr><td><code>M</code></td><td>integer</td><td><code>16</code></td><td>Max connections per node per layer</td></tr>
-<tr><td><code>efConstruction</code></td><td>integer</td><td><code>100</code></td><td>Candidate list size during index build</td></tr>
-<tr><td><code>efSearchConstruction</code></td><td>integer</td><td><code>50</code></td><td>Candidate list size during search</td></tr>
-<tr><td><code>mL</code></td><td>float</td><td><code>1/ln(M)</code></td><td>Level generation normalization factor</td></tr>
+<tr><td><code>type</code></td><td>String</td><td><code>"standard"</code></td><td>Index type: <code>"standard"</code>, <code>"fulltext"</code>, or <code>"HNSW"</code></td></tr>
+<tr><td><code>source</code></td><td>String</td><td>none</td><td>Source field for auto-embedding (vector indexes only)</td></tr>
+<tr><td><code>model</code></td><td>String</td><td>app default</td><td>Embedding model identifier (vector indexes only)</td></tr>
 </tbody></table>
 </div>
-<p>If <code>M</code> is set without <code>mL</code>, the value is auto-computed as <code>1/ln(M)</code>.</p>
-<p>Each additional index slows writes. Only index fields used in filters.</p>
+<p><strong>Standard index</strong> (hash + range) -- for equality and range queries:</p>
+<pre><code class="language-graphql">email: String! @indexed
+category: String @indexed
+</code></pre>
+<p><strong>Full-text search index</strong> -- tokenized inverted index:</p>
+<pre><code class="language-graphql">body: String @indexed(type: "fulltext")
+title: String @indexed(type: "fulltext")
+</code></pre>
+<p><strong>Vector index</strong> -- HNSW algorithm for similarity search. The <code>Vector</code> field type automatically uses HNSW indexing even without explicit <code>type</code>:</p>
+<pre><code class="language-graphql"># Manual vectors (caller provides embedding data)
+embedding: Vector
+
+# Auto-embedding from a source field (requires yeti-ai)
+embedding: Vector @indexed(source: "content")
+
+# Auto-embedding with explicit model
+embedding: Vector @indexed(source: "description", model: "BAAI/bge-small-en-v1.5")
+</code></pre>
+<p>Each additional index slows writes. Only index fields used in filters or searches.</p>
 <h3 id="relationship"><a class="header" href="#relationship">@relationship</a></h3>
-<p>Defines a relationship between tables for GraphQL joins and REST <code>?select</code> expansion.</p>
+<p>Defines foreign key relationships between tables for GraphQL joins and REST <code>?select</code> expansion.</p>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>from</code></td><td>string</td><td>Local field referencing the foreign table's primary key</td></tr>
-<tr><td><code>to</code></td><td>string</td><td>Foreign field referencing this table's primary key (reverse)</td></tr>
+<tr><td><code>from</code></td><td>String</td><td>Local field referencing the foreign table's primary key (many-to-one)</td></tr>
+<tr><td><code>to</code></td><td>String</td><td>Foreign field referencing this table's primary key (one-to-many)</td></tr>
 </tbody></table>
 </div>
+<p>Use <code>from</code> on the "many" side and <code>to</code> on the "one" side:</p>
 <pre><code class="language-graphql">type User @table @export {
-    username: String @primaryKey
+    username: String! @primaryKey
     roleId: String @indexed
-    role: Role @relationship(from: roleId)
+    role: Role @relationship(from: "roleId")
 }
 
 type Role @table @export {
-    id: String @primaryKey
-    users: [User] @relationship(to: roleId)
+    id: String! @primaryKey
+    name: String!
+    users: [User] @relationship(to: "roleId")
 }
 </code></pre>
 <h3 id="createdtime"><a class="header" href="#createdtime">@createdTime</a></h3>
-<p>Auto-populated with the creation timestamp (Unix epoch) on insert.</p>
-<pre><code class="language-graphql">__createdAt__: String @createdTime
+<p>Auto-populated with the Unix epoch timestamp when the record is first created.</p>
+<pre><code class="language-graphql">createdAt: String @createdTime
 </code></pre>
 <h3 id="updatedtime"><a class="header" href="#updatedtime">@updatedTime</a></h3>
-<p>Auto-populated with the current timestamp on every update.</p>
-<pre><code class="language-graphql">__updatedAt__: String @updatedTime
+<p>Auto-populated with the Unix epoch timestamp on every update.</p>
+<pre><code class="language-graphql">updatedAt: String @updatedTime
 </code></pre>
 <h3 id="expiresat"><a class="header" href="#expiresat">@expiresAt</a></h3>
-<p>Per-record expiration timestamp (Unix epoch). Overrides table-level <code>expiration</code>.</p>
+<p>Marks a field as the per-record TTL expiration timestamp (Unix epoch). Overrides the table-level <code>expiration</code> setting on a per-record basis.</p>
 <pre><code class="language-graphql">expiresAt: Int @expiresAt
 </code></pre>
+<h3 id="computed"><a class="header" href="#computed">@computed</a></h3>
+<p>Declares a computed/derived field. The value is calculated from an expression referencing other fields.</p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>from</code></td><td>String</td><td>yes</td><td>Expression to compute the field value</td></tr>
+</tbody></table>
+</div>
+<pre><code class="language-graphql">fullName: String @computed(from: "firstName + ' ' + lastName")
+</code></pre>
+<h3 id="default"><a class="header" href="#default">@default</a></h3>
+<p>Sets a default value for the field when not provided on insert. The value is type-validated at schema parse time -- providing a non-numeric string for an <code>Int</code> field is a parse error.</p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>value</code></td><td>any</td><td>yes</td><td>Default value (must match field type)</td></tr>
+</tbody></table>
+</div>
+<p>Supported types: <code>String</code>, <code>ID</code>, <code>Date</code> (stored as string), <code>Int</code>, <code>Float</code>, <code>Boolean</code>.</p>
+<pre><code class="language-graphql">status: String @default(value: "pending")
+priority: Int @default(value: 0)
+score: Float @default(value: 1.0)
+active: Boolean @default(value: true)
+</code></pre>
+<p>When a new field with <code>@default</code> is added to an existing schema, stored records are reconciled with the default value on next access.</p>
+<h3 id="crdt"><a class="header" href="#crdt">@crdt</a></h3>
+<p>Declares a field as a Conflict-free Replicated Data Type for automatic merge resolution in distributed deployments.</p>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>type</code></td><td>String</td><td>yes</td><td>CRDT type: <code>"counter"</code>, <code>"pn-counter"</code>, or <code>"or-set"</code></td></tr>
+</tbody></table>
+</div><div class="table-wrapper"><table><thead><tr><th>CRDT Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>counter</code></td><td>Increment-only counter</td></tr>
+<tr><td><code>pn-counter</code></td><td>Increment and decrement counter (positive-negative)</td></tr>
+<tr><td><code>or-set</code></td><td>Observed-remove set (add/remove elements, last-writer-wins on conflicts)</td></tr>
+</tbody></table>
+</div>
+<pre><code class="language-graphql">viewCount: Int @crdt(type: "counter")
+score: Int @crdt(type: "pn-counter")
+tags: String @crdt(type: "or-set")
+</code></pre>
+<hr />
 <h2 id="field-types"><a class="header" href="#field-types">Field Types</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>GraphQL Type</th><th>Storage Type</th><th>Notes</th></tr></thead><tbody>
 <tr><td><code>ID</code> / <code>ID!</code></td><td>String</td><td>Typically with <code>@primaryKey</code></td></tr>
@@ -239,11 +400,34 @@ type Role @table @export {
 </tbody></table>
 </div>
 <p>The <code>!</code> suffix means the field is required (non-nullable).</p>
+<hr />
+<h2 id="comprehensive-example"><a class="header" href="#comprehensive-example">Comprehensive Example</a></h2>
+<p>A schema using all four type-level directives together:</p>
+<pre><code class="language-graphql">type Transaction @table(database: "finance", expiration: 7776000)
+    @export(name: "transactions", rest: true, sse: true, mqtt: false, public: [read])
+    @distribute(consistency: "strong", replicationFactor: 3, sharding: "hash")
+    @audit(operations: [create, update, delete], retention: 365, state: true)
+    @compositeIndex(fields: "accountId,createdAt")
+    @compositeIndex(fields: "status,amount")
+{
+    id: ID! @primaryKey
+    accountId: String! @indexed
+    amount: Float!
+    currency: String @default(value: "USD")
+    status: String @default(value: "pending") @indexed
+    memo: String @indexed(type: "fulltext")
+    account: Account @relationship(from: "accountId")
+    createdAt: String @createdTime
+    updatedAt: String @updatedTime
+    expiresAt: Int @expiresAt
+}
+</code></pre>
+<hr />
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
-<li><a href="../guides/defining-schemas.html">Defining Schemas</a> - Schema authoring guide</li>
-<li><a href="app-config.html">Application Configuration</a> - Schema file configuration</li>
-<li><a href="../guides/vector-search.html">Vector Search</a> - HNSW vector search guide</li>
+<li><a href="../guides/defining-schemas.html">Defining Schemas</a> -- Schema authoring guide</li>
+<li><a href="app-config.html">Application Configuration</a> -- Schema file configuration</li>
+<li><a href="../guides/vector-search.html">Vector Search</a> -- HNSW vector search guide</li>
 </ul>
 
                     </main>

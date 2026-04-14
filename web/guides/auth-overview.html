@@ -108,18 +108,16 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="authentication--authorization"><a class="header" href="#authentication--authorization">Authentication &amp; Authorization</a></h1>
-<p>The <code>yeti-auth</code> extension provides authentication with RBAC down to the field level. Choose a method: <a href="auth-basic.html">Basic</a> | <a href="auth-jwt.html">JWT</a> | <a href="auth-oauth.html">OAuth</a> | <a href="auth-mtls.html">mTLS</a></p>
-<p>Opt in by adding an <code>auth:</code> section to config.yaml:</p>
+<p>The <code>yeti-auth</code> service provides multi-app authentication with RBAC down to the field level. Choose a method: <a href="auth-basic.html">Basic</a> | <a href="auth-jwt.html">JWT</a> | <a href="auth-oauth.html">OAuth</a> | <a href="auth-mtls.html">mTLS</a></p>
+<p>Opt in by adding an <code>auth:</code> section to your app's config.yaml:</p>
 <pre><code class="language-yaml">auth:
-  oauth:
-    rules:
-      - strategy: provider
-        pattern: "github"
-        role: standard
+  methods: [basic, jwt]
+  signup: auto
+  default_role: user
 </code></pre>
 <h2 id="authentication-methods"><a class="header" href="#authentication-methods">Authentication Methods</a></h2>
-<p>The AuthPipeline tries each provider in order until one succeeds:</p>
-<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Header</th><th>Use Case</th></tr></thead><tbody>
+<p>The AuthPipeline tries each configured provider in order until one succeeds:</p>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Header / Mechanism</th><th>Use Case</th></tr></thead><tbody>
 <tr><td><a href="auth-mtls.html">mTLS</a></td><td>Client certificate (TLS handshake)</td><td>Service-to-service, IoT, zero-trust</td></tr>
 <tr><td><a href="auth-basic.html">Basic Auth</a></td><td><code>Authorization: Basic base64(user:pass)</code></td><td>Server-to-server, scripts</td></tr>
 <tr><td><a href="auth-jwt.html">JWT</a></td><td><code>Authorization: Bearer &lt;token&gt;</code></td><td>SPAs, mobile apps, APIs</td></tr>
@@ -130,14 +128,43 @@
 <ol>
 <li>Request arrives at an authenticated application</li>
 <li><strong>AuthPipeline</strong> runs each provider in order</li>
-<li>First provider to recognize credentials returns an <strong>AuthIdentity</strong></li>
-<li>Identity's <strong>roleId</strong> resolves to a <strong>Role</strong> from the Role table</li>
-<li>Role <strong>permissions</strong> are attached as an <strong>AccessControl</strong> object</li>
+<li>First provider to recognize credentials returns an <strong>AuthIdentity</strong> (an enum: <code>Basic</code>, <code>Jwt</code>, <code>OAuth</code>, or <code>Mtls</code>)</li>
+<li>The <strong>AppMembership</strong> table is checked for a membership record keyed by <code>{appId}:{username}</code></li>
+<li>If no membership exists and signup is <code>"auto"</code>, a membership is created with the configured default role</li>
+<li>The membership's <strong>roleId</strong> resolves to a <strong>Role</strong> from the Role table</li>
+<li>Role <strong>permissions</strong> are attached as an <strong>AccessControl</strong> object on the request context</li>
 <li>Resource handlers check permissions for table and field access</li>
 </ol>
-<p>No matching provider returns <code>401 Unauthorized</code>.</p>
+<p>No matching provider returns <code>401 Unauthorized</code>. No matching membership (with signup not <code>"auto"</code>) also returns <code>401</code>.</p>
+<h2 id="multi-app-auth"><a class="header" href="#multi-app-auth">Multi-App Auth</a></h2>
+<p>Yeti uses per-app role scoping through the <strong>AppMembership</strong> table. A single user can have different roles in different applications:</p>
+<ul>
+<li><strong>User</strong> table: Global identity (one record per user, keyed by username)</li>
+<li><strong>AppMembership</strong> table: Per-app access grants (compound key <code>{appId}:{username}</code>, links to an app-scoped Role)</li>
+<li><strong>Role</strong> table: App-scoped roles (compound key <code>{appId}:{roleName}</code>, with <code>appId: "*"</code> for global roles)</li>
+</ul>
+<p>A user authenticates once (proving identity), then authorization checks their membership in the specific app being accessed.</p>
 <h2 id="auth-is-per-app"><a class="header" href="#auth-is-per-app">Auth is Per-App</a></h2>
-<p>Apps without an <code>auth:</code> section in config.yaml have no authentication - all requests are permitted. Public and authenticated APIs coexist on the same instance.</p>
+<p>Each application independently declares its auth configuration. Apps without an <code>auth:</code> section in config.yaml have no authentication -- all requests are permitted. Public and authenticated APIs coexist on the same instance.</p>
+<h2 id="per-app-config"><a class="header" href="#per-app-config">Per-App Config</a></h2>
+<pre><code class="language-yaml">auth:
+  methods: [basic, jwt, oauth]   # explicit list, or omit for auto-detect
+  signup: auto                    # "auto", "invite", or "disabled"
+  default_role: user              # role assigned to auto-signup users
+  jwt:
+    secret: "${MY_APP_JWT_SECRET}"
+    accessTtl: 1800
+    refreshTtl: 86400
+  oauth:
+    github:
+      clientId: "${GITHUB_CLIENT_ID}"
+      clientSecret: "${GITHUB_CLIENT_SECRET}"
+    rules:
+      - strategy: provider
+        pattern: "github"
+        role: developer
+</code></pre>
+<p>When <code>methods</code> is omitted, auto-detection enables basic always, jwt if a secret is configured, and oauth if providers are present.</p>
 <h2 id="quick-setup"><a class="header" href="#quick-setup">Quick Setup</a></h2>
 <ol>
 <li>Create a user:</li>
@@ -160,14 +187,13 @@ curl -sk -u myuser:secure-password-123 https://localhost:9996/my-app/MyTable
 # JWT
 TOKEN=$(curl -sk -X POST https://localhost:9996/yeti-auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"myuser","password":"secure-password-123"}' | jq -r .access_token)
+  -d '{"username":"myuser","password":"secure-password-123","app_id":"my-app"}' | jq -r .access_token)
 
 curl -sk -H "Authorization: Bearer $TOKEN" https://localhost:9996/my-app/MyTable
 </code></pre>
-<h2 id="default-users-and-roles"><a class="header" href="#default-users-and-roles">Default Users and Roles</a></h2>
-<p><strong>Users</strong>: <code>admin</code> (role: admin), <code>user</code> (role: viewer)</p>
-<p><strong>Roles</strong>: <code>super_user</code>, <code>admin</code>, <code>standard</code>, <code>viewer</code></p>
-<p>The <code>super_user</code> role has full access and cannot be deleted.</p>
+<h2 id="bootstrap"><a class="header" href="#bootstrap">Bootstrap</a></h2>
+<p>On first start with an empty database, yeti-auth consumes <code>.bootstrap.json</code> from the root directory. This creates the <code>super_user</code> role and an initial admin user with memberships for internal apps (yeti-auth, studio, yeti-admin).</p>
+<p>The <code>super_user</code> role has full access and cannot be deleted or have its privileges reduced.</p>
 <h2 id="sub-guides"><a class="header" href="#sub-guides">Sub-Guides</a></h2>
 <ul>
 <li><a href="auth-mtls.html">mTLS Authentication</a></li>
@@ -176,6 +202,7 @@ curl -sk -H "Authorization: Bearer $TOKEN" https://localhost:9996/my-app/MyTable
 <li><a href="auth-oauth.html">OAuth Integration</a></li>
 <li><a href="auth-rbac.html">Roles &amp; Permissions</a></li>
 <li><a href="auth-attributes.html">Attribute-Level Access</a></li>
+<li><a href="auth-hooks.html">Auth Hooks</a></li>
 </ul>
 
                     </main>

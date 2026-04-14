@@ -165,7 +165,7 @@ mosquitto_sub -h localhost -p 8883 \
   -t "my-app/SensorReading/#"
 
 # Publish (writes go through REST)
-curl -sk -X POST https://localhost/my-app/SensorReading \
+curl -sk -X POST https://localhost:9996/my-app/SensorReading \
   -H "Content-Type: application/json" \
   -d '{"id":"r1","deviceId":"sensor-001","temperature":22.5,"humidity":45.0}'
 </code></pre>
@@ -173,7 +173,7 @@ curl -sk -X POST https://localhost/my-app/SensorReading \
 <p>Connect to <code>wss://host/mqtt</code> using any MQTT-over-WebSocket client library (e.g., MQTT.js):</p>
 <pre><code class="language-javascript">import mqtt from 'mqtt'
 
-const client = mqtt.connect('wss://localhost/mqtt')
+const client = mqtt.connect('wss://localhost:9996/mqtt')
 
 client.on('connect', () =&gt; {
   client.subscribe('my-app/SensorReading/#')
@@ -190,9 +190,11 @@ client.on('message', (topic, message) =&gt; {
 </ul>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>interfaces.mqtt.enabled</code></td><td><code>false</code></td><td>Enable the MQTT broker</td></tr>
+<tr><td><code>interfaces.mqtt.enabled</code></td><td><code>true</code></td><td>Enable the MQTT broker</td></tr>
 <tr><td><code>interfaces.mqtt.port</code></td><td><code>8883</code></td><td>MQTTS listen port</td></tr>
-<tr><td><code>interfaces.mqtt.maxClients</code></td><td><code>10000</code></td><td>Maximum concurrent MQTT connections</td></tr>
+<tr><td><code>interfaces.mqtt.max_clients</code></td><td><code>10000</code></td><td>Maximum concurrent MQTT connections</td></tr>
+<tr><td><code>interfaces.mqtt.qos</code></td><td><code>2</code></td><td>Default QoS level for bridge-published messages (0, 1, or 2)</td></tr>
+<tr><td><code>interfaces.mqtt.audit</code></td><td><code>false</code></td><td>Enable audit logging for MQTT operations</td></tr>
 </tbody></table>
 </div>
 <h2 id="public-access"><a class="header" href="#public-access">Public Access</a></h2>
@@ -207,10 +209,10 @@ client.on('message', (topic, message) =&gt; {
 </code></pre>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
-<li><a href="realtime-overview.html">Real-Time Overview</a> - All streaming options</li>
-<li><a href="sse.html">SSE</a> - Server-Sent Events</li>
-<li><a href="websocket.html">WebSocket</a> - WebSocket connections</li>
-<li><a href="pubsub.html">PubSub</a> - Internal event system</li>
+<li><a href="realtime-overview.html">Real-Time Overview</a> -- All streaming options</li>
+<li><a href="sse.html">SSE</a> -- Server-Sent Events</li>
+<li><a href="websocket.html">WebSocket</a> -- WebSocket connections</li>
+<li><a href="pubsub.html">PubSub</a> -- Internal event backbone</li>
 </ul>
 
                     </main>
@@ -221,7 +223,7 @@ client.on('message', (topic, message) =&gt; {
                             <span class="nav-label">PubSub</span>
                         </a>
                         <a rel="next" href="../guides/building-extensions.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                            <span class="nav-label">Building Extensions</span>
+                            <span class="nav-label">Building Services</span>
                             <i class="fa fa-angle-right"></i>
                         </a>
                     </nav>

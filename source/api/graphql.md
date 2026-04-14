@@ -1,6 +1,6 @@
 # GraphQL API
 
-Yeti auto-generates a GraphQL schema from tables with `@export(graphql: true)`.
+Auto-generated GraphQL schema from tables with `@export(graphql: true)`.
 
 ## Endpoint
 
@@ -41,7 +41,7 @@ curl -sk -X POST https://localhost:9996/my-app/graphql \
 
 ## Nested Relationships
 
-When tables have `@relationship` directives, queries can traverse them:
+Tables with `@relationship` directives support nested queries:
 
 ```graphql
 {
@@ -83,7 +83,7 @@ curl -sk -X POST https://localhost:9996/my-app/graphql \
 }
 ```
 
-Partial success is possible - `data` may contain results for some fields while `errors` lists failures for others.
+Partial success is possible -- `data` may contain some results while `errors` lists failures.
 
 ## Schema Introspection
 
@@ -105,6 +105,6 @@ Per-table via `@export(graphql: true)` in schema.graphql.
 
 ## See Also
 
-- [REST API](rest.md) - REST endpoint reference
-- [Relationships & Joins](../guides/relationships.md) - Relationship modeling
-- [Schema Directives](../reference/schema-directives.md) - Directive reference
+- [REST API](rest.md) -- REST endpoint reference
+- [Relationships & Joins](../guides/relationships.md) -- Relationship modeling
+- [Schema Directives](../reference/schema-directives.md) -- Directive reference

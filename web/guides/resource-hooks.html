@@ -9,7 +9,7 @@
     })(window,document,'script','dataLayer','GTM-KGB7BN8B');</script>
     <!-- End Google Tag Manager -->
     <meta charset="UTF-8">
-    <title>Documentation | Yeti | Troubleshooting</title>
+    <title>Documentation | Yeti | Resource Hooks</title>
     <meta name="description" content="Distributed application platform built in Rust">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#121212">
@@ -107,101 +107,94 @@
                 <!-- Content -->
                 <div id="content" class="content">
                     <main>
-                        <h1 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h1>
-<h2 id="plugin-compilation"><a class="header" href="#plugin-compilation">Plugin Compilation</a></h2>
-<p><strong>Plugin won't compile</strong></p>
-<p>Check the compiler output in the terminal. Common causes:</p>
-<ul>
-<li>Missing <code>use yeti_sdk::prelude::*;</code> at top of resource file</li>
-<li>Syntax error in <code>schema.graphql</code> (mismatched braces, missing <code>@primaryKey</code>)</li>
-<li>Bad dependency version in <code>config.yaml</code> <code>dependencies:</code> section</li>
-</ul>
-<p><strong>Source changes aren't taking effect</strong></p>
-<p>The compiler caches source at <code>cache/builds/{app}/src/</code>. Clear it:</p>
-<pre><code class="language-bash">rm -rf ~/yeti/cache/builds/{app}/src/
+                        <h1 id="resource-hooks"><a class="header" href="#resource-hooks">Resource Hooks</a></h1>
+<p>Hooks are shell commands that run before or after resource handler execution. Use them for validation gates, audit logging, and failure alerting without modifying handler code.</p>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>Add hooks to your application's <code>config.yaml</code>:</p>
+<pre><code class="language-yaml">hooks:
+  pre_request:
+    - "./hooks/validate.sh"
+    - "./hooks/rate-check.sh"
+  post_request:
+    - "./hooks/audit-log.sh"
+  post_request_failure:
+    - "./hooks/alert.sh"
 </code></pre>
-<p><strong>Segfault on startup (no panic, no backtrace)</strong></p>
-<p>Stale <code>.dylib</code> files from a previous yeti build. Clear the plugin cache:</p>
-<pre><code class="language-bash">rm -rf ~/yeti/cache/builds/*/target/
+<h2 id="hook-events"><a class="header" href="#hook-events">Hook Events</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Event</th><th>When</th><th>Can deny?</th><th>Use case</th></tr></thead><tbody>
+<tr><td><code>pre_request</code></td><td>Before handler runs</td><td>Yes (exit 2)</td><td>Validation, rate limiting, IP filtering</td></tr>
+<tr><td><code>post_request</code></td><td>After successful response</td><td>No</td><td>Audit logging, metrics, webhooks</td></tr>
+<tr><td><code>post_request_failure</code></td><td>After error response</td><td>No</td><td>Alerting, error tracking</td></tr>
+</tbody></table>
+</div>
+<h2 id="input"><a class="header" href="#input">Input</a></h2>
+<p>Each hook receives a JSON object on stdin:</p>
+<pre><code class="language-json">{
+  "event": "pre_request",
+  "method": "POST",
+  "path": "/my-app/api/orders",
+  "app_id": "my-app",
+  "resource": "orders",
+  "identity": {
+    "username": "alice",
+    "role": "admin"
+  }
+}
 </code></pre>
-<p>Always clear after <code>cargo clean</code> or rebuilding yeti.</p>
-<h2 id="dylib-boundary"><a class="header" href="#dylib-boundary">Dylib Boundary</a></h2>
-<p>These issues only affect custom resources and extensions (code compiled as dynamic libraries).</p>
-<p><strong><code>tokio::spawn</code> crashes with "cannot catch foreign exceptions"</strong></p>
-<p><code>tokio::spawn()</code> cannot be called from dylib code. Use <code>futures::stream::unfold</code> instead of spawn+channel patterns. For event subscribers, use <code>ctx.set_event_subscriber()</code> and let the host spawn after <code>on_ready()</code> returns.</p>
-<p><strong><code>tracing::info!()</code> produces no output</strong></p>
-<p>Tracing macros use thread-local storage, which is duplicated in the dylib. Messages go to the dylib's subscriber, not the host's. Use <code>tracing::warn!()</code> anyway for consistency -- it remains the standard API even though output may not reach the host subscriber.</p>
-<p><strong>Host statics have wrong values</strong></p>
-<p><code>OnceLock</code> and other statics in yeti-core are duplicated in the dylib. The host's copy and the dylib's copy are independent. Use dylib-local statics for state shared between an extension and its resources.</p>
-<p><strong>Methods on host types don't work as expected</strong></p>
-<p>Methods defined on host-compiled structs (like <code>ExtensionContext</code>) run in dylib context when called from dylib code. The dylib has its own compiled copy. Creating tokio channels or futures in such methods silently corrupts the host runtime. Fix: set flags in dylib, let the host check flags after <code>on_ready()</code> returns.</p>
-<p><strong><code>reqwest::blocking::Client</code> crashes</strong></p>
-<p>Reqwest's blocking client creates an internal tokio runtime that conflicts with the dylib boundary. This crashes in async handlers AND in <code>std::thread::spawn</code> threads. For table access, use <code>ctx.get_table("Name")?.get_all().await?</code>. For external HTTP, use the <code>fetch!</code> macro from <code>yeti_sdk::prelude</code> -- wraps curl subprocess for dylib safety:</p>
-<pre><code class="language-rust ignore">let data = fetch!("https://api.example.com/data").json()?;</code></pre>
-<h2 id="networking--tls"><a class="header" href="#networking--tls">Networking &amp; TLS</a></h2>
-<p><strong><code>curl: (60) SSL certificate problem</code></strong></p>
-<p>Development server uses self-signed certificates. Always use <code>-sk</code> flags:</p>
-<pre><code class="language-bash">curl -sk https://localhost:9996/health
+<p>Post-request hooks also receive:</p>
+<pre><code class="language-json">{
+  "event": "post_request",
+  "status": 200,
+  "latency_ms": 12
+}
 </code></pre>
-<p><strong>Connection refused on port 9996</strong></p>
-<p>Check that the server is running and the port matches <code>yeti-config.yaml</code>:</p>
-<pre><code class="language-yaml">interfaces:
-  port: 9996
-</code></pre>
-<p><strong>Port already in use</strong></p>
-<p>Another process is using the configured port. Find it and stop it, or change the port in <code>yeti-config.yaml</code>:</p>
-<pre><code class="language-bash">lsof -i :9996
-</code></pre>
-<h2 id="data--queries"><a class="header" href="#data--queries">Data &amp; Queries</a></h2>
-<p><strong><code>GET /{app}/{Table}</code> returns schema, not records</strong></p>
-<p>Add <code>?limit=N</code> to list records:</p>
-<pre><code class="language-bash">curl -sk "https://localhost:9996/my-app/Product?limit=100"
-</code></pre>
-<p>Plain <code>GET /{app}/{Table}</code> without query parameters returns table metadata.</p>
-<p><strong>FIQL filter returns empty results</strong></p>
-<p>Check that the filtered field has <code>@indexed</code> in schema.graphql. Non-indexed fields require table scans.</p>
-<p><strong>Seed data not loading</strong></p>
-<p>Seed data loads once when the table is empty. If the table already has records, seed data is skipped. To reload, delete all records first or clear the database directory.</p>
-<h2 id="general"><a class="header" href="#general">General</a></h2>
-<p><strong>App not detected on startup</strong></p>
-<p>Yeti scans <code>~/yeti/applications/*/config.yaml</code>. Check that:</p>
-<ul>
-<li>The directory is directly under <code>applications/</code> (not nested)</li>
-<li><code>config.yaml</code> exists and is valid YAML</li>
-<li><code>enabled: true</code> is set (or not set to <code>false</code>)</li>
-</ul>
-<p><strong><code>@export</code> table has no REST endpoints</strong></p>
-<p>Tables need <code>@export</code> in schema.graphql. Without <code>@export</code>, the table exists in storage but has no HTTP endpoints.</p>
-<p><strong>Database lock errors in tests</strong></p>
-<pre><code class="language-bash">rm -rf /tmp/yeti-test-*
-</code></pre>
-<h2 id="plugin-cache"><a class="header" href="#plugin-cache">Plugin Cache</a></h2>
-<p>When in doubt, clear the plugin cache. This forces a full recompile on next startup (~2 min per plugin):</p>
-<pre><code class="language-bash"># Clear all plugin caches
-rm -rf ~/yeti/cache/builds/*/target/
-rm -rf ~/yeti/cache/builds/*/src/
+<h2 id="exit-code-protocol"><a class="header" href="#exit-code-protocol">Exit Code Protocol</a></h2>
+<p>For <code>pre_request</code> hooks only:</p>
+<div class="table-wrapper"><table><thead><tr><th>Exit code</th><th>Meaning</th></tr></thead><tbody>
+<tr><td><code>0</code></td><td>Allow — continue to handler</td></tr>
+<tr><td><code>2</code></td><td>Deny — return 403 Forbidden</td></tr>
+<tr><td>Any other</td><td>Allow — hook failure doesn't block the request</td></tr>
+</tbody></table>
+</div>
+<p>Post-request hooks are fire-and-forget. Exit codes are ignored.</p>
+<h2 id="example-ip-allowlist"><a class="header" href="#example-ip-allowlist">Example: IP Allowlist</a></h2>
+<pre><code class="language-bash">#!/bin/bash
+# hooks/validate.sh — deny requests from unknown IPs
+INPUT=$(cat)
+IP=$(echo "$INPUT" | jq -r '.identity.ip // "unknown"')
 
-# Clear a single app
-rm -rf ~/yeti/cache/builds/my-app/target/
-rm -rf ~/yeti/cache/builds/my-app/src/
+if ! grep -q "$IP" ./hooks/allowlist.txt 2&gt;/dev/null; then
+  exit 2  # deny
+fi
 </code></pre>
-<p>Always clear after:</p>
+<h2 id="example-audit-log"><a class="header" href="#example-audit-log">Example: Audit Log</a></h2>
+<pre><code class="language-bash">#!/bin/bash
+# hooks/audit-log.sh — append to JSONL audit file
+cat &gt;&gt; ./logs/audit.jsonl
+</code></pre>
+<h2 id="execution"><a class="header" href="#execution">Execution</a></h2>
 <ul>
-<li>Rebuilding yeti from source (<code>cargo clean &amp;&amp; cargo build</code>)</li>
-<li>Upgrading yeti to a new version</li>
-<li>Changing plugin dependencies in config.yaml</li>
-<li>Seeing unexplained segfaults or ABI errors</li>
+<li>Hooks run sequentially in the order listed</li>
+<li>Pre-request hooks stop on first denial (exit 2)</li>
+<li>Post hooks run in parallel, fire-and-forget</li>
+<li>Hook timeout: inherits the application's <code>request_timeout</code></li>
+<li>Hook failures are logged but never crash the server</li>
+</ul>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
+<ul>
+<li><a href="../reference/app-config.html">Application Configuration</a> — <code>hooks:</code> section reference</li>
+<li><a href="custom-resources.html">Custom Resources</a> — Handler code that hooks wrap</li>
 </ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
-                        <a rel="prev" href="../guides/mcp.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <a rel="prev" href="../guides/redirects.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                             <i class="fa fa-angle-left"></i>
-                            <span class="nav-label">MCP Integration</span>
+                            <span class="nav-label">URL Redirect Management</span>
                         </a>
-                        <a rel="next" href="../sdk/overview.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                            <span class="nav-label">Overview</span>
+                        <a rel="next" href="../guides/kafka.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <span class="nav-label">Kafka Integration</span>
                             <i class="fa fa-angle-right"></i>
                         </a>
                     </nav>

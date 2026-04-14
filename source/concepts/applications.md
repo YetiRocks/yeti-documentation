@@ -1,22 +1,27 @@
 # Applications
 
-A self-contained unit bundling configuration, schemas, custom logic, seed data, and optional static files into a single directory. Each application gets its own database namespace and URL prefix.
+A self-contained directory bundling configuration, schemas, custom logic, and optional static files. Each application gets its own database namespace and URL prefix.
 
 ## Directory Structure
 
 ```
 ~/yeti/applications/my-app/
   config.yaml          # Required
-  schema.graphql       # Table definitions
+  schemas/             # Table definitions
+    schema.graphql
   resources/           # Custom Rust handlers
     greeting.rs
+  modules/             # Shared Rust modules
+    helpers.rs
+  bin/                 # Standalone binaries
+    worker.rs
   data/                # Seed data
     users.json
   web/                 # Static files
     index.html
 ```
 
-Only `config.yaml` is required. The compiler generates `Cargo.toml`, `build.rs`, and `source/` (including `lib.rs`) automatically - do not edit these.
+Only `config.yaml` is required. The compiler generates `Cargo.toml`, `build.rs`, and `source/` (including `lib.rs`) automatically. Do not edit generated files.
 
 ## Configuration
 
@@ -28,21 +33,35 @@ enabled: true
 
 rest: true
 graphql: true
-ws: true
-sse: false
 mcp: false
 
 schemas:
-  - schema.graphql
+  path: "schemas/*.graphql"
 
 resources:
-  - resources/*.rs
+  path: "resources/*.rs"
+  route: "/api"
 
-static_files:
+static:
   path: web
+  route: /
   spa: true
 
-dataLoader: data/*.json
+modules:
+  - "modules/*.rs"
+
+binaries:
+  - "bin/*.rs"
+
+hooks:
+  pre_request:
+    - "./scripts/rate_limit.sh"
+  post_request:
+    - "./scripts/log_request.sh"
+  post_request_failure:
+    - "./scripts/alert_on_failure.sh"
+
+dataLoader: "data/*.json"
 
 auth:
   oauth:
@@ -58,37 +77,53 @@ dependencies:
 | Field | Purpose |
 |-------|---------|
 | `app_id` | URL prefix and database namespace |
-| `enabled` | Toggle the app on/off |
-| `rest` / `graphql` / `ws` / `sse` / `mcp` | Enable protocol interfaces per app |
-| `schemas` | GraphQL SDL files that define tables |
-| `resources` | Glob patterns for custom Rust handlers (**required** if you have `.rs` files -- without this key, plugin sources won't compile) |
-| `static_files` | Serve a directory of static files |
-| `dataLoader` | JSON seed data files |
-| `auth` / `vectors` | Per-app extension config (replaces deprecated `extensions:` list) |
+| `enabled` | Toggle the app on/off (default: true) |
+| `rest` / `graphql` / `mcp` | Enable protocol interfaces per app |
+| `schemas` | Object with `path` -- glob patterns for GraphQL SDL files |
+| `resources` | Object with `path` and `route` -- Rust handlers and their URL prefix (default route: `/api`) |
+| `static` | Object with `path`, `route`, `spa` -- serve a directory of static files (aliases: `static_files`, `staticFiles`) |
+| `modules` | Shared Rust modules compiled as `pub mod` alongside resources |
+| `binaries` | Standalone Rust executables compiled alongside the plugin dylib |
+| `hooks` | Shell commands executed around resource dispatch (pre/post request) |
+| `dataLoader` | Glob pattern for JSON seed data files |
+| `auth` / `telemetry` / `audit` | Per-app service config (opt-in via top-level keys) |
 | `dependencies` | Rust crate dependencies for resources |
+| `required_roles` | Role names required to access this app (empty = unrestricted) |
+| `request_timeout` | Handler timeout in seconds (default: 30) |
 
 ## Discovery
 
-Yeti scans `~/yeti/applications/*/` for directories with a `config.yaml`. Drop a directory and restart. Apps with `enabled: false` are discovered but not loaded.
+Yeti scans `~/yeti/applications/*/` for directories containing a `config.yaml`. Drop a directory in and restart. Apps with `enabled: false` are discovered but not loaded.
 
 ## Isolation
 
-- **URL prefix**: All routes are under `/{app-id}/`
+- **URL prefix**: All routes are under `/{app-id}/` (unless designated as the `root_app` in `yeti-config.yaml`)
 - **Database namespace**: `@table(database: "...")` controls storage isolation
-- **Route space**: Resources and tables share the app's route space but can't conflict with other apps
+- **Route space**: Resources and tables share the app's route space but cannot conflict with other apps
 
 ## Protocols
 
-Server-wide protocol toggles live in `yeti-config.yaml` under `interfaces:`. Per-app toggles in `config.yaml` control which protocols an individual app exposes:
+Server-wide protocol toggles live in `yeti-config.yaml` under `interfaces:`. Per-app toggles in `config.yaml` control which protocols each app exposes:
 
-- **REST** / **GraphQL** / **WebSocket** / **SSE** -- toggled per app via `rest:`, `graphql:`, `ws:`, `sse:`
+- **REST** / **GraphQL** -- toggled per app via `rest:`, `graphql:`
 - **MCP** (Model Context Protocol) -- per-app via `mcp: true`. Exposes a JSON-RPC 2.0 endpoint at `/{app-id}/mcp`
 - **gRPC** -- server-wide only (`interfaces.grpc.enabled`). Exposes all `@export`ed tables via a gRPC tables service on the same port
 - **MQTT** -- server-wide (`interfaces.mqtt.enabled`). Native MQTTS on port 8883, WebSocket proxy at `/mqtt`
+- **SSE** / **WebSocket** -- controlled per-table via `@export(sse: true, ws: true)` in the schema
 
-## Extensions
+## Services
 
-Apps with `extension: true` provide shared services to other apps. They load first and supply auth, telemetry, and middleware. Consumer apps opt in via top-level keys (`auth:`, `vectors:`). See [Extensions](extensions.md).
+Apps with `extension: true` provide shared services to other apps. They load first and supply auth, telemetry, and middleware. Consumer apps opt in via top-level keys (`auth:`, `telemetry:`, `audit:`). See [Services](extensions.md).
+
+## Hooks
+
+Hook commands run as shell processes around resource dispatch. Environment variables provide request context (`HOOK_EVENT`, request metadata). Exit codes control flow:
+
+- **Exit 0** -- allow the request
+- **Exit 2** -- deny the request (returns 403 Forbidden)
+- **Other exit codes** -- hook failure (logged, does not block the request)
+
+Post-request hooks are fire-and-forget and do not affect the response.
 
 ## Naming Conventions
 
@@ -106,7 +141,10 @@ name: "Documentation"
 app_id: "documentation"
 version: "1.0.0"
 enabled: true
-static_files:
+static:
   path: web
+  spa: true
+```
+eb
   spa: true
 ```

@@ -1,18 +1,40 @@
 # Roles & Permissions
 
-Each user has a `roleId` that maps to a Role record with structured permissions.
+Each user's access to an application is determined by their **AppMembership** record, which links to an app-scoped **Role** with structured permissions.
+
+## AppMembership Table
+
+The AppMembership table controls per-app access. Each record uses a compound key:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | String (PK) | `{appId}:{username}` compound key |
+| `appId` | String | Application this membership grants access to |
+| `username` | String | User this membership belongs to |
+| `roleId` | String | FK to Role.id (`{appId}:{roleName}`) |
+| `status` | String | `active`, `invited`, or `suspended` |
+| `invitedBy` | String | Username of the inviter (if applicable) |
+| `lastAccessAt` | Int | Unix timestamp of last access |
+| `createdAt` | Int | Unix timestamp of creation |
+
+A user with no AppMembership for an app has no access to that app (unless auto-signup creates one).
 
 ## Role Structure
 
+Roles are scoped to an application via compound key `{appId}:{roleName}`. A role with `appId: "*"` is global.
+
 ```json
 {
-  "id": "standard",
-  "name": "Standard User",
+  "id": "my-app:editor",
+  "appId": "my-app",
+  "name": "Editor",
   "permissions": "{\"super_user\":false,\"databases\":{\"data\":{\"tables\":{\"*\":{\"read\":true,\"insert\":true,\"update\":true,\"delete\":false}}}}}"
 }
 ```
 
-The `permissions` field is a double-encoded JSON string (a JSON object serialized as a string value). The auth system unwraps this before deserializing:
+The `permissions` field is a double-encoded JSON string (a JSON object serialized as a string value). The auth system unwraps this before deserializing into the `Permission` struct.
+
+## Permission Struct
 
 ```json
 {
@@ -24,7 +46,10 @@ The `permissions` field is a double-encoded JSON string (a JSON object serialize
           "read": true, "insert": true, "update": true, "delete": false
         },
         "AuditLog": {
-          "read": true, "insert": false, "update": false, "delete": false
+          "read": true, "insert": false, "update": false, "delete": false,
+          "attribute_permissions": {
+            "salary": { "read": false, "write": false }
+          }
         }
       }
     }
@@ -32,82 +57,74 @@ The `permissions` field is a double-encoded JSON string (a JSON object serialize
 }
 ```
 
-## Permission Hierarchy
+The hierarchy:
 
-Evaluated most-specific first:
+- `super_user: true` -- bypasses all permission checks
+- `databases.{db}.tables.{TableName}` -- table-specific CRUD grants (`read`, `insert`, `update`, `delete`)
+- `databases.{db}.tables.*` -- wildcard fallback for tables without explicit entries
+- `attribute_permissions` -- per-field overrides within a table (see [Attribute-Level Access](auth-attributes.md))
 
-1. **Table-specific**: `databases.{db}.tables.{TableName}`
-2. **Wildcard**: `databases.{db}.tables.*`
-3. **Super user**: `super_user: true` bypasses all checks
-
-## Built-in Roles
-
-| Role | Permissions |
-|------|-------------|
-| `super_user` | Full access. Cannot be deleted. |
-| `admin` | Full access (super_user: true). |
-| `standard` | Read, insert, update. No delete. |
-| `viewer` | Read-only. |
+Table name matching is case-insensitive: roles store PascalCase names from the schema, but URL-based lookups work regardless of case.
 
 ## Role Management
 
 ```bash
-# Create
+# Create an app-scoped role
 curl -sk -u admin:admin -X POST https://localhost:9996/yeti-auth/roles \
   -H "Content-Type: application/json" \
-  -d '{"id":"editor","name":"Editor","permissions":"{\"super_user\":false,\"databases\":{\"data\":{\"tables\":{\"*\":{\"read\":true,\"insert\":true,\"update\":true,\"delete\":false}}}}}"}'
+  -d '{"id":"my-app:editor","appId":"my-app","name":"Editor","permissions":"{\"super_user\":false,\"databases\":{\"data\":{\"tables\":{\"*\":{\"read\":true,\"insert\":true,\"update\":true,\"delete\":false}}}}}"}'
 
-# List
+# List all roles
 curl -sk -u admin:admin https://localhost:9996/yeti-auth/roles
 
-# Update
-curl -sk -u admin:admin -X PUT https://localhost:9996/yeti-auth/roles/editor \
+# Update a role
+curl -sk -u admin:admin -X PUT https://localhost:9996/yeti-auth/roles/my-app:editor \
   -H "Content-Type: application/json" \
-  -d '{"id":"editor","name":"Editor (Updated)","permissions":"{\"super_user\":false,\"databases\":{\"data\":{\"tables\":{\"*\":{\"read\":true,\"insert\":true,\"update\":true,\"delete\":true}}}}}"}'
+  -d '{"id":"my-app:editor","appId":"my-app","name":"Editor (Updated)","permissions":"{\"super_user\":false,\"databases\":{\"data\":{\"tables\":{\"*\":{\"read\":true,\"insert\":true,\"update\":true,\"delete\":true}}}}}"}'
 
-# Delete (super_user is protected)
-curl -sk -u admin:admin -X DELETE https://localhost:9996/yeti-auth/roles/editor
+# Delete (super_user is protected from deletion)
+curl -sk -u admin:admin -X DELETE https://localhost:9996/yeti-auth/roles/my-app:editor
+```
+
+## Membership Management
+
+```bash
+# Create a membership (grant access)
+curl -sk -u admin:admin -X POST https://localhost:9996/yeti-auth/memberships \
+  -H "Content-Type: application/json" \
+  -d '{"id":"my-app:alice","appId":"my-app","username":"alice","roleId":"my-app:editor","status":"active"}'
+
+# List memberships
+curl -sk -u admin:admin https://localhost:9996/yeti-auth/memberships
+
+# Remove access
+curl -sk -u admin:admin -X DELETE https://localhost:9996/yeti-auth/memberships/my-app:alice
 ```
 
 ## Role Resolution
 
-- **Basic Auth / JWT**: User's `roleId` looked up in Role table
-- **OAuth**: Per-app config rules map provider/email patterns to role IDs
+All auth methods follow the same resolution path:
 
-Extensions can provide an `AuthHook` to intercept role resolution before default logic. See [Auth Hooks](auth-hooks.md).
+1. **JWT with embedded permissions**: Fast path -- if the token's `apps` map contains the target app, permissions are used directly (no DB lookup)
+2. **AppMembership exists**: Use its `roleId` to load the Role from the Role table
+3. **No membership + auto-signup**: Create a membership with the configured default role
+4. **No membership + invite/disabled**: Deny access
 
-## Seed Data
+For OAuth users, the role is determined by the app's `oauth.rules` configuration before creating the auto-signup membership.
 
-Place role/user JSON in `yeti-auth/data/` for new deployments:
-
-```json
-{
-  "database": "auth",
-  "table": "Role",
-  "records": [
-    {
-      "id": "custom-role",
-      "name": "Custom Role",
-      "permissions": "{\"super_user\":false,\"databases\":{\"data\":{\"tables\":{\"*\":{\"read\":true,\"insert\":false,\"update\":false,\"delete\":false}}}}}",
-      "createdAt": 1738800000
-    }
-  ]
-}
-```
-
-Loaded automatically on first start with empty database.
+Services can provide an `AuthHook` to intercept role resolution before the default logic. See [Auth Hooks](auth-hooks.md).
 
 ## Permission Checks
 
-1. `check_table_read_permission()` - table read access
-2. `check_table_write_permission()` - insert/update/delete access
-3. `validate_writable_attributes()` - field-level write permissions
-4. `filter_readable_attributes()` - removes restricted fields from responses
+The permission system operates at two levels:
 
-Super users bypass all checks.
+1. **Table-level**: `can_read_table()`, `can_insert_table()`, `can_update_table()`, `can_delete_table()`
+2. **Attribute-level**: `can_read_attribute()`, `can_write_attribute()`, `has_unrestricted_attributes()`
+
+Super users bypass all checks. See [Attribute-Level Access](auth-attributes.md) for field-level details.
 
 ## See Also
 
 - [Authentication Overview](auth-overview.md)
 - [Attribute-Level Access](auth-attributes.md) - Field-level permissions
-- [Building Extensions](building-extensions.md) - Custom auth hooks
+- [Auth Hooks](auth-hooks.md) - Custom role resolution

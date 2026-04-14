@@ -25,7 +25,7 @@ type User @table @export {
 
 ## ID Type
 
-Stored as a string. Yeti generates **UUID v7** (time-ordered) by default when no ID is provided. Custom string IDs are also supported.
+Stored as a string. Yeti generates **UUID v7** (time-ordered) when no ID is provided. Custom string IDs are supported.
 
 ```bash
 # Auto-generated ID
@@ -41,7 +41,7 @@ curl -sk -X POST https://localhost:9996/my-app/User \
 
 ## Date Handling
 
-No native `Date` type. Store dates as ISO 8601 strings. Use `@createdTime` for automatic timestamps:
+Store dates as ISO 8601 strings. Use `@createdTime` for automatic timestamps:
 
 ```graphql
 type Message @table @export {
@@ -53,13 +53,27 @@ type Message @table @export {
 
 ## Vector Type
 
-Use the `Vector` scalar type for embedding fields. The `Vector` type automatically creates an HNSW index:
+Stores f32 embedding arrays. Declaring a `Vector` field automatically creates an HNSW index for similarity search.
 
 ```graphql
-embedding: Vector @indexed(source: "content")
+type Document @table @export {
+    id: ID!
+    content: String!
+    embedding: Vector @indexed(source: "content")
+}
 ```
 
-Dimensions are determined by the embedding model. See [Vector Search](../guides/vector-search.md) for model selection and tuning parameters.
+In JSON, vectors are represented as arrays of numbers:
+
+```json
+{
+  "id": "doc-1",
+  "content": "Hello world",
+  "embedding": [0.1, 0.2, 0.3, 0.4]
+}
+```
+
+Dimensions are determined by the embedding model. Vector fields are excluded from MCP create/update schemas since they auto-generate from the source field. See [Vector Search](../guides/vector-search.md).
 
 ## Type Coercion
 
@@ -71,3 +85,9 @@ Dimensions are determined by the embedding model. See [Vector Search](../guides/
 | `1` / `0` | Boolean | `true` / `false` |
 
 Coercion failures return a 400 validation error.
+
+## See Also
+
+- [Schema Directives](../reference/schema-directives.md) -- Directive reference
+- [Vector Search](../guides/vector-search.md) -- Similarity search guide
+- [REST API](rest.md) -- REST endpoint reference

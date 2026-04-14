@@ -166,9 +166,9 @@ curl -sk 'https://localhost:9996/graphql-explorer/Book?authorId==author-1'
 </code></pre>
 <h2 id="best-practices"><a class="header" href="#best-practices">Best Practices</a></h2>
 <ul>
-<li>Always <code>@indexed</code> foreign key fields - without an index, <code>to</code> relationships require table scans</li>
+<li>Always <code>@indexed</code> foreign key fields -- without an index, <code>to</code> relationships require table scans</li>
 <li>Use GraphQL for nested data in a single request</li>
-<li>Keep nesting depth practical - <code>Author -&gt; books -&gt; author -&gt; books</code> can be expensive</li>
+<li>Keep nesting depth practical -- <code>Author -&gt; books -&gt; author -&gt; books</code> can be expensive</li>
 <li>Use <code>ID</code> (nullable) for optional relationships, <code>ID!</code> for required</li>
 </ul>
 

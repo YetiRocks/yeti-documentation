@@ -108,18 +108,18 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="mcp-integration"><a class="header" href="#mcp-integration">MCP Integration</a></h1>
-<p>The Model Context Protocol (MCP) allows AI agents to interact with your Yeti tables using a standardized JSON-RPC 2.0 protocol over HTTP. When enabled, Yeti auto-generates tools, resources, and prompts from your schema — no code required.</p>
+<p>The Model Context Protocol (MCP) allows AI agents to interact with your Yeti tables using a standardized JSON-RPC 2.0 protocol over HTTP. When enabled, Yeti auto-generates tools, resources, and prompts from your schema -- no code required.</p>
 <h2 id="what-is-mcp"><a class="header" href="#what-is-mcp">What is MCP</a></h2>
 <p>MCP is a protocol for connecting AI models to external data sources and tools. It uses JSON-RPC 2.0 over HTTP with a simple session lifecycle:</p>
 <ol>
-<li><strong>Initialize</strong> — client and server exchange capabilities</li>
-<li><strong>Discover</strong> — client lists available tools, resources, and prompts</li>
-<li><strong>Execute</strong> — client calls tools to read and write data</li>
-<li><strong>Terminate</strong> — client ends the session</li>
+<li><strong>Initialize</strong> -- client and server exchange capabilities</li>
+<li><strong>Discover</strong> -- client lists available tools, resources, and prompts</li>
+<li><strong>Execute</strong> -- client calls tools to read and write data</li>
+<li><strong>Terminate</strong> -- client ends the session</li>
 </ol>
 <p>Yeti implements MCP protocol version <code>2025-03-26</code> with streamable HTTP transport.</p>
 <h2 id="enabling-mcp"><a class="header" href="#enabling-mcp">Enabling MCP</a></h2>
-<p>MCP is enabled by default at the server level. To expose tables via MCP, add <code>@export</code> to your schema (MCP is enabled by default when <code>@export</code> is present):</p>
+<p>MCP auto-enables from the <code>@export</code> directive in your schema. By default, all <code>@export</code>ed tables are MCP-accessible. No config.yaml changes needed:</p>
 <pre><code class="language-graphql">type Product @table @export {
   id: ID! @primaryKey
   name: String!
@@ -131,7 +131,7 @@ type Order @table @export {
   id: ID! @primaryKey
   productId: String!
   quantity: Int!
-  createdAt: Float! @createdAt
+  createdAt: Float! @createdTime
 }
 
 # Exclude a table from MCP
@@ -200,22 +200,22 @@ type InternalCache @table @export(mcp: false) {
 <h2 id="authentication"><a class="header" href="#authentication">Authentication</a></h2>
 <p>MCP uses the same authentication pipeline as REST. If your app requires authentication, MCP tool calls must include valid credentials:</p>
 <pre><code class="language-bash"># With Basic auth
-curl -X POST https://localhost/my-api/mcp \
+curl -X POST https://localhost:9996/my-api/mcp \
   -u admin:password \
   -H "Content-Type: application/json" \
   -d '...'
 
 # With Bearer token
-curl -X POST https://localhost/my-api/mcp \
+curl -X POST https://localhost:9996/my-api/mcp \
   -H "Authorization: Bearer eyJ..." \
   -H "Content-Type: application/json" \
   -d '...'
 </code></pre>
-<p>Auth context is propagated to each tool call — table-level access control is enforced on every operation.</p>
+<p>Auth context is propagated to each tool call -- table-level access control is enforced on every operation.</p>
 <h2 id="protocol-walkthrough"><a class="header" href="#protocol-walkthrough">Protocol Walkthrough</a></h2>
 <p>Here is a complete MCP session using curl.</p>
 <h3 id="step-1-initialize"><a class="header" href="#step-1-initialize">Step 1: Initialize</a></h3>
-<pre><code class="language-bash">curl -s -X POST https://localhost/my-api/mcp \
+<pre><code class="language-bash">curl -s -X POST https://localhost:9996/my-api/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -250,7 +250,7 @@ curl -X POST https://localhost/my-api/mcp \
 }
 </code></pre>
 <h3 id="step-2-send-initialized-notification"><a class="header" href="#step-2-send-initialized-notification">Step 2: Send Initialized Notification</a></h3>
-<pre><code class="language-bash">curl -s -X POST https://localhost/my-api/mcp \
+<pre><code class="language-bash">curl -s -X POST https://localhost:9996/my-api/mcp \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: &lt;session-id-from-step-1&gt;" \
   -d '{
@@ -260,7 +260,7 @@ curl -X POST https://localhost/my-api/mcp \
 </code></pre>
 <p>Returns HTTP 202 (no body for notifications).</p>
 <h3 id="step-3-list-available-tools"><a class="header" href="#step-3-list-available-tools">Step 3: List Available Tools</a></h3>
-<pre><code class="language-bash">curl -s -X POST https://localhost/my-api/mcp \
+<pre><code class="language-bash">curl -s -X POST https://localhost:9996/my-api/mcp \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: &lt;session-id&gt;" \
   -d '{
@@ -307,7 +307,7 @@ curl -X POST https://localhost/my-api/mcp \
 </code></pre>
 <h3 id="step-4-call-a-tool"><a class="header" href="#step-4-call-a-tool">Step 4: Call a Tool</a></h3>
 <p>Create a product:</p>
-<pre><code class="language-bash">curl -s -X POST https://localhost/my-api/mcp \
+<pre><code class="language-bash">curl -s -X POST https://localhost:9996/my-api/mcp \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: &lt;session-id&gt;" \
   -d '{
@@ -338,7 +338,7 @@ curl -X POST https://localhost/my-api/mcp \
 }
 </code></pre>
 <p>Search for products:</p>
-<pre><code class="language-bash">curl -s -X POST https://localhost/my-api/mcp \
+<pre><code class="language-bash">curl -s -X POST https://localhost:9996/my-api/mcp \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: &lt;session-id&gt;" \
   -d '{
@@ -355,7 +355,7 @@ curl -X POST https://localhost/my-api/mcp \
   }'
 </code></pre>
 <h3 id="step-5-read-a-resource"><a class="header" href="#step-5-read-a-resource">Step 5: Read a Resource</a></h3>
-<pre><code class="language-bash">curl -s -X POST https://localhost/my-api/mcp \
+<pre><code class="language-bash">curl -s -X POST https://localhost:9996/my-api/mcp \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: &lt;session-id&gt;" \
   -d '{
@@ -368,7 +368,7 @@ curl -X POST https://localhost/my-api/mcp \
   }'
 </code></pre>
 <h3 id="step-6-terminate-session"><a class="header" href="#step-6-terminate-session">Step 6: Terminate Session</a></h3>
-<pre><code class="language-bash">curl -s -X DELETE https://localhost/my-api/mcp \
+<pre><code class="language-bash">curl -s -X DELETE https://localhost:9996/my-api/mcp \
   -H "Mcp-Session-Id: &lt;session-id&gt;"
 </code></pre>
 <h2 id="supported-methods"><a class="header" href="#supported-methods">Supported Methods</a></h2>
@@ -391,7 +391,7 @@ curl -X POST https://localhost/my-api/mcp \
 <pre><code class="language-json">{
   "mcpServers": {
     "my-api": {
-      "url": "https://localhost/my-api/mcp",
+      "url": "https://localhost:9996/my-api/mcp",
       "headers": {
         "Authorization": "Bearer &lt;your-token&gt;"
       }
@@ -404,25 +404,55 @@ curl -X POST https://localhost/my-api/mcp \
 <h2 id="platform-developer-tools-yeti-mcp"><a class="header" href="#platform-developer-tools-yeti-mcp">Platform Developer Tools (yeti-mcp)</a></h2>
 <p>In addition to per-app table tools, every yeti instance includes <code>yeti-mcp</code> -- a built-in MCP endpoint that provides platform-level knowledge and tooling for developer agents.</p>
 <p><strong>Endpoint</strong>: <code>POST /yeti-mcp/agent</code></p>
-<p>This is separate from your app's <code>/my-api/mcp</code> endpoint. While your app's MCP tools handle table CRUD, yeti-mcp helps agents understand the platform itself:</p>
+<p>This is separate from your app's <code>/my-api/mcp</code> endpoint. While your app's MCP tools handle table CRUD, yeti-mcp helps agents understand the platform itself.</p>
+<h3 id="tools"><a class="header" href="#tools">Tools</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>docs_search</code></td><td>Search platform documentation by natural language query</td></tr>
-<tr><td><code>docs_get</code></td><td>Retrieve a specific documentation page</td></tr>
+<tr><td><code>docs_search</code></td><td>Semantic search across all yeti documentation</td></tr>
+<tr><td><code>docs_get</code></td><td>Retrieve a specific documentation page by ID</td></tr>
 <tr><td><code>docs_list_topics</code></td><td>List all available documentation topics</td></tr>
-<tr><td><code>app_list</code></td><td>List installed applications</td></tr>
+<tr><td><code>app_list</code></td><td>List installed applications with status</td></tr>
 <tr><td><code>app_inspect</code></td><td>Get config, schema, and resource details for an app</td></tr>
-<tr><td><code>app_endpoints</code></td><td>List all endpoints (REST, MCP, SSE, MQTT) for an app</td></tr>
+<tr><td><code>app_endpoints</code></td><td>List all REST/MCP/SSE/MQTT endpoints for an app</td></tr>
 <tr><td><code>sdk_reference</code></td><td>Look up SDK documentation (prelude, macros, errors, types)</td></tr>
 <tr><td><code>deploy_checklist</code></td><td>Validate an app's config before deployment</td></tr>
 <tr><td><code>troubleshoot</code></td><td>Get fixes for common symptoms</td></tr>
+<tr><td><code>logs_search</code></td><td>Search recent log entries from yeti-telemetry</td></tr>
+<tr><td><code>metrics_summary</code></td><td>Current metrics snapshot for an application</td></tr>
+<tr><td><code>errors_recent</code></td><td>Recent error log entries with context</td></tr>
+<tr><td><code>install_guide</code></td><td>Platform-specific installation instructions</td></tr>
+<tr><td><code>quickstart</code></td><td>Combined install + first app guide for a use case</td></tr>
 </tbody></table>
 </div>
-<p>yeti-mcp also serves 12 static resources (<code>yeti://guides/*</code>, <code>yeti://sdk/*</code>, <code>yeti://constraints</code>, <code>yeti://anti-patterns</code>) and 4 prompt templates (<code>create_application</code>, <code>add_resource</code>, <code>add_table</code>, <code>debug_plugin</code>).</p>
+<h3 id="resources-1"><a class="header" href="#resources-1">Resources</a></h3>
+<p>yeti-mcp serves 12 static resources via the <code>yeti://</code> URI scheme:</p>
+<div class="table-wrapper"><table><thead><tr><th>URI</th><th>Content</th></tr></thead><tbody>
+<tr><td><code>yeti://guides/applications</code></td><td>Application structure and config</td></tr>
+<tr><td><code>yeti://guides/resources</code></td><td>Custom resource development</td></tr>
+<tr><td><code>yeti://guides/schemas</code></td><td>Schema directives and FIQL</td></tr>
+<tr><td><code>yeti://guides/auth</code></td><td>Authentication and authorization</td></tr>
+<tr><td><code>yeti://guides/deployment</code></td><td>Production deployment</td></tr>
+<tr><td><code>yeti://guides/mcp</code></td><td>MCP endpoint usage</td></tr>
+<tr><td><code>yeti://sdk/prelude</code></td><td>SDK prelude reference</td></tr>
+<tr><td><code>yeti://sdk/macros</code></td><td>resource!(), register_resource!()</td></tr>
+<tr><td><code>yeti://sdk/errors</code></td><td>Error types and handling</td></tr>
+<tr><td><code>yeti://sdk/types</code></td><td>Request, Response, Context types</td></tr>
+<tr><td><code>yeti://constraints</code></td><td>Dylib boundary rules</td></tr>
+<tr><td><code>yeti://anti-patterns</code></td><td>Common mistakes</td></tr>
+</tbody></table>
+</div>
+<h3 id="prompts-1"><a class="header" href="#prompts-1">Prompts</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Prompt</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>create_application</code></td><td>Step-by-step guide to creating a new app</td></tr>
+<tr><td><code>add_resource</code></td><td>How to add a custom Rust resource</td></tr>
+<tr><td><code>add_table</code></td><td>How to add a new table with schema</td></tr>
+<tr><td><code>debug_plugin</code></td><td>Debugging checklist for plugin issues</td></tr>
+</tbody></table>
+</div>
 <h3 id="connecting-ai-agents-to-yeti-mcp"><a class="header" href="#connecting-ai-agents-to-yeti-mcp">Connecting AI Agents to yeti-mcp</a></h3>
 <pre><code class="language-json">{
   "mcpServers": {
     "yeti-platform": {
-      "url": "https://localhost/yeti-mcp/agent",
+      "url": "https://localhost:9996/yeti-mcp/agent",
       "headers": {
         "Authorization": "Bearer &lt;your-token&gt;"
       }

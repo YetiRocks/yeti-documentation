@@ -29,7 +29,7 @@ curl -sk "https://localhost:9996/realtime-demo/message?stream=sse"
 | Event | Description | Trigger |
 |-------|-------------|---------|
 | `message` | Connection confirmed, retained data | Connect |
-| `update` | Record created or updated | POST, PUT |
+| `update` | Record created or updated | POST, PUT, PATCH |
 | `delete` | Record deleted | DELETE |
 | `publish` | Custom message | PubSub |
 | `ping` | Heartbeat | Timer |
@@ -77,12 +77,12 @@ curl -sk "https://localhost:9996/realtime-demo/message/msg-1?stream=sse"
 
 ## Testing
 
-**Terminal 1** - listen:
+**Terminal 1** -- listen:
 ```bash
 curl -sk --max-time 60 "https://localhost:9996/realtime-demo/message?stream=sse"
 ```
 
-**Terminal 2** - write:
+**Terminal 2** -- write:
 ```bash
 curl -sk -X POST https://localhost:9996/realtime-demo/message \
   -H "Content-Type: application/json" \
@@ -102,6 +102,6 @@ curl -sk -H "Accept: text/event-stream" \
 
 ## See Also
 
-- [Real-Time Overview](realtime-overview.md) - All real-time features
-- [WebSocket](websocket.md) - Bidirectional alternative
-- [PubSub](pubsub.md) - Underlying messaging system
+- [Real-Time Overview](realtime-overview.md) -- All real-time features
+- [WebSocket](websocket.md) -- Bidirectional alternative
+- [PubSub](pubsub.md) -- Underlying messaging backbone

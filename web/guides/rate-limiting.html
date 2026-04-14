@@ -111,36 +111,27 @@
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <pre><code class="language-yaml">rateLimiting:
   maxRequestsPerSecond: 1000
-  maxConcurrentConnections: 100
-  maxStorageGB: 10
-  ai:
-    maxClaudeRequestsPerHour: 100
-    maxEmbeddingRequestsPerHour: 1000
 </code></pre>
 <h2 id="request-rate"><a class="header" href="#request-rate">Request Rate</a></h2>
 <p><code>maxRequestsPerSecond</code> caps overall throughput. Returns <code>429 Too Many Requests</code> when exceeded. Server-wide across all apps and clients.</p>
-<h2 id="connection-limiting"><a class="header" href="#connection-limiting">Connection Limiting</a></h2>
-<p><code>maxConcurrentConnections</code> limits simultaneous TCP connections. Protects against connection exhaustion attacks.</p>
 <h2 id="backpressure"><a class="header" href="#backpressure">Backpressure</a></h2>
 <pre><code class="language-yaml">http:
-  maxInFlightRequests: 500
+  maxInFlightRequests: 10000
 </code></pre>
 <p>Returns <code>503 Service Unavailable</code> when in-flight requests exceed the threshold. Unlike rate limiting (throughput cap), backpressure limits concurrency.</p>
-<h2 id="storage-quotas"><a class="header" href="#storage-quotas">Storage Quotas</a></h2>
-<p><code>maxStorageGB</code> caps total storage per tenant. Writes fail when exceeded; reads continue.</p>
 <h2 id="timeouts"><a class="header" href="#timeouts">Timeouts</a></h2>
 <pre><code class="language-yaml">http:
-  timeout: 120000         # Request timeout (ms)
-  keepAliveTimeout: 30000 # Idle connection timeout (ms)
+  timeout: 60000          # Request timeout (ms), default 60s
+  keepAliveTimeout: 75000 # Idle connection timeout (ms), default 75s
 </code></pre>
 <h2 id="error-responses"><a class="header" href="#error-responses">Error Responses</a></h2>
 <ul>
-<li><strong>429</strong>: <code>{"error": "Rate limit exceeded. Maximum 1000 requests per second."}</code></li>
-<li><strong>503</strong>: <code>{"error": "Server overloaded. Please retry later."}</code></li>
+<li><strong>429</strong>: Rate limit exceeded (ProblemDetails with <code>urn:yeti:error:rate_limited</code>)</li>
+<li><strong>503</strong>: Server overloaded (ProblemDetails with <code>urn:yeti:error:overloaded</code>)</li>
 </ul>
 <h3 id="example-429-response"><a class="header" href="#example-429-response">Example 429 Response</a></h3>
 <pre><code class="language-bash">$ curl -sk -w "\nHTTP %{http_code}\n" https://localhost:9996/my-app/MyTable
-{"error":"Rate limit exceeded. Maximum 1000 requests per second."}
+{"type":"urn:yeti:error:rate_limited","title":"Too Many Requests","status":429,"detail":"Rate limit exceeded. Maximum 1000 requests per second."}
 HTTP 429
 </code></pre>
 <h3 id="retry-with-exponential-backoff-javascript"><a class="header" href="#retry-with-exponential-backoff-javascript">Retry with Exponential Backoff (JavaScript)</a></h3>
@@ -156,19 +147,16 @@ HTTP 429
 <h2 id="what-is-rate-limited"><a class="header" href="#what-is-rate-limited">What Is Rate-Limited</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Endpoint Type</th><th>Rate-Limited</th><th>Notes</th></tr></thead><tbody>
 <tr><td>REST CRUD (<code>/app/Table</code>)</td><td>Yes</td><td>Subject to <code>maxRequestsPerSecond</code></td></tr>
-<tr><td>SSE streams</td><td>Yes (connection)</td><td>Counts against <code>maxConcurrentConnections</code></td></tr>
-<tr><td>WebSocket</td><td>Yes (connection)</td><td>Counts against <code>maxConcurrentConnections</code></td></tr>
+<tr><td>SSE streams</td><td>Yes (connection)</td><td>Counts against <code>maxInFlightRequests</code></td></tr>
+<tr><td>WebSocket</td><td>Yes (connection)</td><td>Counts against <code>maxInFlightRequests</code></td></tr>
 <tr><td>Health check (<code>/health</code>)</td><td>No</td><td>Always available for monitoring</td></tr>
 <tr><td>Static files</td><td>Yes</td><td>Same rate limit as API requests</td></tr>
-<tr><td>AI/embedding endpoints</td><td>Yes</td><td>Separate limits via <code>ai.*</code> settings</td></tr>
 </tbody></table>
 </div>
 <h2 id="production-settings"><a class="header" href="#production-settings">Production Settings</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Setting</th><th>Dev</th><th>Production</th></tr></thead><tbody>
-<tr><td><code>maxRequestsPerSecond</code></td><td>1000</td><td>Tune to hardware</td></tr>
-<tr><td><code>maxConcurrentConnections</code></td><td>100</td><td>500-5000</td></tr>
-<tr><td><code>maxInFlightRequests</code></td><td>500</td><td>Match thread pool</td></tr>
-<tr><td><code>maxStorageGB</code></td><td>10</td><td>Size per tenant</td></tr>
+<tr><td><code>rateLimiting.maxRequestsPerSecond</code></td><td>1000</td><td>Tune to hardware</td></tr>
+<tr><td><code>http.maxInFlightRequests</code></td><td>10000</td><td>Match thread pool</td></tr>
 </tbody></table>
 </div>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>

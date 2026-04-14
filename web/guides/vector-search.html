@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="vector-search"><a class="header" href="#vector-search">Vector Search</a></h1>
-<p>Yeti includes built-in HNSW vector indexing for approximate nearest-neighbor search.</p>
+<p>Yeti includes built-in HNSW vector indexing for approximate nearest-neighbor search, powered by the yeti-ai service with a Candle-based inference backend.</p>
 <h2 id="schema"><a class="header" href="#schema">Schema</a></h2>
 <p>Use the <code>Vector</code> type to define an embedding field:</p>
 <pre><code class="language-graphql">type Document @table @export {
@@ -118,8 +118,8 @@
     embedding: Vector @indexed(source: "content")
 }
 </code></pre>
-<p>The <code>Vector</code> type automatically creates an HNSW index. When <code>source</code> is specified, Yeti auto-generates embeddings from the source field on every write - insert your text:</p>
-<pre><code class="language-bash">curl -sk -X POST https://localhost:9996/my-app/document \
+<p>The <code>Vector</code> type automatically creates an HNSW index. When <code>source</code> is specified, Yeti auto-generates embeddings from the source field on every write -- insert your text:</p>
+<pre><code class="language-bash">curl -sk -X POST https://localhost:9996/my-app/Document \
   -H "Content-Type: application/json" \
   -d '{"id":"doc-1","title":"Intro to ML","content":"Machine learning is a branch of AI..."}'
 </code></pre>
@@ -129,7 +129,7 @@
 <ol>
 <li><strong>Schema field</strong> - <code>@indexed(source: "content", model: "all-MiniLM-L6-v2")</code></li>
 <li><strong>App config</strong> - <code>vectors: { model: "all-MiniLM-L6-v2" }</code></li>
-<li><strong>Default</strong> - <code>BAAI/bge-small-en-v1.5</code> (ships with Yeti, downloaded on first use)</li>
+<li><strong>Default</strong> - <code>BAAI/bge-small-en-v1.5</code> (downloaded on first use)</li>
 </ol>
 <p>Most apps don't need to specify a model:</p>
 <pre><code class="language-graphql">embedding: Vector @indexed(source: "content")
@@ -148,7 +148,7 @@
 </code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>distance</code></td><td><code>"cosine"</code></td><td>Distance metric: <code>"cosine"</code> or <code>"euclidean"</code></td></tr>
-<tr><td><code>optimizeRouting</code></td><td><code>0.5</code></td><td>Routing optimization aggressiveness (0.0–1.0)</td></tr>
+<tr><td><code>optimizeRouting</code></td><td><code>0.5</code></td><td>Routing optimization aggressiveness (0.0-1.0)</td></tr>
 <tr><td><code>M</code></td><td><code>16</code></td><td>Max connections per node per layer</td></tr>
 <tr><td><code>efConstruction</code></td><td><code>100</code></td><td>Candidate list size during index construction</td></tr>
 <tr><td><code>efSearchConstruction</code></td><td><code>50</code></td><td>Candidate list size during search</td></tr>
@@ -157,18 +157,17 @@
 </div>
 <p>If <code>M</code> is set without <code>mL</code>, the value is auto-computed as <code>1/ln(M)</code>.</p>
 <h3 id="configyaml-setup"><a class="header" href="#configyaml-setup">Config.yaml Setup</a></h3>
-<p>The yeti-vectors extension is auto-detected when your schema has <code>@vector</code> fields. To enable it explicitly or set a default model:</p>
+<p>The yeti-ai service is auto-detected when your schema has <code>Vector</code> fields with <code>@indexed(source: ...)</code>. To set a default model:</p>
 <pre><code class="language-yaml">vectors:
   model: all-MiniLM-L6-v2
 </code></pre>
-<p>The older <code>extensions: - yeti-vectors:</code> format still works but is deprecated.</p>
 <h2 id="search"><a class="header" href="#search">Search</a></h2>
 <h3 id="json-query-recommended"><a class="header" href="#json-query-recommended">JSON Query (recommended)</a></h3>
 <p>Use the <code>?query=</code> parameter with a JSON object. Vector search uses <code>"op": "vector"</code>:</p>
-<pre><code class="language-bash">curl -sk "https://localhost:9996/my-app/document/?query=\
+<pre><code class="language-bash">curl -sk "https://localhost:9996/my-app/Document/?query=\
 {\"conditions\":[{\"field\":\"embedding\",\"op\":\"vector\",\"value\":\"how does deep learning work\"}],\"limit\":5}"
 </code></pre>
-<p>The model and field configuration come from the schema - the query only needs the search text.</p>
+<p>The model and field configuration come from the schema -- the query only needs the search text.</p>
 <p>Results are sorted by distance (nearest first) and include a <code>$distance</code> field:</p>
 <pre><code class="language-json">[
   {"id": "doc-1", "title": "Intro to ML", "content": "...", "$distance": 0.042},
@@ -178,65 +177,55 @@
 <h3 id="combined-filters"><a class="header" href="#combined-filters">Combined Filters</a></h3>
 <p>Vector search conditions can be mixed with FIQL conditions in the same query:</p>
 <pre><code class="language-bash"># Find articles about ML in the "science" category
-curl -sk "https://localhost:9996/my-app/document/?query=\
+curl -sk "https://localhost:9996/my-app/Document/?query=\
 {\"conditions\":[\
 {\"field\":\"embedding\",\"op\":\"vector\",\"value\":\"machine learning\"},\
 {\"field\":\"category\",\"op\":\"==\",\"value\":\"science\"}\
 ],\"limit\":10}"
 </code></pre>
 <p>Vector search runs first (returns top-K by similarity), then FIQL conditions filter the results.</p>
-<h3 id="manual-vector-search"><a class="header" href="#manual-vector-search">Manual Vector Search</a></h3>
-<p>For raw vector queries (without auto-embedding), pass the vector directly:</p>
-<pre><code class="language-bash">curl -sk "https://localhost:9996/my-app/document/?query=\
-{\"conditions\":[{\"field\":\"embedding\",\"op\":\"vector\",\"value\":\"search text\"}],\"limit\":5}"
+<h2 id="yeti-ai-service"><a class="header" href="#yeti-ai-service">yeti-ai Service</a></h2>
+<p>The yeti-ai service provides both embedding generation and local inference, all backed by the Candle ML framework.</p>
+<h3 id="capabilities"><a class="header" href="#capabilities">Capabilities</a></h3>
+<ul>
+<li><strong>Embeddings</strong> -- <code>CandleVectorHook</code> implements the <code>VectorHook</code> trait for text and image embedding</li>
+<li><strong>Inference</strong> -- <code>CandleAiHook</code> implements the <code>AiHook</code> trait for text completion, chat, and structured JSON output</li>
+<li><strong>Model management</strong> -- Download, load, unload, and remove GGUF models via REST API</li>
+<li><strong>Hardware acceleration</strong> -- MKL (Intel), CUDA (NVIDIA), and Metal (Apple Silicon) support</li>
+</ul>
+<h3 id="model-management-api"><a class="header" href="#model-management-api">Model Management API</a></h3>
+<p>All endpoints require <code>super_user</code> role.</p>
+<pre><code class="language-bash"># List available models
+curl -sk https://localhost:9996/yeti-ai/models
+
+# Download an inference model from HuggingFace
+curl -sk -X POST https://localhost:9996/yeti-ai/download \
+  -H "Content-Type: application/json" \
+  -d '{"repo":"TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF","filename":"tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"}'
+
+# Download an embedding model
+curl -sk -X POST https://localhost:9996/yeti-ai/download \
+  -H "Content-Type: application/json" \
+  -d '{"repo":"BAAI/bge-small-en-v1.5","type":"embedding"}'
+
+# Load a model into memory
+curl -sk -X POST https://localhost:9996/yeti-ai/load \
+  -H "Content-Type: application/json" \
+  -d '{"model":"tinyllama-1.1b-chat-v1.0.Q4_K_M"}'
+
+# Unload the current model
+curl -sk -X POST https://localhost:9996/yeti-ai/unload
+
+# Remove a model from disk
+curl -sk -X POST https://localhost:9996/yeti-ai/remove \
+  -H "Content-Type: application/json" \
+  -d '{"model":"tinyllama-1.1b-chat-v1.0.Q4_K_M"}'
+
+# Service status
+curl -sk https://localhost:9996/yeti-ai/status
 </code></pre>
-<h2 id="vector-search-in-custom-resources"><a class="header" href="#vector-search-in-custom-resources">Vector Search in Custom Resources</a></h2>
-<p>Custom resources access tables via yeti-sdk.</p>
-<h3 id="example-semantic-search-resource"><a class="header" href="#example-semantic-search-resource">Example: Semantic Search Resource</a></h3>
-<pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
-
-#[yeti_resource(name = "semantic-search")]
-pub struct SemanticSearch;
-
-impl Resource for SemanticSearch {
-    fn get(&amp;self, ctx: ResourceParams) -&gt; ResourceFuture {
-        let query = ctx.get("q").unwrap_or("").to_string();
-        let limit: usize = ctx.get("limit")
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(5);
-
-        let hook = ctx.vector_hook().cloned();
-
-        Box::pin(async move {
-            let Some(hook) = hook else {
-                return error_response(500, "Vector hook not available");
-            };
-
-            // Convert text query to vector
-            let query_clone = query.clone();
-            let vector = tokio::task::spawn_blocking(move || {
-                hook.vectorize_text(&amp;query_clone, "BAAI/bge-small-en-v1.5")
-            }).await
-              .map_err(|e| format!("Vectorization failed: {e}"))?
-              .map_err(|e| format!("Embedding error: {e}"))?;
-
-            ok(json!({
-                "query": query,
-                "vector_dims": vector.len()
-            }))
-        })
-    }
-}</code></pre>
-<h3 id="vector-hooks-from-resourceparams"><a class="header" href="#vector-hooks-from-resourceparams">Vector Hooks from ResourceParams</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>ctx.vector_hook()</code></td><td><code>Option&lt;&amp;Arc&lt;dyn VectorHook&gt;&gt;</code></td><td>The embedding hook (from yeti-vectors)</td></tr>
-<tr><td><code>ctx.vector_mappings()</code></td><td><code>&amp;[FieldMapping]</code></td><td>Configured source-to-target field mappings</td></tr>
-<tr><td><code>ctx.vector_cache()</code></td><td><code>Option&lt;&amp;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Embedding cache backend</td></tr>
-<tr><td><code>ctx.vector_batcher()</code></td><td><code>Option&lt;&amp;Arc&lt;VectorBatcher&gt;&gt;</code></td><td>Micro-batcher for batch embedding</td></tr>
-</tbody></table>
-</div>
-<h3 id="vectorhook-methods"><a class="header" href="#vectorhook-methods">VectorHook Methods</a></h3>
-<p>The <code>VectorHook</code> trait provides embedding methods (all sync - call via <code>spawn_blocking</code>):</p>
+<h3 id="vectorhook-trait"><a class="header" href="#vectorhook-trait">VectorHook Trait</a></h3>
+<p>The <code>VectorHook</code> trait provides embedding methods (all sync -- call via <code>spawn_blocking</code>):</p>
 <pre><code class="language-rust ignore">// Convert text to a vector
 hook.vectorize_text("how does deep learning work", "BAAI/bge-small-en-v1.5")
     -&gt; Result&lt;Vec&lt;f32&gt;&gt;
@@ -252,23 +241,30 @@ hook.vectorize_image(&amp;image_bytes, "clip-ViT-B-32")
 // Check if a model is available
 hook.validate_model("BAAI/bge-small-en-v1.5")
     -&gt; Result&lt;()&gt;</code></pre>
-<h2 id="image-embedding"><a class="header" href="#image-embedding">Image Embedding</a></h2>
-<p>Use a CLIP model for image vectors:</p>
-<pre><code class="language-graphql">type Photo @table @export {
-    id: ID! @primaryKey
-    thumbnail: String
-    imageEmbedding: Vector @indexed(source: "thumbnail", model: "clip-ViT-B-32")
-}
-</code></pre>
+<h3 id="aihook-trait"><a class="header" href="#aihook-trait">AiHook Trait</a></h3>
+<p>The <code>AiHook</code> trait provides local inference:</p>
+<pre><code class="language-rust ignore">// Single-turn text completion
+hook.complete("Explain quantum computing in one sentence", 100)
+    -&gt; Result&lt;String&gt;
+
+// Multi-turn chat
+hook.chat(&amp;[("user", "What is Rust?"), ("assistant", "A systems language."), ("user", "Why use it?")], 200)
+    -&gt; Result&lt;String&gt;
+
+// Structured JSON output
+hook.complete_json("List 3 colors as a JSON array", 100)
+    -&gt; Result&lt;serde_json::Value&gt;
+
+// List available models
+hook.models() -&gt; Vec&lt;ModelInfo&gt;</code></pre>
 <h2 id="backfill"><a class="header" href="#backfill">Backfill</a></h2>
-<p>Adding yeti-vectors to an existing app (or adding <code>source</code> to a <code>Vector</code> field) auto-backfills embeddings on next restart. The backfill is:</p>
+<p>Adding vector fields to an existing app (or adding <code>source</code> to a <code>Vector</code> field) auto-backfills embeddings on next restart. The backfill is:</p>
 <ul>
-<li><strong>Non-blocking</strong> - runs as a background task after startup</li>
-<li><strong>Idempotent</strong> - skips records that already have embeddings</li>
-<li><strong>Progressive</strong> - logs progress every 100 records</li>
+<li><strong>Non-blocking</strong> -- runs as a background task after startup</li>
+<li><strong>Idempotent</strong> -- skips records that already have embeddings</li>
+<li><strong>Progressive</strong> -- logs progress every 100 records</li>
 </ul>
-<p>If the schema declares <code>source</code> fields but yeti-vectors is not enabled, an error is logged and the app fails to load.</p>
-<h2 id="supported-models"><a class="header" href="#supported-models">Supported Models</a></h2>
+<h2 id="supported-embedding-models"><a class="header" href="#supported-embedding-models">Supported Embedding Models</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Model</th><th>Type</th><th>Dimensions</th><th>Size</th></tr></thead><tbody>
 <tr><td><code>BAAI/bge-small-en-v1.5</code></td><td>Text</td><td>384</td><td>~130 MB</td></tr>
 <tr><td><code>BAAI/bge-base-en-v1.5</code></td><td>Text</td><td>768</td><td>~440 MB</td></tr>
@@ -277,19 +273,12 @@ hook.validate_model("BAAI/bge-small-en-v1.5")
 <tr><td><code>clip-ViT-B-32</code></td><td>Image</td><td>512</td><td>~300 MB</td></tr>
 </tbody></table>
 </div>
-<p>The default model (<code>BAAI/bge-small-en-v1.5</code>) downloads automatically on first use to <code>{rootDirectory}/models/</code>. Additional models can be managed via the yeti-vectors admin UI.</p>
+<p>Models are downloaded to <code>{rootDirectory}/models/</code> on first use. Additional models can be downloaded via the model management API.</p>
 <h2 id="embedding-cache"><a class="header" href="#embedding-cache">Embedding Cache</a></h2>
-<p>yeti-vectors caches embeddings keyed by <code>sha256(model + "\0" + text)</code>. Deterministic, no TTL.</p>
+<p>yeti-ai caches embeddings keyed by <code>sha256(model + "\0" + text)</code>. Deterministic, no TTL.</p>
 <p>Disable per-app:</p>
 <pre><code class="language-yaml">vectors:
   cache: false
-</code></pre>
-<p>Manage via REST:</p>
-<pre><code class="language-bash"># List cached embeddings
-curl -sk https://localhost:9996/yeti-vectors/EmbeddingCache
-
-# Delete a cached embedding
-curl -sk -X DELETE https://localhost:9996/yeti-vectors/EmbeddingCache/{id}
 </code></pre>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>

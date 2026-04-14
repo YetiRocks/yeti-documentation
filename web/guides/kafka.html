@@ -9,7 +9,7 @@
     })(window,document,'script','dataLayer','GTM-KGB7BN8B');</script>
     <!-- End Google Tag Manager -->
     <meta charset="UTF-8">
-    <title>Documentation | Yeti | Migration Guide</title>
+    <title>Documentation | Yeti | Kafka Integration</title>
     <meta name="description" content="Distributed application platform built in Rust">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#121212">
@@ -107,117 +107,63 @@
                 <!-- Content -->
                 <div id="content" class="content">
                     <main>
-                        <h1 id="migration-guide"><a class="header" href="#migration-guide">Migration Guide</a></h1>
-<p>Migrate existing backend applications to Yeti from Node.js/Express, Django, Rails, or similar frameworks.</p>
-<h2 id="what-maps-directly"><a class="header" href="#what-maps-directly">What Maps Directly</a></h2>
-<p>Applications using REST APIs, JSON data, and standard CRUD patterns translate directly:</p>
-<div class="table-wrapper"><table><thead><tr><th>Traditional Approach</th><th>Yeti Equivalent</th></tr></thead><tbody>
-<tr><td>Route handlers (Express, Flask, etc.)</td><td>Custom resources (Rust plugins)</td></tr>
-<tr><td>Database models / ORM schemas</td><td>GraphQL schema with <code>@table</code> directive</td></tr>
-<tr><td>SQL / MongoDB queries</td><td>FIQL query language</td></tr>
-<tr><td>Static file middleware</td><td><code>static_files</code> in config.yaml</td></tr>
-<tr><td>Auth middleware</td><td>yeti-auth extension (JWT, OAuth, RBAC)</td></tr>
-<tr><td>Environment variables</td><td><code>env:</code> section in yeti-config.yaml + <code>${VAR:-default}</code> substitution</td></tr>
-</tbody></table>
-</div>
-<h2 id="migration-steps"><a class="header" href="#migration-steps">Migration Steps</a></h2>
-<h3 id="1-create-a-yeti-application"><a class="header" href="#1-create-a-yeti-application">1. Create a Yeti Application</a></h3>
-<pre><code class="language-bash">cd ~/yeti/applications
-mkdir my-app &amp;&amp; cd my-app
+                        <h1 id="kafka-integration"><a class="header" href="#kafka-integration">Kafka Integration</a></h1>
+<p>Yeti bridges Kafka topics to and from tables using the yeti-kafka service. Consumer reads Kafka messages into tables. Producer publishes table changes to Kafka topics via PubSub.</p>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>Enable Kafka in <code>yeti-config.yaml</code>:</p>
+<pre><code class="language-yaml">kafka:
+  enabled: true
+  brokers: ["kafka-1:9092", "kafka-2:9092"]
+  consumer:
+    topics:
+      - topic: sensor-data
+        table: SensorReading
+        database: my-app
+        group_id: yeti-consumer
+  producer:
+    topics:
+      - topic: order-events
+        table: Order
+        database: my-app
 </code></pre>
-<h3 id="2-define-your-schema"><a class="header" href="#2-define-your-schema">2. Define Your Schema</a></h3>
-<p>Convert database models to a GraphQL schema:</p>
-<pre><code class="language-graphql">type User @table @export {
-    id: ID! @primaryKey
-    email: String! @indexed
-    name: String!
-    createdAt: String @createdTime
-    updatedAt: String @updatedTime
-}
+<h2 id="consumer"><a class="header" href="#consumer">Consumer</a></h2>
+<p>The consumer reads messages from Kafka topics and writes them to yeti tables:</p>
+<ol>
+<li>Connect to the Kafka cluster</li>
+<li>Subscribe to configured topics</li>
+<li>Parse each message as JSON</li>
+<li><code>PUT</code> the record into the target table (keyed by the Kafka message key)</li>
+</ol>
+<p>Messages must be valid JSON matching the table schema. Non-JSON messages are logged and skipped.</p>
+<h2 id="producer"><a class="header" href="#producer">Producer</a></h2>
+<p>The producer subscribes to table PubSub notifications and publishes changes to Kafka:</p>
+<ol>
+<li>Subscribe to PubSub notifications for configured tables</li>
+<li>On each table change (put, patch, delete), serialize the record as JSON</li>
+<li>Publish to the configured Kafka topic with the record ID as the message key</li>
+</ol>
+<p>The producer uses the first-class PubSub API (<code>table.subscribe_all()</code>), so it receives all changes regardless of which protocol triggered them (REST, GraphQL, WebSocket, MQTT, or another resource handler).</p>
+<h2 id="feature-gate"><a class="header" href="#feature-gate">Feature Gate</a></h2>
+<p>Kafka support is behind a feature flag. Build with:</p>
+<pre><code class="language-bash">cargo build --features kafka
 </code></pre>
-<h3 id="3-create-configuration"><a class="header" href="#3-create-configuration">3. Create Configuration</a></h3>
-<pre><code class="language-yaml">name: my-app
-schemas:
-  - schema.graphql
-rest: true
-</code></pre>
-<h3 id="4-port-custom-endpoints"><a class="header" href="#4-port-custom-endpoints">4. Port Custom Endpoints</a></h3>
-<p>Rewrite traditional route handlers as Rust resources:</p>
-<p><strong>Express (Node.js):</strong></p>
-<pre><code class="language-javascript">app.post('/users', async (req, res) =&gt; {
-  req.body.created_at = new Date().toISOString();
-  const user = await db.insert('users', req.body);
-  res.json(user);
-});
-</code></pre>
-<p><strong>Yeti:</strong></p>
-<pre><code class="language-rust ignore">pub struct UserResource;
-impl Resource for UserResource {
-    fn name(&amp;self) -&gt; &amp;'static str { "users" }
-    async fn before_create(&amp;self, data: &amp;mut Value) -&gt; Result&lt;()&gt; {
-        data["created_at"] = chrono::Utc::now().to_rfc3339().into();
-        Ok(())
-    }
-}</code></pre>
-<p>Many use cases need no custom resources. Schema-driven tables provide full CRUD, filtering, pagination, and real-time subscriptions out of the box.</p>
-<h3 id="5-migrate-data"><a class="header" href="#5-migrate-data">5. Migrate Data</a></h3>
-<pre><code class="language-bash"># Export from your existing system (adjust as needed)
-curl http://old-server/api/users &gt; users.json
-
-# Import to Yeti
-cat users.json | jq -c '.[]' | while read record; do
-  curl -sk -X POST https://localhost:9996/my-app/User \
-    -H "Content-Type: application/json" -d "$record"
-done
-</code></pre>
-<h3 id="6-verify"><a class="header" href="#6-verify">6. Verify</a></h3>
-<pre><code class="language-bash">yeti restart
-
-# Test CRUD
-curl -sk https://localhost:9996/my-app/User?limit=10
-</code></pre>
-<h2 id="key-differences-from-traditional-backends"><a class="header" href="#key-differences-from-traditional-backends">Key Differences from Traditional Backends</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Aspect</th><th>Traditional</th><th>Yeti</th></tr></thead><tbody>
-<tr><td>Language</td><td>JavaScript/Python/Ruby</td><td>Rust (plugins), schema-driven (tables)</td></tr>
-<tr><td>Database</td><td>Separate process (PostgreSQL, MongoDB)</td><td>Embedded RocksDB (zero network overhead)</td></tr>
-<tr><td>API layer</td><td>Hand-written routes</td><td>Auto-generated from schema</td></tr>
-<tr><td>Real-time</td><td>WebSocket library + custom code</td><td>Built-in SSE, WebSocket, MQTT</td></tr>
-<tr><td>Auth</td><td>Passport.js / custom middleware</td><td>yeti-auth extension (JWT, OAuth, RBAC)</td></tr>
-<tr><td>Deployment</td><td>App server + database + reverse proxy</td><td>Single binary</td></tr>
-</tbody></table>
-</div>
-<h2 id="migration-checklist"><a class="header" href="#migration-checklist">Migration Checklist</a></h2>
+<p>The minimal binary (<code>--no-default-features</code>) excludes Kafka.</p>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
-<li><input disabled="" type="checkbox"/>
-Back up existing data</li>
-<li><input disabled="" type="checkbox"/>
-Define GraphQL schemas for all data models</li>
-<li><input disabled="" type="checkbox"/>
-Create config.yaml with appropriate settings</li>
-<li><input disabled="" type="checkbox"/>
-Port custom endpoints to Rust resources (if needed)</li>
-<li><input disabled="" type="checkbox"/>
-Migrate data to Yeti tables</li>
-<li><input disabled="" type="checkbox"/>
-Test CRUD operations and FIQL queries</li>
-<li><input disabled="" type="checkbox"/>
-Configure authentication (JWT, OAuth, or both)</li>
-<li><input disabled="" type="checkbox"/>
-Set up TLS certificates</li>
-<li><input disabled="" type="checkbox"/>
-Load test to verify performance</li>
-<li><input disabled="" type="checkbox"/>
-Plan and execute cutover</li>
-<li><input disabled="" type="checkbox"/>
-Monitor production</li>
+<li><a href="pubsub.html">PubSub</a> — The event system that powers the Kafka producer</li>
+<li><a href="mqtt.html">MQTT</a> — Native MQTT broker (no external service needed)</li>
 </ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
-                        <a rel="prev" href="../appendix/benchmarks.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <a rel="prev" href="../guides/resource-hooks.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                             <i class="fa fa-angle-left"></i>
-                            <span class="nav-label">Performance Benchmarks</span>
+                            <span class="nav-label">Resource Hooks</span>
+                        </a>
+                        <a rel="next" href="../guides/ai-inference.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <span class="nav-label">AI &amp; Inference</span>
+                            <i class="fa fa-angle-right"></i>
                         </a>
                     </nav>
                 </div>

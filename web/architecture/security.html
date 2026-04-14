@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="security-architecture"><a class="header" href="#security-architecture">Security Architecture</a></h1>
-<p>Layered authentication through the <code>yeti-auth</code> extension.</p>
+<p>Layered authentication through the <code>yeti-auth</code> service.</p>
 <h2 id="auth-pipeline"><a class="header" href="#auth-pipeline">Auth Pipeline</a></h2>
 <pre><code>Request ──&gt; BasicAuthProvider (Authorization: Basic, Argon2id verification)
         ──&gt; JwtAuthProvider   (Authorization: Bearer, token validation)
@@ -137,16 +137,15 @@ curl -sk -X POST https://localhost:9996/yeti-auth/jwt_refresh \
 </code></pre>
 <h2 id="oauth-integration"><a class="header" href="#oauth-integration">OAuth Integration</a></h2>
 <p>Per-app OAuth rules in config.yaml:</p>
-<pre><code class="language-yaml">extensions:
-  - yeti-auth:
-      oauth:
-        rules:
-          - strategy: provider
-            pattern: "google"
-            role: admin
-          - strategy: email
-            pattern: "*@mycompany.com"
-            role: standard
+<pre><code class="language-yaml">auth:
+  oauth:
+    rules:
+      - strategy: provider
+        pattern: "google"
+        role: admin
+      - strategy: email
+        pattern: "*@mycompany.com"
+        role: standard
 </code></pre>
 <ul>
 <li><strong>CSRF tokens</strong> stored in DashMap (10-minute TTL, periodic cleanup)</li>

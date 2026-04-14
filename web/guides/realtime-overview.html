@@ -108,21 +108,23 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="real-time-features"><a class="header" href="#real-time-features">Real-Time Features</a></h1>
-<p>Yeti streams data changes to connected clients via SSE, WebSocket, and an internal PubSub backbone.</p>
+<p>Yeti provides four real-time mechanisms built on a shared PubSub backbone. Every table write automatically publishes change events that flow to all connected transports.</p>
 <h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Feature</th><th>Direction</th><th>Protocol</th><th>Use Case</th></tr></thead><tbody>
+<tr><td><a href="pubsub.html">PubSub</a></td><td>Internal</td><td>In-process broadcast channels</td><td>Core event backbone for all real-time delivery</td></tr>
 <tr><td><a href="sse.html">SSE</a></td><td>Server to client</td><td>HTTP/1.1, HTTP/2</td><td>Dashboards, notifications, feeds</td></tr>
 <tr><td><a href="websocket.html">WebSocket</a></td><td>Bidirectional</td><td>WS/WSS</td><td>Chat, collaboration, gaming</td></tr>
-<tr><td><a href="pubsub.html">PubSub</a></td><td>Internal</td><td>In-process channels</td><td>Connects data changes to streams</td></tr>
-<tr><td><a href="guides/mqtt.html">MQTT</a></td><td>Bidirectional</td><td>MQTT 5 / MQTTS</td><td>IoT devices, sensors, M2M</td></tr>
+<tr><td><a href="mqtt.html">MQTT</a></td><td>Bidirectional</td><td>MQTT 5 / MQTTS</td><td>IoT devices, sensors, M2M</td></tr>
 </tbody></table>
 </div>
+<p>PubSub is the foundation. SSE, WebSocket, and MQTT are delivery transports that subscribe to PubSub topics.</p>
 <h2 id="real-time-setup"><a class="header" href="#real-time-setup">Real-Time Setup</a></h2>
-<p>Enable SSE and/or WebSocket in your schema:</p>
+<p>Enable transports in your schema with the <code>@export</code> directive:</p>
 <pre><code class="language-graphql">type Message @table(database: "realtime-demo") @export(
     rest: true
     sse: true
     ws: true
+    mqtt: true
 ) {
     id: ID! @primaryKey
     title: String!
@@ -131,9 +133,10 @@
 </code></pre>
 <h2 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h2>
 <ol>
-<li>Record created/updated/deleted in a real-time table</li>
+<li>Record created/updated/deleted via any write path (REST, GraphQL, SDK)</li>
 <li><strong>PubSub</strong> publishes to table-level topic (<code>"Message"</code>) and record-level topic (<code>"Message/msg-1"</code>)</li>
-<li>SSE, WebSocket, and MQTT connections receive the update</li>
+<li>SSE, WebSocket, and MQTT connections subscribed to those topics receive the update</li>
+<li>Optional: Kafka producer bridges forward changes to external Kafka topics</li>
 </ol>
 <pre><code>Client A: POST /Message {"id":"msg-1","title":"Hello"}
                 |
@@ -141,16 +144,16 @@
          +-----------+
          |  PubSub   |  notify_update("Message", "msg-1", data)
          +-----------+
-           /    |     \
-          v     v      v
-   SSE clients  WS clients  MQTT clients
+          /   |    \     \
+         v    v     v     v
+       SSE   WS   MQTT  Kafka
 </code></pre>
 <h2 id="quick-example"><a class="header" href="#quick-example">Quick Example</a></h2>
-<p><strong>Terminal 1</strong> - subscribe:</p>
-<pre><code class="language-bash">curl -sk "https://localhost/realtime-demo/message?stream=sse"
+<p><strong>Terminal 1</strong> -- subscribe via SSE:</p>
+<pre><code class="language-bash">curl -sk "https://localhost:9996/realtime-demo/message?stream=sse"
 </code></pre>
-<p><strong>Terminal 2</strong> - create a record:</p>
-<pre><code class="language-bash">curl -sk -X POST https://localhost/realtime-demo/message \
+<p><strong>Terminal 2</strong> -- create a record:</p>
+<pre><code class="language-bash">curl -sk -X POST https://localhost:9996/realtime-demo/message \
   -H "Content-Type: application/json" \
   -d '{"id":"msg-1","title":"Hello","content":"Real-time works!"}'
 </code></pre>
@@ -158,13 +161,16 @@
 <ul>
 <li><strong>Table-level</strong> (<code>/{table}?stream=sse</code>): all changes in the table</li>
 <li><strong>Record-level</strong> (<code>/{table}/{id}?stream=sse</code>): changes to one record</li>
+<li><strong>Custom topics</strong>: application code can publish to arbitrary topic strings via <code>table.publish(id, message)</code></li>
 </ul>
+<h2 id="pubsub-performance"><a class="header" href="#pubsub-performance">PubSub Performance</a></h2>
+<p>PubSub short-circuits with zero allocation when no subscribers exist for a topic. Each topic uses a <code>tokio::sync::broadcast</code> channel with 256-message capacity. Topics are created lazily and cleaned up periodically (every 100 subscriptions) when subscriber count drops to zero.</p>
 <h2 id="sub-guides"><a class="header" href="#sub-guides">Sub-Guides</a></h2>
 <ul>
-<li><a href="sse.html">Server-Sent Events</a> - One-way streaming</li>
-<li><a href="websocket.html">WebSocket</a> - Bidirectional communication</li>
-<li><a href="pubsub.html">PubSub</a> - Internal messaging system</li>
-<li><a href="mqtt.html">MQTT</a> - Native MQTT broker</li>
+<li><a href="pubsub.html">PubSub</a> -- Internal messaging backbone</li>
+<li><a href="sse.html">Server-Sent Events</a> -- One-way streaming</li>
+<li><a href="websocket.html">WebSocket</a> -- Bidirectional communication</li>
+<li><a href="mqtt.html">MQTT</a> -- Native MQTT broker</li>
 </ul>
 
                     </main>

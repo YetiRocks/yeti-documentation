@@ -120,15 +120,15 @@
 }
 </code></pre>
 <pre><code class="language-bash"># Create
-curl -sk -X POST https://localhost/my-app/Product \
+curl -sk -X POST https://localhost:9996/my-app/Product \
   -H "Content-Type: application/json" \
   -d '{"name": "Widget", "price": 29.99, "category": "Tools", "inStock": true}'
 
 # Query with FIQL
-curl -sk "https://localhost/my-app/Product?category==Tools&amp;price=lt=50&amp;sort=-price&amp;limit=10"
+curl -sk "https://localhost:9996/my-app/Product?category==Tools&amp;price=lt=50&amp;sort=-price&amp;limit=10"
 
 # Real-time stream
-curl -sk "https://localhost/my-app/Product?stream=sse"
+curl -sk "https://localhost:9996/my-app/Product?stream=sse"
 </code></pre>
 <h2 id="why-yeti"><a class="header" href="#why-yeti">Why Yeti</a></h2>
 <p><strong>Schema-driven</strong> - Define tables in GraphQL. REST, GraphQL, SSE, WebSocket, gRPC, MQTT, and MCP endpoints are generated automatically. No boilerplate.</p>

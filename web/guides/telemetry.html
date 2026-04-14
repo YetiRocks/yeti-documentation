@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="telemetry--observability"><a class="header" href="#telemetry--observability">Telemetry &amp; Observability</a></h1>
-<p>The <code>yeti-telemetry</code> extension captures tracing events from the core runtime and persists logs, spans, and metrics to tables with real-time SSE streaming and optional OTLP export.</p>
+<p>The <code>yeti-telemetry</code> service captures tracing events from the core runtime and persists logs, spans, and metrics to tables with real-time SSE streaming and optional OTLP export.</p>
 <h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
 <pre><code>tracing::info!(...)
       |
@@ -119,18 +119,18 @@
   mpsc::channel (bounded, 10K)  Host-created channel
       |
       v
-  EventSubscriber (extension)  Processes events
+  EventSubscriber (service)    Processes events
       |
       +---&gt; Log/Span/Metric tables
       +---&gt; SSE streams
       +---&gt; OTLP export (optional)
 </code></pre>
-<p>Core contains only the <code>DispatchLayer</code> (~260 lines). All processing lives in the extension.</p>
+<p>Core contains only the <code>DispatchLayer</code> (~260 lines). All processing lives in the service.</p>
 <h2 id="querying"><a class="header" href="#querying">Querying</a></h2>
 <pre><code class="language-bash"># REST
 curl -sk "https://localhost:9996/yeti-telemetry/Log?limit=50&amp;sort=-timestamp"
-curl -sk "https://localhost:9996/yeti-telemetry/Log?filter=level==ERROR"
-curl -sk "https://localhost:9996/yeti-telemetry/Span?filter=traceId==abc-123"
+curl -sk "https://localhost:9996/yeti-telemetry/Log?level==ERROR"
+curl -sk "https://localhost:9996/yeti-telemetry/Span?traceId==abc-123"
 
 # SSE streaming
 curl -sk "https://localhost:9996/yeti-telemetry/Log?stream=sse"
@@ -150,16 +150,14 @@ curl -sk "https://localhost:9996/yeti-telemetry/Metric?stream=sse"
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <pre><code class="language-yaml">telemetry:
   metrics: true
-  tracing: false
-  auditLog: true
   serviceName: yeti
+  otlpEndpoint: "http://localhost:4317"   # optional
 
 logging:
   level: info
-  auditLog: true
 </code></pre>
 <h2 id="custom-telemetry"><a class="header" href="#custom-telemetry">Custom Telemetry</a></h2>
-<p>Replace yeti-telemetry by creating your own extension implementing <code>EventSubscriber</code>. Register via <code>ctx.set_event_subscriber()</code> in <code>on_ready()</code>. Without any telemetry extension, only stdout logging works.</p>
+<p>Replace yeti-telemetry by creating your own service implementing <code>EventSubscriber</code>. Register via <code>ctx.set_event_subscriber()</code> in <code>on_ready()</code>. Without any telemetry service, only stdout logging works.</p>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
 <li><a href="event-subscribers.html">Event Subscribers</a> - EventSubscriber trait</li>
@@ -170,9 +168,9 @@ logging:
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
-                        <a rel="prev" href="../guides/redirects.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <a rel="prev" href="../guides/ai-inference.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                             <i class="fa fa-angle-left"></i>
-                            <span class="nav-label">URL Redirect Management</span>
+                            <span class="nav-label">AI &amp; Inference</span>
                         </a>
                         <a rel="next" href="../guides/grpc.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                             <span class="nav-label">gRPC</span>

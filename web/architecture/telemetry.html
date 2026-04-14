@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="telemetry-pipeline"><a class="header" href="#telemetry-pipeline">Telemetry Pipeline</a></h1>
-<p>Core provides a minimal event channel (~260 lines). All processing lives in the optional <code>yeti-telemetry</code> extension.</p>
+<p>Core provides a minimal event channel (~260 lines). All processing lives in the optional <code>yeti-telemetry</code> service.</p>
 <h2 id="pipeline"><a class="header" href="#pipeline">Pipeline</a></h2>
 <pre><code>tracing::info!("message")
         │
@@ -116,7 +116,7 @@
         │
   Bounded Channel (10K)      tokio mpsc
         │
-  EventSubscriber::run()     Implemented by extension
+  EventSubscriber::run()     Implemented by service
         │
         ├──&gt; Log/Span/Metric tables
         ├──&gt; FileProvider (JSONL rotation)
@@ -139,7 +139,7 @@
     ) -&gt; Pin&lt;Box&lt;dyn Future&lt;Output = ()&gt; + Send&gt;&gt;;
 }</code></pre>
 <p>The host creates the channel, registers the sender, and spawns <code>run()</code> after <code>on_ready()</code>.</p>
-<h2 id="yeti-telemetry-extension"><a class="header" href="#yeti-telemetry-extension">yeti-telemetry Extension</a></h2>
+<h2 id="yeti-telemetry-service"><a class="header" href="#yeti-telemetry-service">yeti-telemetry Service</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Component</th><th>Purpose</th></tr></thead><tbody>
 <tr><td><code>TelemetryWriter</code></td><td>Routes events to outputs</td></tr>
 <tr><td><code>FileProvider</code></td><td>JSONL file rotation</td></tr>
@@ -148,7 +148,7 @@
 <tr><td>Dashboard UI</td><td><code>/yeti-telemetry/</code></td></tr>
 </tbody></table>
 </div>
-<h2 id="without-an-extension"><a class="header" href="#without-an-extension">Without an Extension</a></h2>
+<h2 id="without-a-service"><a class="header" href="#without-a-service">Without a Service</a></h2>
 <p>DispatchLayer becomes a no-op. Only stdout logging remains.</p>
 
                     </main>

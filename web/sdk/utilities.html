@@ -110,42 +110,52 @@
                         <h1 id="utilities"><a class="header" href="#utilities">Utilities</a></h1>
 <p>Helper functions and types available via <code>use yeti_sdk::prelude::*</code>.</p>
 <h2 id="http-fetch"><a class="header" href="#http-fetch">HTTP Fetch</a></h2>
-<p>Plugin-safe HTTP client that uses a curl subprocess. Required because <code>reqwest::blocking::Client</code> crashes in dylib plugins.</p>
-<h3 id="fetch"><a class="header" href="#fetch">fetch()</a></h3>
-<pre><code class="language-rust ignore">pub fn fetch(url: &amp;str, options: Option&lt;FetchOptions&gt;) -&gt; Result&lt;FetchResponse, String&gt;</code></pre>
-<pre><code class="language-rust ignore">// Simple GET
-let res = fetch("https://api.example.com/data", None)?;
-if res.ok() {
-    let data = res.json()?;
-}
+<p>Plugin-safe HTTP client. Uses the host's reqwest client via an internal bridge when available, falling back to a curl subprocess. Required because <code>reqwest::blocking::Client</code> crashes in dylib plugins.</p>
+<h3 id="fetch-macro"><a class="header" href="#fetch-macro">fetch! macro</a></h3>
+<p>The <code>fetch!</code> macro creates a <code>FetchBuilder</code>. Terminal methods (<code>.json()</code>, <code>.text()</code>, <code>.send()</code>) execute the request.</p>
+<pre><code class="language-rust ignore">// Simple GET -&gt; JSON
+let data: Value = fetch!("https://api.example.com/data").json()?;
 
 // POST with JSON body
-let res = fetch("https://api.example.com/users", Some(FetchOptions {
-    method: "POST".into(),
-    body: Some(json!({"name": "Alice"}).to_string()),
-    headers: vec![("Content-Type".into(), "application/json".into())],
-    ..Default::default()
-}))?;
+let data: Value = fetch!("POST", "https://api.example.com/users")
+    .header("Authorization", &amp;format!("Bearer {token}"))
+    .json_body(&amp;json!({"name": "Alice"}))?
+    .json()?;
 
-// With timeout
-let res = fetch("https://slow.example.com", Some(FetchOptions {
-    signal_timeout: 5,
-    ..Default::default()
-}))?;
+// POST with form body
+let resp = fetch!("POST", "https://oauth.example.com/token")
+    .header("Content-Type", "application/x-www-form-urlencoded")
+    .body("grant_type=authorization_code&amp;code=abc")
+    .send()?;
+
+// GET -&gt; text
+let html: String = fetch!("https://example.com").text()?;
+
+// Raw response (when you need status/headers)
+let resp = fetch!("https://api.example.com/data").send()?;
+if resp.ok() { /* ... */ }
 
 // No redirects
-let res = fetch("https://example.com/old", Some(FetchOptions {
-    redirect: false,
-    ..Default::default()
-}))?;</code></pre>
-<h3 id="fetchoptions"><a class="header" href="#fetchoptions">FetchOptions</a></h3>
-<pre><code class="language-rust ignore">pub struct FetchOptions {
-    pub method: String,                      // Default: "GET"
-    pub headers: Vec&lt;(String, String)&gt;,      // Request headers
-    pub body: Option&lt;String&gt;,                // Request body
-    pub redirect: bool,                      // Follow redirects. Default: true
-    pub timeout: u64,                        // Timeout in seconds. Default: 30
-    pub signal_timeout: u64,                 // Abort timeout (0 = no abort). Default: 0
+let resp = fetch!("https://example.com/old").no_redirect().send()?;
+
+// Custom timeout
+let resp = fetch!("https://slow.example.com").timeout(5).send()?;</code></pre>
+<h3 id="fetchbuilder"><a class="header" href="#fetchbuilder">FetchBuilder</a></h3>
+<pre><code class="language-rust ignore">pub struct FetchBuilder {
+    // Created by fetch! macro -- use builder methods to configure
+}
+
+impl FetchBuilder {
+    fn header(self, key: &amp;str, value: &amp;str) -&gt; Self  // Add request header
+    fn body(self, body: &amp;str) -&gt; Self                 // Set raw string body
+    fn json_body(self, value: &amp;Value) -&gt; Result&lt;Self&gt; // Set JSON body + Content-Type
+    fn no_redirect(self) -&gt; Self                      // Disable following redirects
+    fn timeout(self, seconds: u64) -&gt; Self            // Set timeout (default: 30s)
+
+    // Terminal methods (execute the request):
+    fn json(self) -&gt; Result&lt;Value&gt;                    // Send, ensure 2xx, parse JSON
+    fn text(self) -&gt; Result&lt;String&gt;                   // Send, ensure 2xx, return body
+    fn send(self) -&gt; Result&lt;FetchResponse&gt;            // Send, return raw response
 }</code></pre>
 <h3 id="fetchresponse"><a class="header" href="#fetchresponse">FetchResponse</a></h3>
 <pre><code class="language-rust ignore">pub struct FetchResponse {
@@ -158,6 +168,7 @@ let res = fetch("https://example.com/old", Some(FetchOptions {
 
 impl FetchResponse {
     fn ok(&amp;self) -&gt; bool                     // true if 200-299
+    fn ensure_ok(self) -&gt; Result&lt;Self&gt;       // return self if 2xx, else error
     fn json(&amp;self) -&gt; Result&lt;Value, String&gt;  // parse body as JSON
     fn text(&amp;self) -&gt; &amp;str                   // body as string
     fn bytes(&amp;self) -&gt; &amp;[u8]                 // body as bytes
@@ -184,11 +195,16 @@ pub fn delete(name: impl Into&lt;String&gt;) -&gt; String   // helper: Max-Age=0
     .same_site(SameSite::Lax)
     .build();
 
-ctx.response_headers().append("set-cookie", &amp;cookie);
+// Return response with cookie header
+reply()
+    .header("set-cookie", &amp;cookie)
+    .json(json!({"status": "logged in"}))
 
 // Delete a cookie
 let delete_cookie = CookieBuilder::delete("session_id");
-ctx.response_headers().append("set-cookie", &amp;delete_cookie);</code></pre>
+reply()
+    .header("set-cookie", &amp;delete_cookie)
+    .json(json!({"status": "logged out"}))</code></pre>
 <h3 id="cookieparser"><a class="header" href="#cookieparser">CookieParser</a></h3>
 <p>Read cookies from HTTP requests. Handles HTTP/2 split cookie headers (RFC 7540).</p>
 <pre><code class="language-rust ignore">pub fn get_cookie&lt;B&gt;(req: &amp;Request&lt;B&gt;, name: &amp;str) -&gt; Option&lt;String&gt;
@@ -231,7 +247,7 @@ pub fn composite_key_from(parts: &amp;[impl AsRef&lt;str&gt;]) -&gt; String</cod
 <h2 id="csv-parsing"><a class="header" href="#csv-parsing">CSV Parsing</a></h2>
 <p>Parse CSV bytes into JSON objects. Column headers become field names:</p>
 <pre><code class="language-rust ignore">pub fn parse_csv(data: &amp;[u8]) -&gt; Vec&lt;Value&gt;</code></pre>
-<pre><code class="language-rust ignore">let items = parse_csv(request.body_bytes());</code></pre>
+<pre><code class="language-rust ignore">let items = parse_csv(&amp;ctx.body);</code></pre>
 <p>Input:</p>
 <pre><code class="language-csv">name,price,category
 Widget,29.99,Tools
@@ -265,12 +281,13 @@ reply().json(result.to_json("Imported"))
 // {"message": "Imported", "created": 45, "updated": 3, "errors": [...]}</code></pre>
 <h3 id="complete-csv-import-pipeline"><a class="header" href="#complete-csv-import-pipeline">Complete CSV import pipeline</a></h3>
 <pre><code class="language-rust ignore">resource!(Import {
-    post(request, ctx) =&gt; {
+    post(ctx) =&gt; {
         let table = ctx.get_table("Product")?;
-        let items = if request.is_csv() {
-            parse_csv(request.body_bytes())
+        let body = ctx.require_json_body()?;
+        let items = if let Some(arr) = body.as_array() {
+            arr.clone()
         } else {
-            request.json_array()?
+            parse_csv(&amp;ctx.body)
         };
         let result = bulk_upsert(&amp;table, items,
             |item| item["id"].as_str().map(|s| s.to_string()),
@@ -296,7 +313,7 @@ yeti_log!(trace, "Entering handler");</code></pre>
 <p>Supported levels: <code>trace</code>, <code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code>.</p>
 <h2 id="quick-reference"><a class="header" href="#quick-reference">Quick Reference</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>fetch(url, options?)</code></td><td><code>Result&lt;FetchResponse, String&gt;</code></td><td>HTTP request via curl</td></tr>
+<tr><td><code>fetch!(url)</code> / <code>fetch!(method, url)</code></td><td><code>FetchBuilder</code></td><td>HTTP request builder (use <code>.json()</code>, <code>.text()</code>, or <code>.send()</code> to execute)</td></tr>
 <tr><td><code>generate_id()</code></td><td><code>String</code></td><td>UUID v7 (time-sortable)</td></tr>
 <tr><td><code>generate_id_v7()</code></td><td><code>String</code></td><td>Alias for <code>generate_id()</code></td></tr>
 <tr><td><code>unix_timestamp()</code></td><td><code>Result&lt;u64&gt;</code></td><td>Current unix timestamp (fallible)</td></tr>
@@ -312,14 +329,17 @@ yeti_log!(trace, "Entering handler");</code></pre>
 <tr><td><code>CookieBuilder::delete(name)</code></td><td><code>String</code></td><td>Delete-cookie header string</td></tr>
 <tr><td><code>CookieParser::get_cookie(req, name)</code></td><td><code>Option&lt;String&gt;</code></td><td>Read cookie from request</td></tr>
 <tr><td><code>CookieParser::parse_all(req)</code></td><td><code>HashMap&lt;String, String&gt;</code></td><td>All cookies from request</td></tr>
+<tr><td><code>delay(ms)</code></td><td><code>async</code></td><td>Async sleep for N milliseconds</td></tr>
+<tr><td><code>delay_sync(ms)</code></td><td><code>()</code></td><td>Blocking sleep for N milliseconds</td></tr>
+<tr><td><code>now_ms()</code></td><td><code>u64</code></td><td>Current time in milliseconds since epoch</td></tr>
 </tbody></table>
 </div>
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
-                        <a rel="prev" href="../sdk/resource-params.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <a rel="prev" href="../sdk/table-access.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                             <i class="fa fa-angle-left"></i>
-                            <span class="nav-label">ResourceParams</span>
+                            <span class="nav-label">Table Access</span>
                         </a>
                         <a rel="next" href="../sdk/extension-api.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                             <span class="nav-label">Extension API</span>

@@ -136,7 +136,7 @@
 <h2 id="value-encoding"><a class="header" href="#value-encoding">Value Encoding</a></h2>
 <p><strong>MessagePack</strong> - 30-50% smaller than JSON, faster serialization.</p>
 <h2 id="backendmanager"><a class="header" href="#backendmanager">BackendManager</a></h2>
-<p>Maps table names to backend instances. One sharded RocksDB per database. Extension tables are merged via <code>with_merged_tables()</code> for extensions declared in the app's config.</p>
+<p>Maps table names to backend instances. One sharded RocksDB per database. Service tables are merged via <code>with_merged_tables()</code> for services declared in the app's config.</p>
 <h2 id="kvbackend-trait"><a class="header" href="#kvbackend-trait">KvBackend Trait</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>put(key, value)</code></td><td>Single write</td></tr>
@@ -154,7 +154,7 @@
 <tr><td><code>storage.cacheSizeMb</code></td><td>2048</td><td>Block cache size per database</td></tr>
 <tr><td><code>storage.writeBufferSizeMb</code></td><td>512</td><td>Memtable size before flush</td></tr>
 <tr><td><code>storage.shardCount</code></td><td>num_cpus / 2</td><td>Number of RocksDB shards per database</td></tr>
-<tr><td><code>storage.compression</code></td><td>false</td><td>LZ4 compression for SSTables</td></tr>
+<tr><td><code>storage.compression</code></td><td>true</td><td>LZ4 compression for SSTables</td></tr>
 <tr><td><code>storage.path</code></td><td><code>data/</code></td><td>Data directory path</td></tr>
 </tbody></table>
 </div>

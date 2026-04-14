@@ -4,7 +4,7 @@ Beyond table-level CRUD, Yeti supports field-level access control. Different rol
 
 ## Configuration
 
-Add `attribute_permissions` within a table's permission block:
+Add `attribute_permissions` within a table's permission block in the role's `permissions` JSON:
 
 ```json
 {
@@ -27,9 +27,16 @@ Add `attribute_permissions` within a table's permission block:
 }
 ```
 
-## Read Projection
+The `AttributePermission` struct has two fields:
 
-Restricted fields are **omitted entirely** from responses - not null, not redacted.
+- `read` -- whether this field can be returned in query results
+- `write` -- whether this field can be included in insert/update payloads
+
+Fields without an explicit `attribute_permissions` entry default to allowed (`read: true, write: true`).
+
+## Read Filtering
+
+The `restrict_select_fields()` function strips unauthorized fields from the query's select list **before** the storage resolver runs. The resolver never sees restricted fields.
 
 **Admin** (full access):
 ```json
@@ -41,9 +48,13 @@ Restricted fields are **omitted entirely** from responses - not null, not redact
 {"id": "emp-1", "name": "Alice Smith", "department": "Engineering"}
 ```
 
+Restricted fields are **omitted entirely** from responses -- not null, not redacted.
+
+For nested relationship sub-fields, `restrict_select_fields()` recursively checks permissions against the target table's definition using the schema.
+
 ## Write Validation
 
-Attempting to write restricted fields returns 403:
+The `check_table_write()` function rejects write operations that include unauthorized fields. Attempting to write restricted fields returns 403:
 
 ```bash
 curl -sk -u viewer:password -X PUT https://localhost:9996/my-app/Employee/emp-1 \
@@ -52,12 +63,29 @@ curl -sk -u viewer:password -X PUT https://localhost:9996/my-app/Employee/emp-1 
 ```
 
 ```json
-{"error": "Access denied: cannot write attributes [salary] in data.Employee"}
+{
+  "type": "urn:yeti:error:forbidden",
+  "title": "Forbidden",
+  "status": 403,
+  "detail": "Access denied: cannot write attribute 'salary'"
+}
 ```
+
+The `id` field (primary key) is always allowed in write payloads regardless of attribute permissions.
+
+## Fast Path
+
+The `has_unrestricted_attributes()` method provides a fast path: if no `attribute_permissions` are configured for a table, the system skips all per-field checks and uses `FullAccess` mode. Attribute-level enforcement has zero cost for roles that do not use it.
+
+The dispatch layer pre-computes a `TablePermission` enum per request:
+
+- `Public` -- no auth required (from `@export(public: [...])`)
+- `FullAccess` -- authenticated with no attribute restrictions
+- `AttributeRestricted { readable, writable }` -- pre-computed field sets for this user's role
 
 ## Example Roles
 
-**standard** - restricted sensitive fields:
+**standard** -- restricted sensitive fields:
 ```json
 {
   "super_user": false,
@@ -79,21 +107,11 @@ curl -sk -u viewer:password -X PUT https://localhost:9996/my-app/Employee/emp-1 
 
 ```bash
 # Admin sees all fields
-curl -sk -u admin:admin https://localhost:9996/web-auth-demo/Employee
+curl -sk -u admin:admin https://localhost:9996/my-app/Employee
 
-# Standard user - salary and ssn omitted
-curl -sk -u user:password https://localhost:9996/web-auth-demo/Employee
+# Standard user -- salary and ssn omitted from results
+curl -sk -u user:password https://localhost:9996/my-app/Employee
 ```
-
-## Implementation
-
-The `PermissionContext` calculates readable attributes once per query:
-
-1. `from_params()` - intersects schema fields with role's read permissions
-2. `needs_projection()` - true if any fields need filtering
-3. `project_record()` / `project_records()` - removes restricted fields
-
-Super users bypass all attribute checks.
 
 ## See Also
 

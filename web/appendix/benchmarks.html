@@ -138,7 +138,7 @@
 <h2 id="running-benchmarks"><a class="header" href="#running-benchmarks">Running Benchmarks</a></h2>
 <p>Benchmarks run as a standalone Yeti application at <code>/app-benchmarks/</code>. The web UI provides one-click test execution with live progress tracking.</p>
 <pre><code class="language-bash"># Access the benchmark dashboard
-open https://localhost/app-benchmarks/
+open https://localhost:9996/app-benchmarks/
 </code></pre>
 <p>Individual load test binaries can also be run directly:</p>
 <pre><code class="language-bash">load-rest --test rest-read --base-url https://localhost --duration 30 --vus 100
@@ -168,10 +168,6 @@ load-realtime --test ws --base-url https://localhost --duration 30 --vus 15000
                         <a rel="prev" href="../appendix/api-compatibility.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                             <i class="fa fa-angle-left"></i>
                             <span class="nav-label">API Compatibility Matrix</span>
-                        </a>
-                        <a rel="next" href="../appendix/migration.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                            <span class="nav-label">Migration Guide</span>
-                            <i class="fa fa-angle-right"></i>
                         </a>
                     </nav>
                 </div>

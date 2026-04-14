@@ -110,7 +110,7 @@
                         <h1 id="table-access"><a class="header" href="#table-access">Table Access</a></h1>
 <p>Tables are the primary data interface. The SDK provides three levels of table access: <code>Table</code> (high-level CRUD), <code>TableExt</code> (typed operations on <code>KvBackend</code>), and <code>QueryBuilder</code> (filtered queries).</p>
 <h2 id="getting-a-table"><a class="header" href="#getting-a-table">Getting a Table</a></h2>
-<h3 id="from-resourceparams"><a class="header" href="#from-resourceparams">From ResourceParams</a></h3>
+<h3 id="from-context"><a class="header" href="#from-context">From Context</a></h3>
 <pre><code class="language-rust ignore">// Shorthand -- most common
 let table = ctx.get_table("Product")?;
 
@@ -125,16 +125,39 @@ if tables.has("Product") {
 <h3 id="low-level-backend-access"><a class="header" href="#low-level-backend-access">Low-level backend access</a></h3>
 <pre><code class="language-rust ignore">// Returns Arc&lt;dyn KvBackend&gt; for raw byte operations
 let backend = ctx.table("Product")?;</code></pre>
-<h2 id="table-high-level-crud"><a class="header" href="#table-high-level-crud">Table (High-Level CRUD)</a></h2>
+<h2 id="tables-struct"><a class="header" href="#tables-struct">Tables Struct</a></h2>
+<p>The <code>Tables</code> struct provides access to all tables in the application.</p>
+<h3 id="methods"><a class="header" href="#methods">Methods</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>get(name)</code></td><td><code>Result&lt;Table&gt;</code></td><td>Get a table handle by name</td></tr>
+<tr><td><code>has(name)</code></td><td><code>bool</code></td><td>Check if a table exists</td></tr>
+<tr><td><code>backend_manager()</code></td><td><code>&amp;Arc&lt;BackendManager&gt;</code></td><td>Access the underlying backend manager</td></tr>
+<tr><td><code>pubsub()</code></td><td><code>Option&lt;&amp;Arc&lt;PubSubManager&gt;&gt;</code></td><td>Access the PubSub manager</td></tr>
+</tbody></table>
+</div>
+<pre><code class="language-rust ignore">let tables = ctx.tables()?;
+
+let orders = tables.get("Order")?;
+
+if tables.has("AuditLog") {
+    let audit = tables.get("AuditLog")?;
+}
+
+// Access PubSub for manual subscriptions
+if let Some(ps) = tables.pubsub() {
+    let rx = ps.subscribe("Order").await;
+}</code></pre>
+<h2 id="table-struct"><a class="header" href="#table-struct">Table Struct</a></h2>
 <p>The <code>Table</code> struct provides async CRUD operations with automatic serialization.</p>
 <h3 id="table-metadata"><a class="header" href="#table-metadata">Table metadata</a></h3>
 <pre><code class="language-rust ignore">fn name(&amp;self) -&gt; &amp;str
-fn backend(&amp;self) -&gt; &amp;Arc&lt;dyn KvBackend&gt;</code></pre>
+fn backend(&amp;self) -&gt; &amp;Arc&lt;dyn KvBackend&gt;
+fn pubsub(&amp;self) -&gt; Option&lt;&amp;Arc&lt;PubSubManager&gt;&gt;</code></pre>
 <h3 id="read-operations"><a class="header" href="#read-operations">Read operations</a></h3>
 <pre><code class="language-rust ignore">// Get by ID -- returns Option&lt;Value&gt;
 let record = table.get("prod-123").await?;
 
-// Get by ID -- returns 404 if missing
+// Get by ID -- returns YetiError::NotFound if missing
 let record = table.get_or_404("prod-123").await?;
 
 // Check existence
@@ -174,9 +197,24 @@ let by_status: HashMap&lt;String, usize&gt; = table.count_by("status").await?;
 // Group records by field
 let by_category: HashMap&lt;String, Vec&lt;Value&gt;&gt; = table.group_by("category").await?;
 // {"Tools": [{...}], "Electronics": [{...}]}</code></pre>
-<h3 id="querybuilder"><a class="header" href="#querybuilder">QueryBuilder</a></h3>
+<h3 id="pubsub-methods"><a class="header" href="#pubsub-methods">PubSub methods</a></h3>
+<p>Subscribe to real-time changes on a table or a specific record. Requires the app to have PubSub enabled.</p>
+<pre><code class="language-rust ignore">// Subscribe to all changes on a table
+let mut rx = table.subscribe_all().await?;
+while let Ok(msg) = rx.recv().await {
+    println!("Change: {:?}", msg.message_type);
+}
+
+// Subscribe to a specific record by ID
+let mut rx = table.subscribe_id("order-123").await?;
+while let Ok(msg) = rx.recv().await {
+    println!("Record changed: {:?}", msg.data);
+}
+
+// Publish a message to a table/id topic
+table.publish("order-123", json!({"event": "shipped"})).await?;</code></pre>
+<h2 id="querybuilder"><a class="header" href="#querybuilder">QueryBuilder</a></h2>
 <p>Build filtered queries with a fluent API. Access via <code>table.query()</code>:</p>
-<pre><code class="language-rust ignore">fn query(&amp;self) -&gt; QueryBuilder&lt;'_, dyn KvBackend&gt;</code></pre>
 <pre><code class="language-rust ignore">let results: Vec&lt;Value&gt; = table.query()
     .where_eq("status", "active")
     .where_gt("price", 100)
@@ -185,9 +223,10 @@ let by_category: HashMap&lt;String, Vec&lt;Value&gt;&gt; = table.group_by("categ
     .offset(20)
     .execute()
     .await?;</code></pre>
-<h4 id="condition-methods"><a class="header" href="#condition-methods">Condition methods</a></h4>
+<h3 id="condition-methods"><a class="header" href="#condition-methods">Condition methods</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>where_eq(field, value)</code></td><td>field == value</td></tr>
+<tr><td><code>where_strict_eq(field, value)</code></td><td>field === value (no type coercion)</td></tr>
 <tr><td><code>where_ne(field, value)</code></td><td>field != value</td></tr>
 <tr><td><code>where_gt(field, value)</code></td><td>field &gt; value</td></tr>
 <tr><td><code>where_gte(field, value)</code></td><td>field &gt;= value</td></tr>
@@ -204,18 +243,18 @@ let by_category: HashMap&lt;String, Vec&lt;Value&gt;&gt; = table.group_by("categ
 <tr><td><code>where_between_inclusive(field, low, high)</code></td><td>low &lt;= field &lt;= high</td></tr>
 </tbody></table>
 </div>
-<h4 id="conditional-filters"><a class="header" href="#conditional-filters">Conditional filters</a></h4>
+<h3 id="conditional-filters"><a class="header" href="#conditional-filters">Conditional filters</a></h3>
 <p>Add conditions only when a predicate is true. Useful for optional user input:</p>
-<pre><code class="language-rust ignore">let category = ctx.get_str("category", "");
+<pre><code class="language-rust ignore">let category = ctx.query("category").unwrap_or("");
 
 let results: Vec&lt;Value&gt; = table.query()
-    .where_eq_if("category", &amp;category, !category.is_empty())
-    .where_eq_non_empty("status", ctx.get("status").unwrap_or(""))
+    .where_eq_if("category", category, !category.is_empty())
+    .where_eq_non_empty("status", ctx.query("status").unwrap_or(""))
     .where_gte_if("price", min_price, min_price &gt; 0)
     .execute()
     .await?;</code></pre>
 <p>Available: <code>where_eq_if</code>, <code>where_eq_non_empty</code>, <code>where_gt_if</code>, <code>where_gte_if</code>, <code>where_lt_if</code>, <code>where_lte_if</code>.</p>
-<h4 id="logical-operators"><a class="header" href="#logical-operators">Logical operators</a></h4>
+<h3 id="logical-operators"><a class="header" href="#logical-operators">Logical operators</a></h3>
 <pre><code class="language-rust ignore">// Default: AND (all conditions must match)
 let results: Vec&lt;Value&gt; = table.query()
     .where_eq("status", "active")
@@ -230,14 +269,14 @@ let results: Vec&lt;Value&gt; = table.query()
     .where_eq("name", "Bob")
     .execute()
     .await?;</code></pre>
-<h4 id="pagination"><a class="header" href="#pagination">Pagination</a></h4>
+<h3 id="pagination"><a class="header" href="#pagination">Pagination</a></h3>
 <pre><code class="language-rust ignore">let results: Vec&lt;Value&gt; = table.query()
     .where_eq("status", "active")
     .offset(20)
     .limit(10)
     .execute()
     .await?;</code></pre>
-<h4 id="terminal-methods"><a class="header" href="#terminal-methods">Terminal methods</a></h4>
+<h3 id="terminal-methods"><a class="header" href="#terminal-methods">Terminal methods</a></h3>
 <pre><code class="language-rust ignore">// Get all matching records
 let results: Vec&lt;Value&gt; = query.execute().await?;
 
@@ -251,7 +290,7 @@ let first: Option&lt;Value&gt; = query.first().await?;
 let record: Value = query.first_or_err("No matching user found").await?;</code></pre>
 <h2 id="tableext-low-level-typed-access"><a class="header" href="#tableext-low-level-typed-access">TableExt (Low-Level Typed Access)</a></h2>
 <p>Extension trait on <code>dyn KvBackend</code> for typed serialization/deserialization with string keys. Use this when you need to work with custom types or access the raw backend.</p>
-<h3 id="methods"><a class="header" href="#methods">Methods</a></h3>
+<h3 id="methods-1"><a class="header" href="#methods-1">Methods</a></h3>
 <pre><code class="language-rust ignore">async fn get&lt;T: DeserializeOwned&gt;(&amp;self, key: impl AsRef&lt;str&gt;) -&gt; Result&lt;Option&lt;T&gt;&gt;
 async fn get_or&lt;T: DeserializeOwned&gt;(&amp;self, key: impl AsRef&lt;str&gt;, default: T) -&gt; Result&lt;T&gt;
 async fn get_required&lt;T: DeserializeOwned&gt;(&amp;self, key: impl AsRef&lt;str&gt;) -&gt; Result&lt;T&gt;
@@ -299,7 +338,7 @@ let keys: Vec&lt;String&gt; = TableExt::scan_key_names(&amp;*backend, "user:").a
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
 
 resource!(Dashboard {
-    get(request, ctx) =&gt; {
+    get(ctx) =&gt; {
         let orders = ctx.get_table("Order")?;
 
         let total = orders.count().await?;
@@ -329,8 +368,8 @@ resource!(Dashboard {
                             <i class="fa fa-angle-left"></i>
                             <span class="nav-label">Response Helpers</span>
                         </a>
-                        <a rel="next" href="../sdk/resource-params.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                            <span class="nav-label">ResourceParams</span>
+                        <a rel="next" href="../sdk/utilities.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <span class="nav-label">Utilities</span>
                             <i class="fa fa-angle-right"></i>
                         </a>
                     </nav>

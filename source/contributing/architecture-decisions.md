@@ -22,13 +22,13 @@ Key technology choices for yeti v1.0.
 
 **Benchmarks**: p50 <500us, p99 <5ms, no GC-related latency spikes.
 
-## ADR-003: Actix-Web for HTTP
+## ADR-003: Axum for HTTP
 
-**Decision**: Actix-web as HTTP framework.
+**Decision**: Axum as HTTP framework.
 
-**Why**: Among fastest Rust web frameworks, built-in TLS via rustls, streaming support, WebSocket support, mature and battle-tested.
+**Why**: Tower-native middleware ecosystem, first-class WebSocket support, built-in TLS via rustls, strong async ergonomics, actively maintained by the Tokio team.
 
-**Rejected**: Axum (less proven at the time), Rocket (sync-first), Warp (smaller community).
+**Rejected**: Actix-web (macro-heavy API, separate runtime), Rocket (sync-first), Warp (smaller community).
 
 ## ADR-004: FIQL for Query Language
 
@@ -52,6 +52,6 @@ Key technology choices for yeti v1.0.
 |-----------|--------|
 | Language | Rust |
 | Storage | RocksDB |
-| HTTP Server | actix-web |
+| HTTP Server | Axum |
 | Query Language | FIQL |
 | TLS | Rustls + ring |

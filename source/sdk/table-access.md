@@ -1,10 +1,10 @@
 # Table Access
 
-Tables are the primary data interface. The SDK provides three levels of table access: `Table` (high-level CRUD), `TableExt` (typed operations on `KvBackend`), and `QueryBuilder` (filtered queries).
+Three levels of table access: `Table` (high-level CRUD), `TableExt` (typed operations on `KvBackend`), and `QueryBuilder` (filtered queries).
 
 ## Getting a Table
 
-### From ResourceParams
+### From Context
 
 ```rust,ignore
 // Shorthand -- most common
@@ -27,15 +27,44 @@ if tables.has("Product") {
 let backend = ctx.table("Product")?;
 ```
 
-## Table (High-Level CRUD)
+## Tables Struct
 
-The `Table` struct provides async CRUD operations with automatic serialization.
+Access to all tables in the application.
+
+### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get(name)` | `Result<Table>` | Table handle by name |
+| `has(name)` | `bool` | Whether a table exists |
+| `backend_manager()` | `&Arc<BackendManager>` | Underlying backend manager |
+| `pubsub()` | `Option<&Arc<PubSubManager>>` | PubSub manager |
+
+```rust,ignore
+let tables = ctx.tables()?;
+
+let orders = tables.get("Order")?;
+
+if tables.has("AuditLog") {
+    let audit = tables.get("AuditLog")?;
+}
+
+// Access PubSub for manual subscriptions
+if let Some(ps) = tables.pubsub() {
+    let rx = ps.subscribe("Order").await;
+}
+```
+
+## Table Struct
+
+Async CRUD operations with automatic serialization.
 
 ### Table metadata
 
 ```rust,ignore
 fn name(&self) -> &str
 fn backend(&self) -> &Arc<dyn KvBackend>
+fn pubsub(&self) -> Option<&Arc<PubSubManager>>
 ```
 
 ### Read operations
@@ -44,7 +73,7 @@ fn backend(&self) -> &Arc<dyn KvBackend>
 // Get by ID -- returns Option<Value>
 let record = table.get("prod-123").await?;
 
-// Get by ID -- returns 404 if missing
+// Get by ID -- returns YetiError::NotFound if missing
 let record = table.get_or_404("prod-123").await?;
 
 // Check existence
@@ -94,13 +123,30 @@ let by_category: HashMap<String, Vec<Value>> = table.group_by("category").await?
 // {"Tools": [{...}], "Electronics": [{...}]}
 ```
 
-### QueryBuilder
+### PubSub methods
 
-Build filtered queries with a fluent API. Access via `table.query()`:
+Subscribe to real-time changes on a table or specific record. Requires PubSub enabled.
 
 ```rust,ignore
-fn query(&self) -> QueryBuilder<'_, dyn KvBackend>
+// Subscribe to all changes on a table
+let mut rx = table.subscribe_all().await?;
+while let Ok(msg) = rx.recv().await {
+    println!("Change: {:?}", msg.message_type);
+}
+
+// Subscribe to a specific record by ID
+let mut rx = table.subscribe_id("order-123").await?;
+while let Ok(msg) = rx.recv().await {
+    println!("Record changed: {:?}", msg.data);
+}
+
+// Publish a message to a table/id topic
+table.publish("order-123", json!({"event": "shipped"})).await?;
 ```
+
+## QueryBuilder
+
+Fluent filtered queries via `table.query()`:
 
 ```rust,ignore
 let results: Vec<Value> = table.query()
@@ -113,11 +159,12 @@ let results: Vec<Value> = table.query()
     .await?;
 ```
 
-#### Condition methods
+### Condition methods
 
 | Method | Description |
 |--------|-------------|
 | `where_eq(field, value)` | field == value |
+| `where_strict_eq(field, value)` | field === value (no type coercion) |
 | `where_ne(field, value)` | field != value |
 | `where_gt(field, value)` | field > value |
 | `where_gte(field, value)` | field >= value |
@@ -133,16 +180,16 @@ let results: Vec<Value> = table.query()
 | `where_between(field, low, high)` | low < field < high |
 | `where_between_inclusive(field, low, high)` | low <= field <= high |
 
-#### Conditional filters
+### Conditional filters
 
-Add conditions only when a predicate is true. Useful for optional user input:
+Add conditions only when a predicate is true:
 
 ```rust,ignore
-let category = ctx.get_str("category", "");
+let category = ctx.query("category").unwrap_or("");
 
 let results: Vec<Value> = table.query()
-    .where_eq_if("category", &category, !category.is_empty())
-    .where_eq_non_empty("status", ctx.get("status").unwrap_or(""))
+    .where_eq_if("category", category, !category.is_empty())
+    .where_eq_non_empty("status", ctx.query("status").unwrap_or(""))
     .where_gte_if("price", min_price, min_price > 0)
     .execute()
     .await?;
@@ -150,7 +197,7 @@ let results: Vec<Value> = table.query()
 
 Available: `where_eq_if`, `where_eq_non_empty`, `where_gt_if`, `where_gte_if`, `where_lt_if`, `where_lte_if`.
 
-#### Logical operators
+### Logical operators
 
 ```rust,ignore
 // Default: AND (all conditions must match)
@@ -169,7 +216,7 @@ let results: Vec<Value> = table.query()
     .await?;
 ```
 
-#### Pagination
+### Pagination
 
 ```rust,ignore
 let results: Vec<Value> = table.query()
@@ -180,7 +227,7 @@ let results: Vec<Value> = table.query()
     .await?;
 ```
 
-#### Terminal methods
+### Terminal methods
 
 ```rust,ignore
 // Get all matching records
@@ -198,7 +245,7 @@ let record: Value = query.first_or_err("No matching user found").await?;
 
 ## TableExt (Low-Level Typed Access)
 
-Extension trait on `dyn KvBackend` for typed serialization/deserialization with string keys. Use this when you need to work with custom types or access the raw backend.
+Extension trait on `dyn KvBackend` for typed serialization/deserialization with string keys. Use for custom types or raw backend access.
 
 ### Methods
 
@@ -259,7 +306,7 @@ System keys (`__yeti_` prefix and `:idx:` keys) are automatically filtered from 
 use yeti_sdk::prelude::*;
 
 resource!(Dashboard {
-    get(request, ctx) => {
+    get(ctx) => {
         let orders = ctx.get_table("Order")?;
 
         let total = orders.count().await?;

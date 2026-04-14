@@ -108,120 +108,266 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="application-configuration"><a class="header" href="#application-configuration">Application Configuration</a></h1>
-<p>Reference for <code>config.yaml</code> files at <code>~/yeti/applications/{app-id}/config.yaml</code>.</p>
+<p>Reference for <code>config.yaml</code> at <code>~/yeti/applications/{app-id}/config.yaml</code>.</p>
 <h2 id="metadata"><a class="header" href="#metadata">Metadata</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>name</code></td><td>string</td><td>yes</td><td>Human-readable application name</td></tr>
-<tr><td><code>app_id</code></td><td>string</td><td>no</td><td>Application identifier (defaults to directory name, used as URL prefix)</td></tr>
-<tr><td><code>version</code></td><td>string</td><td>no</td><td>Semantic version (e.g., <code>"1.0.0"</code>)</td></tr>
-<tr><td><code>description</code></td><td>string</td><td>no</td><td>Application description</td></tr>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>name</code></td><td>string</td><td>yes</td><td>-</td><td>Human-readable application name</td></tr>
+<tr><td><code>app_id</code></td><td>string</td><td>yes</td><td>-</td><td>Application identifier (used as URL prefix: <code>/{app_id}</code>)</td></tr>
+<tr><td><code>customer_id</code></td><td>string</td><td>no</td><td>-</td><td>Owning tenant (injected by build server in cloud mode). Alias: <code>customerId</code></td></tr>
 </tbody></table>
 </div>
 <h2 id="application-state"><a class="header" href="#application-state">Application State</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>enabled</code></td><td>boolean</td><td><code>true</code></td><td>Whether the application loads at startup</td></tr>
-<tr><td><code>extension</code></td><td>boolean</td><td><code>false</code></td><td>Whether this app provides an extension (shared service)</td></tr>
-<tr><td><code>require_super_user</code></td><td>boolean</td><td><code>false</code></td><td>Require super_user role for all routes</td></tr>
-<tr><td><code>route_prefix</code></td><td>string</td><td><code>"/{app_id}"</code></td><td>Custom route prefix override</td></tr>
-</tbody></table>
-</div>
-<p>When <code>extension: true</code>, the compiler scans source files for <code>struct {TypeName}Extension</code> and generates registration code automatically.</p>
-<p>When <code>require_super_user: true</code>, unauthenticated users receive 401 and non-super_user users receive 403 on all routes, even in development mode.</p>
-<h2 id="interface-flags"><a class="header" href="#interface-flags">Interface Flags</a></h2>
-<p>Control which protocols are exposed. Individual schemas can override per-table using <code>@export</code> directives.</p>
-<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>rest</code></td><td>boolean</td><td><code>true</code></td><td>Enable REST API endpoints</td></tr>
-<tr><td><code>graphql</code></td><td>boolean</td><td><code>true</code></td><td>Enable GraphQL endpoint at <code>/{app-id}/graphql</code></td></tr>
-<tr><td><code>ws</code></td><td>boolean</td><td><code>false</code></td><td>Enable WebSocket subscriptions</td></tr>
-<tr><td><code>sse</code></td><td>boolean</td><td><code>false</code></td><td>Enable Server-Sent Events streaming</td></tr>
-<tr><td><code>mcp</code></td><td>boolean</td><td><code>false</code></td><td>Enable MCP (Model Context Protocol) endpoint</td></tr>
+<tr><td><code>enabled</code></td><td>boolean</td><td><code>true</code></td><td>Whether the application loads at startup. Disabled apps are skipped during loading</td></tr>
+<tr><td><code>extension</code></td><td>boolean</td><td><code>false</code></td><td>Mark as global extension (shared service loaded before applications)</td></tr>
+<tr><td><code>required_roles</code></td><td>string[] or <code>false</code></td><td><code>[]</code></td><td>Roles required to access this app. Accepts a list of role name strings or <code>false</code> (same as empty). Users without a matching role get 403; unauthenticated users get 401</td></tr>
+<tr><td><code>request_timeout</code></td><td>integer</td><td><code>30</code></td><td>Handler timeout in seconds (504 on expiry). SSE and WebSocket connections are exempt</td></tr>
+<tr><td><code>route_prefix</code></td><td>string</td><td>-</td><td><strong>Deprecated and ignored.</strong> Use <code>root_app</code> in <code>yeti-config.yaml</code> instead. Kept only so old config files parse without error</td></tr>
 </tbody></table>
 </div>
 <h2 id="schemas"><a class="header" href="#schemas">Schemas</a></h2>
+<p>Schema file locations. Applications without tables should omit this section entirely.</p>
+<pre><code class="language-yaml">schemas:
+  path: schemas/*.graphql
+</code></pre>
+<p>Or with multiple patterns:</p>
+<pre><code class="language-yaml">schemas:
+  path:
+    - schemas/core.graphql
+    - schemas/extra.graphql
+</code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>schemas</code></td><td>string[]</td><td><code>[]</code></td><td>List of <code>.graphql</code> schema file paths</td></tr>
+<tr><td><code>schemas.path</code></td><td>string or string[]</td><td>-</td><td>Glob pattern(s) for <code>.graphql</code> schema files. Accepts a single string or an array of strings</td></tr>
 </tbody></table>
 </div>
-<p>Applications without tables should omit the <code>schemas</code> section entirely.</p>
 <h2 id="resources"><a class="header" href="#resources">Resources</a></h2>
-<p>Custom resource files compiled as dynamic library plugins. Supports glob patterns.</p>
+<p>Custom resource files compiled as native dynamic library plugins.</p>
+<pre><code class="language-yaml">resources:
+  path: resources/*.rs
+  route: /api
+</code></pre>
+<p>Or with multiple patterns:</p>
+<pre><code class="language-yaml">resources:
+  path:
+    - resources/*.rs
+    - extra/*.rs
+  route: /api
+</code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>resources</code></td><td>string[]</td><td><code>[]</code></td><td>Rust source file paths or glob patterns</td></tr>
+<tr><td><code>resources.path</code></td><td>string or string[]</td><td>-</td><td>Glob pattern(s) for Rust source files. Accepts a single string or an array of strings</td></tr>
+<tr><td><code>resources.route</code></td><td>string</td><td><code>"/api"</code></td><td>URL route prefix for custom resources. Apps without a <code>resources:</code> section serve tables at <code>"/"</code></td></tr>
+</tbody></table>
+</div>
+<h2 id="modules"><a class="header" href="#modules">Modules</a></h2>
+<p>Shared library code used by both resources and binaries. Compiled into the plugin lib as <code>pub mod</code> alongside resource modules.</p>
+<pre><code class="language-yaml">modules:
+  - modules/*.rs
+</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>modules</code></td><td>string[]</td><td><code>[]</code></td><td>Glob patterns for shared module source files</td></tr>
+</tbody></table>
+</div>
+<h2 id="binaries"><a class="header" href="#binaries">Binaries</a></h2>
+<p>Standalone executables compiled alongside the plugin dylib. Each <code>.rs</code> file becomes a <code>[[bin]]</code> target.</p>
+<pre><code class="language-yaml">binaries:
+  - bin/*.rs
+</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>binaries</code></td><td>string[]</td><td><code>[]</code></td><td>Glob patterns for binary source files</td></tr>
 </tbody></table>
 </div>
 <h2 id="static-files"><a class="header" href="#static-files">Static Files</a></h2>
+<pre><code class="language-yaml">static:
+  path: web
+  route: /
+  spa: true
+  index: index.html
+  build:
+    sourceDir: source
+    command: npm run build
+</code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>static_files.path</code></td><td>string</td><td>-</td><td>Directory containing static files (relative to app directory)</td></tr>
-<tr><td><code>static_files.route</code></td><td>string</td><td><code>"/"</code></td><td>URL route prefix</td></tr>
-<tr><td><code>static_files.spa</code></td><td>boolean</td><td><code>false</code></td><td>SPA mode: serve index.html for unmatched paths with status 200</td></tr>
-<tr><td><code>static_files.index</code></td><td>string</td><td><code>"index.html"</code></td><td>Default file for directory requests</td></tr>
-<tr><td><code>static_files.notFound</code></td><td>object</td><td>-</td><td>Custom 404 page (overrides SPA default)</td></tr>
-<tr><td><code>static_files.build.sourceDir</code></td><td>string</td><td><code>"source"</code></td><td>Frontend source directory</td></tr>
-<tr><td><code>static_files.build.command</code></td><td>string</td><td><code>"npm run build"</code></td><td>Build command</td></tr>
+<tr><td><code>static.path</code></td><td>string</td><td>-</td><td>Directory containing static files (relative to app directory)</td></tr>
+<tr><td><code>static.route</code></td><td>string</td><td><code>"/"</code></td><td>URL route prefix</td></tr>
+<tr><td><code>static.spa</code></td><td>boolean</td><td><code>false</code></td><td>SPA mode: serve index.html for unmatched paths (status 200) so the client-side router handles navigation</td></tr>
+<tr><td><code>static.index</code></td><td>string</td><td><code>"index.html"</code></td><td>Default file for directory requests</td></tr>
+<tr><td><code>static.not_found</code></td><td>string or object</td><td>-</td><td>Custom 404 page. Either a file path string (served with 404 status) or an object <code>{ file: "path", statusCode: 200 }</code>. When both <code>spa</code> and <code>not_found</code> are set, <code>not_found</code> overrides the default SPA fallback behavior</td></tr>
+<tr><td><code>static.build</code></td><td>object</td><td>-</td><td>Optional frontend build configuration. When present, yeti runs the build command before serving static files</td></tr>
+<tr><td><code>static.build.sourceDir</code></td><td>string</td><td><code>"source"</code></td><td>Frontend source directory (relative to app directory)</td></tr>
+<tr><td><code>static.build.command</code></td><td>string</td><td><code>"npm run build"</code></td><td>Build command to run</td></tr>
 </tbody></table>
 </div>
-<p>See <a href="../guides/static-files.html">Static File Serving</a> for SPA routing and build pipeline details.</p>
+<p>Config key aliases: <code>static_files</code>, <code>staticFiles</code>, <code>static_config</code>.</p>
+<p>Note: The <code>build</code> section uses <code>camelCase</code> field names (<code>sourceDir</code>, not <code>source_dir</code>).</p>
+<h2 id="hooks"><a class="header" href="#hooks">Hooks</a></h2>
+<p>Shell commands executed around resource dispatch. See <a href="../guides/resource-hooks.html">Resource Hooks</a>.</p>
+<pre><code class="language-yaml">hooks:
+  pre_request:
+    - "./hooks/validate.sh"
+  post_request:
+    - "./hooks/audit-log.sh"
+  post_request_failure:
+    - "./hooks/alert.sh"
+</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>hooks.pre_request</code></td><td>string[]</td><td><code>[]</code></td><td>Run before handler. Exit 0 = allow, exit 2 = deny (403), other = hook failure</td></tr>
+<tr><td><code>hooks.post_request</code></td><td>string[]</td><td><code>[]</code></td><td>Run after successful response. Fire-and-forget</td></tr>
+<tr><td><code>hooks.post_request_failure</code></td><td>string[]</td><td><code>[]</code></td><td>Run after error response. Fire-and-forget</td></tr>
+</tbody></table>
+</div>
+<p>Hooks receive JSON on stdin with method, path, app_id, resource_id, auth identity, status, and latency.</p>
+<h2 id="interface-flags"><a class="header" href="#interface-flags">Interface Flags</a></h2>
+<p>Control which protocols are enabled at the app level. Individual tables can override via <code>@export</code> directives.</p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>rest</code></td><td>boolean</td><td><code>true</code></td><td>Enable REST API endpoints</td></tr>
+<tr><td><code>graphql</code></td><td>boolean</td><td><code>true</code></td><td>Enable GraphQL endpoint</td></tr>
+<tr><td><code>mcp</code></td><td>boolean</td><td><code>false</code></td><td>Enable MCP endpoint (auto-enabled when any table has <code>@export(mcp: true)</code>)</td></tr>
+</tbody></table>
+</div>
 <h2 id="extension-configuration"><a class="header" href="#extension-configuration">Extension Configuration</a></h2>
-<p>Per-app extension configuration uses top-level keys:</p>
-<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>auth</code></td><td>object</td><td>-</td><td>Auth extension config (JWT settings, OAuth providers)</td></tr>
-<tr><td><code>vectors</code></td><td>object</td><td>-</td><td>Vector extension config (defaultModel, etc.)</td></tr>
+<p>Per-app extension settings are declared as top-level keys using the extension's short name. These are captured via the <code>custom</code> config flatten and resolved by the corresponding extension at runtime.</p>
+<p>Built-in short names: <code>auth</code>, <code>vectors</code>, <code>telemetry</code>, <code>audit</code>, <code>applications</code>.</p>
+<h3 id="auth-configuration"><a class="header" href="#auth-configuration">Auth Configuration</a></h3>
+<p>Requires the yeti-auth service.</p>
+<pre><code class="language-yaml">auth:
+  signup: auto
+  default_role: viewer
+  methods: [oauth, basic]
+  oauth:
+    google:
+      clientId: "${GOOGLE_CLIENT_ID}"
+      clientSecret: "${GOOGLE_CLIENT_SECRET}"
+    rules:
+      - strategy: email
+        pattern: "*@mycompany.com"
+        role: admin
+</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>auth.signup</code></td><td>string</td><td><code>"auto"</code> enables auto-signup on first login</td></tr>
+<tr><td><code>auth.default_role</code></td><td>string</td><td>Role assigned when no rule matches</td></tr>
+<tr><td><code>auth.methods</code></td><td>string[]</td><td>Enabled auth methods: <code>basic</code>, <code>jwt</code>, <code>oauth</code>, <code>mtls</code></td></tr>
+<tr><td><code>auth.oauth</code></td><td>object</td><td>OAuth provider configuration (keyed by provider name)</td></tr>
+<tr><td><code>auth.oauth.{provider}.clientId</code></td><td>string</td><td>OAuth client ID</td></tr>
+<tr><td><code>auth.oauth.{provider}.clientSecret</code></td><td>string</td><td>OAuth client secret</td></tr>
+<tr><td><code>auth.oauth.rules</code></td><td>array</td><td>Provider-to-role mapping rules</td></tr>
 </tbody></table>
 </div>
-<p>The older <code>extensions:</code> list format is deprecated but still supported.</p>
-<pre><code class="language-yaml"># New style (preferred)
-auth:
-  jwt:
-    secret: "${JWT_SECRET:-dev-secret}"
-
-vectors:
-  defaultModel: "BAAI/bge-small-en-v1.5"
-
-# Old style (deprecated)
-extensions:
-  yeti-auth:
-    jwt:
-      secret: "${JWT_SECRET:-dev-secret}"
+<p>See <a href="../guides/auth-overview.html">Authentication &amp; Authorization</a>.</p>
+<h2 id="auth-loader"><a class="header" href="#auth-loader">Auth Loader</a></h2>
+<p>Simplified role/user JSON files for seeding yeti-auth on first startup. Files are bare arrays (no <code>database</code>/<code>table</code> wrapper). Permissions are real JSON objects (serialized to strings on load). Passwords are plaintext (Argon2id-hashed on load).</p>
+<pre><code class="language-yaml">authLoader:
+  roles: auth/roles.json
+  users: auth/users.json
 </code></pre>
-<h2 id="dependencies"><a class="header" href="#dependencies">Dependencies</a></h2>
-<p>Rust crate dependencies for the compiled plugin.</p>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>dependencies</code></td><td>map</td><td><code>{}</code></td><td>Crate name to version mapping</td></tr>
+<tr><td><code>authLoader.roles</code></td><td>string</td><td>-</td><td>Path to roles JSON file (bare array of role records). Optional</td></tr>
+<tr><td><code>authLoader.users</code></td><td>string</td><td>-</td><td>Path to users JSON file (bare array of user records). Optional</td></tr>
 </tbody></table>
 </div>
-<pre><code class="language-yaml">dependencies:
-  argon2: "0.5"
-  jsonwebtoken: { version: "10.3", features: ["rust_crypto"] }
-</code></pre>
+<p>Config key alias: <code>auth_loader</code>.</p>
 <h2 id="data-loader"><a class="header" href="#data-loader">Data Loader</a></h2>
-<p>Seed data files to load on first startup.</p>
+<p>Seed data files loaded on first startup. Accepts either a bare string or an object with a <code>files</code> key.</p>
+<pre><code class="language-yaml"># Bare string form
+dataLoader: "data/*.json"
+
+# Object form
+dataLoader:
+  files: "data/*.json"
+</code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>dataLoader</code></td><td>string</td><td>-</td><td>Glob pattern for seed data files</td></tr>
+<tr><td><code>dataLoader</code></td><td>string or object</td><td>-</td><td>Glob pattern for data files, or <code>{ files: "pattern" }</code></td></tr>
+<tr><td><code>dataLoader.files</code></td><td>string</td><td>-</td><td>Glob pattern for data files (when using object form)</td></tr>
 </tbody></table>
 </div>
-<pre><code class="language-yaml">dataLoader: data/*.json
+<p>Config key alias: <code>data_loader</code>.</p>
+<h2 id="dependencies"><a class="header" href="#dependencies">Dependencies</a></h2>
+<p>Rust crate dependencies for the compiled plugin. Format matches Cargo.toml dependency syntax in YAML.</p>
+<pre><code class="language-yaml">dependencies:
+  chrono: "0.4"
+  jsonwebtoken: { version: "10.3", features: ["aws_lc_rs"] }
 </code></pre>
-<h2 id="audit-configuration"><a class="header" href="#audit-configuration">Audit Configuration</a></h2>
-<p>Per-app audit trail settings. Only takes effect when global <code>audit.enabled</code> is true in yeti-config.yaml.</p>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>audit.protocol.mcp</code></td><td>boolean</td><td><code>false</code></td><td>Audit MCP requests</td></tr>
+<tr><td><code>dependencies</code></td><td>object</td><td><code>{}</code></td><td>Map of crate name to version string or dependency object. Added to the generated Cargo.toml for plugin compilation</td></tr>
+</tbody></table>
+</div>
+<h2 id="storage"><a class="header" href="#storage">Storage</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>storage_path</code></td><td>string</td><td><code>{rootDirectory}/data/</code></td><td>Custom storage path for RocksDB databases. Priority: per-app <code>storage_path</code> &gt; global <code>storage_path</code> from server config &gt; <code>{rootDirectory}/data/</code></td></tr>
 </tbody></table>
 </div>
 <h2 id="custom-configuration"><a class="header" href="#custom-configuration">Custom Configuration</a></h2>
-<p>Accessible via <code>ctx.config()</code> in resource handlers and <code>params.extension_config()</code> for extensions. Any top-level keys not recognized by Yeti are captured as custom configuration.</p>
-<pre><code class="language-yaml">custom:
-  jwt:
-    secret: "${JWT_SECRET:-development-secret}"
-    access_ttl: 900
-
+<p>Any top-level keys not recognized by Yeti are captured as custom configuration via <code>serde(flatten)</code>. Access at runtime via <code>params.config().get_str("key", "default")</code> and related typed accessors (<code>get_i64</code>, <code>get_u64</code>, <code>get_f64</code>, <code>get_bool</code>). Supports dot notation for nested access (e.g., <code>"origin.url"</code>).</p>
+<pre><code class="language-yaml"># These are custom -- accessible at runtime
 origin:
   url: "https://www.example.com/"
+api_keys:
+  stripe: "${STRIPE_KEY}"
+</code></pre>
+<p>Note: Extension short names (<code>auth</code>, <code>vectors</code>, <code>telemetry</code>, <code>audit</code>, <code>applications</code>) are also captured here and routed to the appropriate extension. See <a href="#extension-configuration">Extension Configuration</a>.</p>
+<h2 id="complete-example"><a class="header" href="#complete-example">Complete Example</a></h2>
+<pre><code class="language-yaml">name: "My Application"
+app_id: "my-app"
+customer_id: "acme"
+enabled: true
+request_timeout: 30
+
+schemas:
+  path: schemas/*.graphql
+
+resources:
+  path: resources/*.rs
+  route: /api
+
+modules:
+  - modules/*.rs
+
+binaries:
+  - bin/*.rs
+
+static:
+  path: web
+  route: /
+  spa: true
+  index: index.html
+  build:
+    sourceDir: source
+    command: npm run build
+
+auth:
+  methods: [oauth]
+  oauth:
+    google:
+      clientId: "${GOOGLE_CLIENT_ID}"
+      clientSecret: "${GOOGLE_CLIENT_SECRET}"
+    rules:
+      - strategy: email
+        pattern: "*@acme.com"
+        role: admin
+
+authLoader:
+  roles: auth/roles.json
+  users: auth/users.json
+
+dataLoader: "data/*.json"
+
+hooks:
+  pre_request:
+    - "./hooks/validate.sh"
+  post_request:
+    - "./hooks/log.sh"
+
+dependencies:
+  chrono: "0.4"
+
+rest: true
+graphql: true
+mcp: false
 </code></pre>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
-<li><a href="schema-directives.html">Schema Directives</a> - Table and field directives</li>
-<li><a href="server-config.html">Server Configuration</a> - Server-level settings</li>
-<li><a href="../guides/building-extensions.html">Building Extensions</a> - Extension development</li>
+<li><a href="schema-directives.html">Schema Directives</a> -- Table and field directives</li>
+<li><a href="server-config.html">Server Configuration</a> -- Server-level settings</li>
+<li><a href="../guides/building-extensions.html">Building Services</a> -- Service development</li>
 </ul>
 
                     </main>

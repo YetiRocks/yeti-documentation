@@ -10,30 +10,24 @@ Yeti supports OAuth 2.0 with GitHub, Google, and Microsoft providers.
 - **Google**: Cloud Console > APIs & Services > Credentials
 - **Microsoft**: Azure Portal > App registrations
 
-Callback URL: `https://your-host:443/yeti-auth/oauth_callback`
+Callback URL: `https://your-host:port/yeti-auth/oauth_callback`
 
-### 2. Set Environment Variables
+### 2. Configure Per-App OAuth in config.yaml
 
-In your `.env` file:
-
-```bash
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
-
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-
-MICROSOFT_CLIENT_ID=your_microsoft_client_id
-MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret
-```
-
-### 3. Configure Per-App Rules
-
-Map OAuth users to roles in your app's config:
+Provider credentials and role-mapping rules are declared in the app's `auth:` section. Values support `${ENV_VAR}` interpolation:
 
 ```yaml
 auth:
+  methods: [oauth]
+  signup: auto
+  default_role: viewer
   oauth:
+    github:
+      clientId: "${GITHUB_CLIENT_ID}"
+      clientSecret: "${GITHUB_CLIENT_SECRET}"
+    google:
+      clientId: "${GOOGLE_CLIENT_ID}"
+      clientSecret: "${GOOGLE_CLIENT_SECRET}"
     rules:
       - strategy: provider
         pattern: "google"
@@ -46,7 +40,29 @@ auth:
         role: standard
 ```
 
-Strategies: `provider` (match by provider name) or `email` (wildcard pattern). Rules evaluate in order; first match wins. No match and no `default_role` returns `401`.
+Strategies: `provider` (match by provider name) or `email` (wildcard pattern). Rules evaluate in order; first match wins.
+
+### Role Resolution on No Match
+
+If no rule matches the user's provider or email, the user is **denied access** (401). No implicit default role exists for OAuth users. To allow all OAuth users, add a catch-all rule:
+
+```yaml
+rules:
+  - strategy: provider
+    pattern: "*"
+    role: viewer
+```
+
+## Auto-Signup
+
+When `signup: auto` is set (the default), users who authenticate via OAuth for the first time are automatically enrolled:
+
+1. OAuth provider verifies identity and returns user info
+2. Yeti checks for an existing AppMembership for `{appId}:{email}`
+3. If no membership exists, one is created with the role determined by the matching rule
+4. Subsequent requests use the stored membership
+
+Set `signup: invite` to require pre-created memberships, or `signup: disabled` to block new users entirely.
 
 ## OAuth Flow
 
@@ -57,39 +73,42 @@ Strategies: `provider` (match by provider name) or `email` (wildcard pattern). R
 **3. Use session**: Browser sends cookie automatically; or manually:
 
 ```bash
-curl -sk --cookie "session=SESSION_ID" https://localhost:9996/my-app/MyTable
+curl -sk --cookie "yeti_session=SESSION_ID" https://localhost:9996/my-app/MyTable
 ```
 
 ## Session Endpoints
 
 ```bash
 # Current user info
-curl -sk --cookie "session=SESSION_ID" https://localhost:9996/yeti-auth/oauth_user
+curl -sk --cookie "yeti_session=SESSION_ID" https://localhost:9996/yeti-auth/oauth_user
 
-# Logout
-curl -sk -X POST --cookie "session=SESSION_ID" https://localhost:9996/yeti-auth/oauth_logout
+# Logout (clears in-memory cache and database record)
+curl -sk -X POST --cookie "yeti_session=SESSION_ID" https://localhost:9996/yeti-auth/oauth_logout
 
 # Refresh provider token
-curl -sk -X POST --cookie "session=SESSION_ID" https://localhost:9996/yeti-auth/oauth_refresh
+curl -sk -X POST --cookie "yeti_session=SESSION_ID" https://localhost:9996/yeti-auth/oauth_refresh
+
+# Available auth methods and roles for an app
+curl -sk https://localhost:9996/yeti-auth/oauth_providers
 ```
 
 ## Session Storage
 
-Two-tier: in-memory cache for fast lookup, database fallback for restart survival.
+Two-tier: in-memory cache for fast lookup, OAuthSession table in the database for restart survival.
 
 ## Security
 
-- CSRF token protection on login flow (10-minute expiry)
-- Callback URLs validated at startup (SSRF protection, HTTPS required in production)
-- Session cookies are httpOnly and secure
+- CSRF token protection on login flow (10-minute expiry, in-memory DashMap with time-based + count-based sweep)
+- Provider URLs validated at startup (SSRF protection -- rejects private IPs, requires HTTPS in production)
+- Session cookies are httpOnly and secure (cookie name: `yeti_session`)
 - Provider tokens stored server-side only
 
 ## Common Mistakes
 
-- **Wrong callback URL**: The callback registered with your OAuth provider must exactly match `https://your-host:port/yeti-auth/oauth_callback`. A mismatch (trailing slash, wrong port, HTTP vs HTTPS) causes a silent redirect failure from the provider.
-- **Missing HTTPS in production**: OAuth providers reject non-HTTPS callback URLs in production. Yeti also validates this at startup -- configure TLS certificates before enabling OAuth.
-- **No matching role rule**: If no `oauth.rules` entry matches the user's provider or email and no `default_role` is set, the user gets a `401 Unauthorized` after successful provider login. Always add a fallback rule or set a default role.
-- **Environment variables not loaded**: Client ID and secret must be set as environment variables (e.g., `GITHUB_CLIENT_ID`), not in config.yaml. If Yeti starts without them, the provider silently fails to initialize and login attempts return 500.
+- **Wrong callback URL**: The callback registered with your OAuth provider must exactly match `https://your-host:port/yeti-auth/oauth_callback`. A mismatch (trailing slash, wrong port, HTTP vs HTTPS) causes a silent redirect failure.
+- **Missing HTTPS in production**: OAuth providers reject non-HTTPS callback URLs in production. Yeti also validates this at startup.
+- **Credentials in config instead of env vars**: Use `${ENV_VAR}` syntax in config.yaml. Values resolve from environment variables at startup.
+- **No matching rule and no catch-all**: Without a matching rule, the user is denied after successful provider login. Add a fallback rule if you want all OAuth users to have access.
 
 ## See Also
 

@@ -1,6 +1,6 @@
 # Telemetry Pipeline
 
-Core provides a minimal event channel (~260 lines). All processing lives in the optional `yeti-telemetry` extension.
+Minimal event channel in core (~260 lines). All processing lives in the optional `yeti-telemetry` service.
 
 ## Pipeline
 
@@ -11,7 +11,7 @@ tracing::info!("message")
         │
   Bounded Channel (10K)      tokio mpsc
         │
-  EventSubscriber::run()     Implemented by extension
+  EventSubscriber::run()     Implemented by service
         │
         ├──> Log/Span/Metric tables
         ├──> FileProvider (JSONL rotation)
@@ -21,7 +21,7 @@ tracing::info!("message")
 
 ## DispatchLayer
 
-A `tracing` subscriber layer that serializes log events and span lifecycle to JSON and sends through a bounded channel (capacity 10,000).
+A `tracing` subscriber layer that serializes events and spans to JSON, sent through a bounded channel (capacity 10,000).
 
 ### Event Format
 
@@ -47,7 +47,7 @@ pub trait EventSubscriber: Send + 'static {
 
 The host creates the channel, registers the sender, and spawns `run()` after `on_ready()`.
 
-## yeti-telemetry Extension
+## yeti-telemetry Service
 
 | Component | Purpose |
 |-----------|---------|
@@ -57,6 +57,6 @@ The host creates the channel, registers the sender, and spawns `run()` after `on
 | Log/Span/Metric tables | Persistent storage + SSE |
 | Dashboard UI | `/yeti-telemetry/` |
 
-## Without an Extension
+## Without a Service
 
 DispatchLayer becomes a no-op. Only stdout logging remains.

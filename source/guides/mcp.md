@@ -1,21 +1,21 @@
 # MCP Integration
 
-The Model Context Protocol (MCP) allows AI agents to interact with your Yeti tables using a standardized JSON-RPC 2.0 protocol over HTTP. When enabled, Yeti auto-generates tools, resources, and prompts from your schema — no code required.
+MCP (Model Context Protocol) connects AI agents to Yeti tables via JSON-RPC 2.0 over HTTP. Yeti auto-generates tools, resources, and prompts from your schema -- no code required.
 
 ## What is MCP
 
-MCP is a protocol for connecting AI models to external data sources and tools. It uses JSON-RPC 2.0 over HTTP with a simple session lifecycle:
+MCP connects AI models to external data sources and tools via JSON-RPC 2.0 over HTTP. Session lifecycle:
 
-1. **Initialize** — client and server exchange capabilities
-2. **Discover** — client lists available tools, resources, and prompts
-3. **Execute** — client calls tools to read and write data
-4. **Terminate** — client ends the session
+1. **Initialize** -- client and server exchange capabilities
+2. **Discover** -- client lists available tools, resources, and prompts
+3. **Execute** -- client calls tools to read and write data
+4. **Terminate** -- client ends the session
 
 Yeti implements MCP protocol version `2025-03-26` with streamable HTTP transport.
 
 ## Enabling MCP
 
-MCP is enabled by default at the server level. To expose tables via MCP, add `@export` to your schema (MCP is enabled by default when `@export` is present):
+MCP auto-enables from the `@export` directive in your schema. By default, all `@export`ed tables are MCP-accessible. No config.yaml changes needed:
 
 ```graphql
 type Product @table @export {
@@ -29,7 +29,7 @@ type Order @table @export {
   id: ID! @primaryKey
   productId: String!
   quantity: Int!
-  createdAt: Float! @createdAt
+  createdAt: Float! @createdTime
 }
 
 # Exclude a table from MCP
@@ -128,28 +128,28 @@ MCP uses the same authentication pipeline as REST. If your app requires authenti
 
 ```bash
 # With Basic auth
-curl -X POST https://localhost/my-api/mcp \
+curl -X POST https://localhost:9996/my-api/mcp \
   -u admin:password \
   -H "Content-Type: application/json" \
   -d '...'
 
 # With Bearer token
-curl -X POST https://localhost/my-api/mcp \
+curl -X POST https://localhost:9996/my-api/mcp \
   -H "Authorization: Bearer eyJ..." \
   -H "Content-Type: application/json" \
   -d '...'
 ```
 
-Auth context is propagated to each tool call — table-level access control is enforced on every operation.
+Auth context is propagated to each tool call -- table-level access control is enforced on every operation.
 
 ## Protocol Walkthrough
 
-Here is a complete MCP session using curl.
+Complete MCP session using curl.
 
 ### Step 1: Initialize
 
 ```bash
-curl -s -X POST https://localhost/my-api/mcp \
+curl -s -X POST https://localhost:9996/my-api/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -190,7 +190,7 @@ Response (note the `mcp-session-id` header):
 ### Step 2: Send Initialized Notification
 
 ```bash
-curl -s -X POST https://localhost/my-api/mcp \
+curl -s -X POST https://localhost:9996/my-api/mcp \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: <session-id-from-step-1>" \
   -d '{
@@ -204,7 +204,7 @@ Returns HTTP 202 (no body for notifications).
 ### Step 3: List Available Tools
 
 ```bash
-curl -s -X POST https://localhost/my-api/mcp \
+curl -s -X POST https://localhost:9996/my-api/mcp \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: <session-id>" \
   -d '{
@@ -257,7 +257,7 @@ curl -s -X POST https://localhost/my-api/mcp \
 Create a product:
 
 ```bash
-curl -s -X POST https://localhost/my-api/mcp \
+curl -s -X POST https://localhost:9996/my-api/mcp \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: <session-id>" \
   -d '{
@@ -293,7 +293,7 @@ curl -s -X POST https://localhost/my-api/mcp \
 Search for products:
 
 ```bash
-curl -s -X POST https://localhost/my-api/mcp \
+curl -s -X POST https://localhost:9996/my-api/mcp \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: <session-id>" \
   -d '{
@@ -313,7 +313,7 @@ curl -s -X POST https://localhost/my-api/mcp \
 ### Step 5: Read a Resource
 
 ```bash
-curl -s -X POST https://localhost/my-api/mcp \
+curl -s -X POST https://localhost:9996/my-api/mcp \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: <session-id>" \
   -d '{
@@ -329,7 +329,7 @@ curl -s -X POST https://localhost/my-api/mcp \
 ### Step 6: Terminate Session
 
 ```bash
-curl -s -X DELETE https://localhost/my-api/mcp \
+curl -s -X DELETE https://localhost:9996/my-api/mcp \
   -H "Mcp-Session-Id: <session-id>"
 ```
 
@@ -358,7 +358,7 @@ Add your Yeti MCP endpoint to the Claude configuration:
 {
   "mcpServers": {
     "my-api": {
-      "url": "https://localhost/my-api/mcp",
+      "url": "https://localhost:9996/my-api/mcp",
       "headers": {
         "Authorization": "Bearer <your-token>"
       }
@@ -369,29 +369,62 @@ Add your Yeti MCP endpoint to the Claude configuration:
 
 ### Other MCP-Aware Agents
 
-Any agent that supports MCP protocol version `2025-03-26` with streamable HTTP transport can connect to Yeti's MCP endpoint. The auto-generated tools provide full CRUD access to your tables through a standardized interface.
+Any agent supporting MCP protocol version `2025-03-26` with streamable HTTP transport connects to Yeti's MCP endpoint. Auto-generated tools provide full CRUD access to your tables.
 
 ## Platform Developer Tools (yeti-mcp)
 
-In addition to per-app table tools, every yeti instance includes `yeti-mcp` -- a built-in MCP endpoint that provides platform-level knowledge and tooling for developer agents.
+Every Yeti instance includes `yeti-mcp` -- a built-in MCP endpoint with platform-level knowledge and tooling for developer agents.
 
 **Endpoint**: `POST /yeti-mcp/agent`
 
-This is separate from your app's `/my-api/mcp` endpoint. While your app's MCP tools handle table CRUD, yeti-mcp helps agents understand the platform itself:
+Separate from your app's `/my-api/mcp` endpoint. Your app's MCP tools handle table CRUD; yeti-mcp helps agents understand the platform itself.
+
+### Tools
 
 | Tool | Description |
 |------|-------------|
-| `docs_search` | Search platform documentation by natural language query |
-| `docs_get` | Retrieve a specific documentation page |
+| `docs_search` | Semantic search across all yeti documentation |
+| `docs_get` | Retrieve a specific documentation page by ID |
 | `docs_list_topics` | List all available documentation topics |
-| `app_list` | List installed applications |
+| `app_list` | List installed applications with status |
 | `app_inspect` | Get config, schema, and resource details for an app |
-| `app_endpoints` | List all endpoints (REST, MCP, SSE, MQTT) for an app |
+| `app_endpoints` | List all REST/MCP/SSE/MQTT endpoints for an app |
 | `sdk_reference` | Look up SDK documentation (prelude, macros, errors, types) |
 | `deploy_checklist` | Validate an app's config before deployment |
 | `troubleshoot` | Get fixes for common symptoms |
+| `logs_search` | Search recent log entries from yeti-telemetry |
+| `metrics_summary` | Current metrics snapshot for an application |
+| `errors_recent` | Recent error log entries with context |
+| `install_guide` | Platform-specific installation instructions |
+| `quickstart` | Combined install + first app guide for a use case |
 
-yeti-mcp also serves 12 static resources (`yeti://guides/*`, `yeti://sdk/*`, `yeti://constraints`, `yeti://anti-patterns`) and 4 prompt templates (`create_application`, `add_resource`, `add_table`, `debug_plugin`).
+### Resources
+
+yeti-mcp serves 12 static resources via the `yeti://` URI scheme:
+
+| URI | Content |
+|-----|---------|
+| `yeti://guides/applications` | Application structure and config |
+| `yeti://guides/resources` | Custom resource development |
+| `yeti://guides/schemas` | Schema directives and FIQL |
+| `yeti://guides/auth` | Authentication and authorization |
+| `yeti://guides/deployment` | Production deployment |
+| `yeti://guides/mcp` | MCP endpoint usage |
+| `yeti://sdk/prelude` | SDK prelude reference |
+| `yeti://sdk/macros` | resource!(), register_resource!() |
+| `yeti://sdk/errors` | Error types and handling |
+| `yeti://sdk/types` | Request, Response, Context types |
+| `yeti://constraints` | Dylib boundary rules |
+| `yeti://anti-patterns` | Common mistakes |
+
+### Prompts
+
+| Prompt | Description |
+|--------|-------------|
+| `create_application` | Step-by-step guide to creating a new app |
+| `add_resource` | How to add a custom Rust resource |
+| `add_table` | How to add a new table with schema |
+| `debug_plugin` | Debugging checklist for plugin issues |
 
 ### Connecting AI Agents to yeti-mcp
 
@@ -399,7 +432,7 @@ yeti-mcp also serves 12 static resources (`yeti://guides/*`, `yeti://sdk/*`, `ye
 {
   "mcpServers": {
     "yeti-platform": {
-      "url": "https://localhost/yeti-mcp/agent",
+      "url": "https://localhost:9996/yeti-mcp/agent",
       "headers": {
         "Authorization": "Bearer <your-token>"
       }
@@ -408,7 +441,7 @@ yeti-mcp also serves 12 static resources (`yeti://guides/*`, `yeti://sdk/*`, `ye
 }
 ```
 
-This gives agents like Claude Code, Cursor, and Windsurf the ability to search documentation, inspect running apps, and generate scaffolding -- all through the standard MCP protocol.
+Agents like Claude Code, Cursor, and Windsurf can search documentation, inspect running apps, and generate scaffolding through the standard MCP protocol.
 
 ## Audit Logging
 

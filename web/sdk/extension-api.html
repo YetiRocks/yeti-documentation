@@ -107,88 +107,154 @@
                 <!-- Content -->
                 <div id="content" class="content">
                     <main>
-                        <h1 id="extension-api"><a class="header" href="#extension-api">Extension API</a></h1>
-<p>Extensions provide shared services across applications: authentication, telemetry, vector search, and custom middleware.</p>
-<h2 id="extension-trait"><a class="header" href="#extension-trait">Extension Trait</a></h2>
-<pre><code class="language-rust ignore">pub trait Extension: Send + Sync {
-    fn name(&amp;self) -&gt; &amp;str;
-
-    fn on_ready(&amp;self, ctx: ExtensionContext) -&gt; Result&lt;()&gt; {
-        Ok(())
-    }
-
-    fn middleware(&amp;self) -&gt; Option&lt;Arc&lt;dyn RequestMiddleware&gt;&gt; {
-        None
-    }
-
-    fn auth_providers(&amp;self) -&gt; Vec&lt;Arc&lt;dyn AuthProvider&gt;&gt; {
-        vec![]
-    }
-
-    fn auth_hooks(&amp;self) -&gt; Vec&lt;Arc&lt;dyn AuthHook&gt;&gt; {
-        vec![]
-    }
-
-    fn vector_hooks(&amp;self) -&gt; Vec&lt;Arc&lt;dyn VectorHook&gt;&gt; {
-        vec![]
-    }
+                        <h1 id="service-api"><a class="header" href="#service-api">Service API</a></h1>
+<p>Services provide shared capabilities across applications: authentication, telemetry, AI inference, vector embeddings, and custom middleware.</p>
+<h2 id="service-trait"><a class="header" href="#service-trait">Service Trait</a></h2>
+<p>The <code>Service</code> trait is the contract between the yeti binary and service crates. The runtime calls methods in order: <code>is_required()</code> -&gt; <code>register()</code> -&gt; <code>on_ready()</code> -&gt; <code>on_shutdown()</code>.</p>
+<pre><code class="language-rust ignore">pub trait Service: Send + Sync + 'static {
+    /// Unique identifier (e.g., "yeti-auth").
+    fn id(&amp;self) -&gt; &amp;'static str;
+    /// Human-readable name.
+    fn name(&amp;self) -&gt; &amp;'static str;
+    /// Semantic version.
+    fn version(&amp;self) -&gt; &amp;'static str { "0.1.0" }
+    /// Service IDs this service depends on (for topological ordering).
+    fn depends_on(&amp;self) -&gt; &amp;[&amp;'static str] { &amp;[] }
+    /// Whether this service should be activated given the current config.
+    fn is_required(&amp;self, ctx: &amp;StartupContext) -&gt; bool { true }
+    /// Register schemas, resources, hooks, and providers.
+    fn register(&amp;self, ctx: &amp;mut RegistrationContext) -&gt; Result&lt;()&gt;;
+    /// Post-registration setup (bootstrap data, background tasks).
+    fn on_ready(&amp;self, ctx: &amp;ServiceContext) -&gt; Result&lt;()&gt; { Ok(()) }
+    /// Whether this is a global extension (loaded before user apps).
+    fn is_extension(&amp;self) -&gt; bool { false }
+    /// Whether registration failure should abort startup.
+    fn is_critical(&amp;self) -&gt; bool { false }
+    /// Embedded config.yaml content.
+    fn config_yaml(&amp;self) -&gt; Option&lt;&amp;'static str&gt; { None }
+    /// Called during graceful shutdown.
+    fn on_shutdown(&amp;self) {}
 }</code></pre>
-<p>All methods except <code>name()</code> have default no-op implementations. Implement only what you need.</p>
+<p>Only <code>id()</code>, <code>name()</code>, and <code>register()</code> are required. All other methods have default implementations.</p>
 <h3 id="full-example"><a class="header" href="#full-example">Full example</a></h3>
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
 
-pub struct MyExtension;
+pub struct MyService;
 
-impl Extension for MyExtension {
-    fn name(&amp;self) -&gt; &amp;str {
-        "my-extension"
+impl Service for MyService {
+    fn id(&amp;self) -&gt; &amp;'static str { "my-service" }
+    fn name(&amp;self) -&gt; &amp;'static str { "My Service" }
+    fn version(&amp;self) -&gt; &amp;'static str { "1.0.0" }
+
+    fn depends_on(&amp;self) -&gt; &amp;[&amp;'static str] {
+        &amp;["yeti-auth"]  // load after auth
     }
 
-    fn on_ready(&amp;self, ctx: ExtensionContext) -&gt; Result&lt;()&gt; {
-        let config_table = ctx.table("Config")?;
-        yeti_log!(info, "Extension ready, config table loaded");
+    fn is_required(&amp;self, ctx: &amp;StartupContext) -&gt; bool {
+        ctx.any_app_has_config("my-service")
+    }
+
+    fn config_yaml(&amp;self) -&gt; Option&lt;&amp;'static str&gt; {
+        Some(include_str!("config.yaml"))
+    }
+
+    fn register(&amp;self, ctx: &amp;mut RegistrationContext) -&gt; Result&lt;()&gt; {
+        ctx.add_schema(include_str!("schema.graphql"));
+        ctx.add_resource(Box::new(MyResource));
         Ok(())
     }
 
-    fn middleware(&amp;self) -&gt; Option&lt;Arc&lt;dyn RequestMiddleware&gt;&gt; {
-        None  // return Some(...) to intercept every request
+    fn on_ready(&amp;self, ctx: &amp;ServiceContext) -&gt; Result&lt;()&gt; {
+        let config = ctx.require_table("Config")?;
+        tracing::info!("[{}] service ready", ctx.app_id());
+        Ok(())
     }
 
-    fn auth_providers(&amp;self) -&gt; Vec&lt;Arc&lt;dyn AuthProvider&gt;&gt; {
-        vec![]  // return providers for Basic, JWT, OAuth auth
-    }
-
-    fn auth_hooks(&amp;self) -&gt; Vec&lt;Arc&lt;dyn AuthHook&gt;&gt; {
-        vec![]  // override role resolution before default logic
-    }
-
-    fn vector_hooks(&amp;self) -&gt; Vec&lt;Arc&lt;dyn VectorHook&gt;&gt; {
-        vec![]  // provide vector embedding generation
+    fn on_shutdown(&amp;self) {
+        tracing::info!("service shutting down");
     }
 }</code></pre>
-<h2 id="extensioncontext"><a class="header" href="#extensioncontext">ExtensionContext</a></h2>
-<p>Available in <code>on_ready()</code>. Provides access to tables, filesystem, routing, and event subscribers.</p>
-<pre><code class="language-rust ignore">impl ExtensionContext {
-    fn table(&amp;self, name: &amp;str) -&gt; Result&lt;Arc&lt;TableResource&gt;&gt;
-    fn root_dir(&amp;self) -&gt; &amp;Path
-    fn auto_router(&amp;self) -&gt; &amp;AutoRouter
-    fn set_event_subscriber(&amp;self, sub: Box&lt;dyn EventSubscriber&gt;)
-    fn pubsub(&amp;self, table: &amp;str) -&gt; Option&lt;Arc&lt;PubSubManager&gt;&gt;
+<h2 id="startupcontext"><a class="header" href="#startupcontext">StartupContext</a></h2>
+<p>Read-only context passed to <code>Service::is_required()</code>. Used to decide whether a service should activate based on what applications have declared.</p>
+<pre><code class="language-rust ignore">pub struct StartupContext&lt;'a&gt; {
+    pub tables: &amp;'a [TableDefinition],
+    pub app_configs: &amp;'a [Value],
 }</code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>table(name)</code></td><td><code>Result&lt;Arc&lt;TableResource&gt;&gt;</code></td><td>Named table reference</td></tr>
-<tr><td><code>root_dir()</code></td><td><code>&amp;Path</code></td><td>Server root directory</td></tr>
-<tr><td><code>auto_router()</code></td><td><code>&amp;AutoRouter</code></td><td>Route registration</td></tr>
-<tr><td><code>set_event_subscriber(sub)</code></td><td><code>()</code></td><td>Register telemetry event handler</td></tr>
-<tr><td><code>pubsub(table)</code></td><td><code>Option&lt;Arc&lt;PubSubManager&gt;&gt;</code></td><td>PubSub manager for a table</td></tr>
+<tr><td><code>any_app_has_config(key)</code></td><td><code>bool</code></td><td>Any app has a top-level config key (e.g., <code>"auth"</code>, <code>"vectors"</code>)</td></tr>
+<tr><td><code>any_table_has_field_directive(directive)</code></td><td><code>bool</code></td><td>Any table has a field whose type matches (case-insensitive)</td></tr>
+<tr><td><code>any_app_requires_auth()</code></td><td><code>bool</code></td><td>Any app has non-empty <code>requiredRoles</code> / <code>required_roles</code></td></tr>
 </tbody></table>
 </div>
-<pre><code class="language-rust ignore">fn on_ready(&amp;self, ctx: ExtensionContext) -&gt; Result&lt;()&gt; {
-    // Access a table
-    let config = ctx.table("Config")?;
+<pre><code class="language-rust ignore">fn is_required(&amp;self, ctx: &amp;StartupContext) -&gt; bool {
+    // Activate only if some app uses vector fields
+    ctx.any_table_has_field_directive("vector")
+}</code></pre>
+<h2 id="registrationcontext"><a class="header" href="#registrationcontext">RegistrationContext</a></h2>
+<p>Mutable context passed to <code>Service::register()</code>. Collect schemas, resources, hooks, providers, and middleware here. The runtime processes them after all services register.</p>
+<pre><code class="language-rust ignore">pub struct RegistrationContext {
+    pub app_id: String,
+    pub root_directory: String,
+    // ... internal fields populated via methods below
+}</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Argument</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>add_schema(graphql)</code></td><td><code>&amp;str</code></td><td>Add a GraphQL schema string</td></tr>
+<tr><td><code>add_resource(r)</code></td><td><code>Box&lt;dyn Resource&gt;</code></td><td>Add a resource handler</td></tr>
+<tr><td><code>add_web_files(files)</code></td><td><code>Vec&lt;EmbeddedFile&gt;</code></td><td>Add embedded static web files</td></tr>
+<tr><td><code>add_auth_provider(p)</code></td><td><code>Arc&lt;dyn AuthProvider&gt;</code></td><td>Register an authentication provider</td></tr>
+<tr><td><code>add_vector_hook(h)</code></td><td><code>Arc&lt;dyn VectorHook&gt;</code></td><td>Register a vector embedding hook</td></tr>
+<tr><td><code>add_ai_hook(h)</code></td><td><code>Arc&lt;dyn AiHook&gt;</code></td><td>Register an AI inference hook</td></tr>
+<tr><td><code>add_middleware(m)</code></td><td><code>Arc&lt;dyn RequestMiddleware&gt;</code></td><td>Add request middleware</td></tr>
+<tr><td><code>add_event_subscriber(s)</code></td><td><code>Box&lt;dyn EventSubscriber&gt;</code></td><td>Register a telemetry event handler</td></tr>
+<tr><td><code>app_id()</code></td><td></td><td>Get the application ID</td></tr>
+<tr><td><code>root_dir()</code></td><td></td><td>Get the server root directory path</td></tr>
+</tbody></table>
+</div>
+<pre><code class="language-rust ignore">fn register(&amp;self, ctx: &amp;mut RegistrationContext) -&gt; Result&lt;()&gt; {
+    // Schema
+    ctx.add_schema("type User @export { id: ID, name: String, email: String }");
 
-    // Root directory
-    let root: &amp;Path = ctx.root_dir();
+    // Resources
+    ctx.add_resource(Box::new(LoginResource));
+    ctx.add_resource(Box::new(UserResource));
+
+    // Auth
+    ctx.add_auth_provider(Arc::new(BasicAuthProvider::new()));
+    ctx.add_auth_provider(Arc::new(JwtAuthProvider::new()));
+
+    // Hooks
+    ctx.add_vector_hook(Arc::new(CandleVectorHook::new()));
+    ctx.add_ai_hook(Arc::new(CandleAiHook::new()));
+
+    // Telemetry
+    ctx.add_event_subscriber(Box::new(TelemetryWriter::new()));
+
+    Ok(())
+}</code></pre>
+<h2 id="servicecontext"><a class="header" href="#servicecontext">ServiceContext</a></h2>
+<p>Context passed to <code>Service::on_ready()</code> after all registration is complete. Tables and routes are available at this point.</p>
+<pre><code class="language-rust ignore">pub struct ServiceContext {
+    pub app_id: String,
+    pub root_directory: String,
+    // ... internal lookup functions
+}</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>table(name)</code></td><td><code>Option&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Get a table backend by name</td></tr>
+<tr><td><code>require_table(name)</code></td><td><code>Result&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Get a table backend or return an error</td></tr>
+<tr><td><code>pubsub(table_name)</code></td><td><code>Option&lt;Arc&lt;PubSubManager&gt;&gt;</code></td><td>Get the PubSub manager for a table</td></tr>
+<tr><td><code>set_event_subscriber(sub)</code></td><td><code>()</code></td><td>Register a telemetry event handler</td></tr>
+<tr><td><code>app_id()</code></td><td><code>&amp;str</code></td><td>Application ID</td></tr>
+<tr><td><code>root_dir()</code></td><td><code>&amp;str</code></td><td>Server root directory</td></tr>
+</tbody></table>
+</div>
+<pre><code class="language-rust ignore">fn on_ready(&amp;self, ctx: &amp;ServiceContext) -&gt; Result&lt;()&gt; {
+    // Access a table
+    let users = ctx.require_table("User")?;
+
+    // Subscribe to PubSub events
+    if let Some(pubsub) = ctx.pubsub("Chat") {
+        // use pubsub manager
+    }
 
     // Register a telemetry event subscriber
     ctx.set_event_subscriber(Box::new(MySubscriber::new()));
@@ -196,8 +262,8 @@ impl Extension for MyExtension {
     Ok(())
 }</code></pre>
 <h2 id="eventsubscriber-trait"><a class="header" href="#eventsubscriber-trait">EventSubscriber Trait</a></h2>
-<p>Process telemetry events (logs, spans, metrics) in a background task.</p>
-<pre><code class="language-rust ignore">pub trait EventSubscriber: Send {
+<p>Process telemetry events (logs, spans, metrics) in a background task. The host spawns the future after <code>on_ready()</code> returns.</p>
+<pre><code class="language-rust ignore">pub trait EventSubscriber: Send + 'static {
     fn run(
         self: Box&lt;Self&gt;,
         rx: mpsc::Receiver&lt;Value&gt;,
@@ -212,16 +278,15 @@ impl EventSubscriber for MySubscriber {
     ) -&gt; Pin&lt;Box&lt;dyn Future&lt;Output = ()&gt; + Send&gt;&gt; {
         Box::pin(async move {
             while let Ok(event) = rx.recv().await {
-                // Event format:
                 // {"kind": "log"|"span", "timestamp": f64, "level": "INFO", ...}
                 tracing::info!("Event: {}", event);
             }
         })
     }
 }</code></pre>
-<p>The channel is bounded (capacity 10,000). The host spawns the future after <code>on_ready()</code> returns.</p>
+<p>The channel is bounded (capacity 10,000).</p>
 <h2 id="vectorhook-trait"><a class="header" href="#vectorhook-trait">VectorHook Trait</a></h2>
-<p>Provide vector embedding generation for <code>@vector</code> schema fields. Implementations must be <strong>sync</strong> (not async) for dylib boundary safety.</p>
+<p>Provide vector embedding generation for <code>@vector</code> schema fields. Implementations must be <strong>sync</strong> for dylib boundary safety.</p>
 <pre><code class="language-rust ignore">pub trait VectorHook: Send + Sync {
     fn vectorize_fields(
         &amp;self,
@@ -233,13 +298,9 @@ impl EventSubscriber for MySubscriber {
 
     fn vectorize_image(&amp;self, bytes: &amp;[u8], model: &amp;str) -&gt; Result&lt;Vec&lt;f32&gt;, String&gt;;
 
-    fn validate_model(&amp;self, model: &amp;str) -&gt; Result&lt;(), String&gt; {
-        Ok(())
-    }
+    fn validate_model(&amp;self, model: &amp;str) -&gt; Result&lt;(), String&gt; { Ok(()) }
 
-    fn warmup_model(&amp;self, model: &amp;str, field_type: &amp;str) -&gt; Result&lt;(), String&gt; {
-        Ok(())
-    }
+    fn warmup_model(&amp;self, model: &amp;str, field_type: &amp;str) -&gt; Result&lt;(), String&gt; { Ok(()) }
 
     fn vectorize_fields_batch(
         &amp;self,
@@ -251,71 +312,93 @@ impl EventSubscriber for MySubscriber {
 <pre><code class="language-rust ignore">pub struct FieldMapping {
     pub source: String,      // source field name
     pub target: String,      // target vector field name
-    pub model: String,       // model identifier
+    pub model: String,       // model identifier (e.g., "BAAI/bge-small-en-v1.5")
     pub field_type: String,  // "text" (default) or "image"
 }</code></pre>
-<h2 id="authhook-trait"><a class="header" href="#authhook-trait">AuthHook Trait</a></h2>
-<p>Override role resolution before the default logic runs. Useful for custom role assignment based on request context.</p>
-<h2 id="pubsub"><a class="header" href="#pubsub">PubSub</a></h2>
-<p>Topic-based publish/subscribe for real-time messaging.</p>
-<pre><code class="language-rust ignore">pub struct PubSubManager {
-    // ...
-}
+<h2 id="aihook-trait"><a class="header" href="#aihook-trait">AiHook Trait</a></h2>
+<p>Provide local LLM inference capabilities. Implementations must be <strong>sync</strong> for dylib boundary safety.</p>
+<pre><code class="language-rust ignore">pub trait AiHook: Send + Sync {
+    /// Single-turn text completion.
+    fn complete(&amp;self, prompt: &amp;str, max_tokens: u32) -&gt; Result&lt;String, String&gt;;
 
-impl PubSubManager {
-    pub fn new(capacity: usize) -&gt; Self;
-    pub async fn subscribe(&amp;self, topic: &amp;str) -&gt; broadcast::Receiver&lt;SubscriptionMessage&gt;;
-    pub async fn publish(&amp;self, topic: &amp;str, message: SubscriptionMessage);
-    pub async fn notify_update(&amp;self, table: &amp;str, id: &amp;str, data: &amp;Value);
-    pub async fn notify_delete(&amp;self, table: &amp;str, id: &amp;str);
-    pub async fn notify_create(&amp;self, table: &amp;str, id: &amp;str, data: &amp;Value);
+    /// Multi-turn chat completion.
+    fn chat(
+        &amp;self,
+        messages: &amp;[(&amp;str, &amp;str)],
+        max_tokens: u32,
+    ) -&gt; Result&lt;String, String&gt;;
+
+    /// Structured JSON output.
+    fn complete_json(
+        &amp;self,
+        prompt: &amp;str,
+        max_tokens: u32,
+    ) -&gt; Result&lt;Value, String&gt;;
+
+    /// List available models.
+    fn models(&amp;self) -&gt; Vec&lt;ModelInfo&gt;;
+
+    /// Check if a specific model is loaded.
+    fn is_loaded(&amp;self, model: &amp;str) -&gt; bool;
 }</code></pre>
-<pre><code class="language-rust ignore">// In on_ready():
-let pubsub = ctx.pubsub("Chat").unwrap();
-let mut receiver = pubsub.subscribe("Chat/room-1").await;
-
-// Publishing
-pubsub.notify_create("Chat", "msg-1", &amp;json!({"text": "Hello"})).await;</code></pre>
-<h2 id="export_extension"><a class="header" href="#export_extension">export_extension!</a></h2>
-<p>Register the extension for the plugin system:</p>
-<pre><code class="language-rust ignore">export_extension!(MyExtension);</code></pre>
-<p>Place this at module level alongside <code>export_plugin!()</code>.</p>
+<p><code>ModelInfo</code> describes an available model:</p>
+<pre><code class="language-rust ignore">pub struct ModelInfo {
+    pub id: String,
+    pub name: String,
+    pub parameters: String,    // "8B", "3B"
+    pub quantization: String,  // "Q4_K_M", "F16"
+    pub loaded: bool,
+    pub memory_bytes: u64,
+}</code></pre>
+<h2 id="authhook-trait"><a class="header" href="#authhook-trait">AuthHook Trait</a></h2>
+<p>Override role resolution before the default logic runs. Return <code>Some(access)</code> to override, <code>None</code> to fall through.</p>
+<pre><code class="language-rust ignore">pub trait AuthHook: Send + Sync {
+    async fn on_resolve_role(
+        &amp;self,
+        identity: &amp;AuthIdentity,
+        ctx: &amp;Context,
+    ) -&gt; Option&lt;Arc&lt;dyn AccessControl&gt;&gt;;
+}</code></pre>
+<h2 id="computedfieldhook-trait"><a class="header" href="#computedfieldhook-trait">ComputedFieldHook Trait</a></h2>
+<p>Resolve virtual field values at read time. Fields are <code>(name, type)</code> pairs from the schema.</p>
+<pre><code class="language-rust ignore">#[async_trait]
+pub trait ComputedFieldHook: Send + Sync {
+    async fn resolve(
+        &amp;self,
+        record: Value,
+        fields: &amp;[(String, String)],
+    ) -&gt; Result&lt;Value, String&gt;;
+}</code></pre>
 <h2 id="lifecycle-order"><a class="header" href="#lifecycle-order">Lifecycle Order</a></h2>
 <ol>
-<li>Plugin <code>.dylib</code> loaded</li>
-<li>Tables and routes registered</li>
-<li><code>Extension::on_ready(ctx)</code> called</li>
-<li>Event subscriber spawned (if set via <code>ctx.set_event_subscriber()</code>)</li>
+<li><code>Service::is_required(StartupContext)</code> -- decide activation</li>
+<li>Services sorted by <code>depends_on()</code> (topological order)</li>
+<li><code>Service::register(RegistrationContext)</code> -- schemas, resources, hooks</li>
+<li>Tables and routes created from registered schemas</li>
+<li><code>Service::on_ready(ServiceContext)</code> -- bootstrap data, background tasks</li>
+<li>Event subscribers spawned</li>
 <li>Server starts accepting requests</li>
-<li>Graceful shutdown</li>
+<li><code>Service::on_shutdown()</code> on graceful shutdown</li>
 </ol>
-<p>Telemetry extensions are sorted first in <code>load_extensions</code> so their event subscriber captures other extensions' startup.</p>
-<h2 id="dylib-constraints"><a class="header" href="#dylib-constraints">Dylib Constraints</a></h2>
-<p>These apply to all code running in dylib context (extensions and resources):</p>
-<div class="table-wrapper"><table><thead><tr><th>Constraint</th><th>Why</th><th>Alternative</th></tr></thead><tbody>
-<tr><td>No <code>tracing::info!</code></td><td>TLS isolation between host and dylib</td><td><code>yeti_log!</code> or tracing macros (<code>tracing::info!</code>, <code>tracing::warn!</code>, etc.) for consistent API, even in dylib context</td></tr>
-<tr><td>No <code>tokio::spawn</code></td><td>Crashes: "cannot catch foreign exceptions"</td><td><code>futures::stream::unfold</code></td></tr>
-<tr><td>No <code>reqwest::blocking::Client</code></td><td>Internal tokio runtime conflict causes crash</td><td><code>fetch()</code></td></tr>
-<tr><td>No host statics</td><td><code>OnceLock</code> in yeti-core is duplicated in dylib</td><td>Dylib-local statics</td></tr>
-<tr><td>No tokio channels/futures in host methods</td><td>Methods on host types run in dylib context when called from dylib</td><td>Flag-based patterns: set flags in dylib, host checks after <code>on_ready()</code></td></tr>
-</tbody></table>
-</div>
-<h2 id="minimal-extension-example"><a class="header" href="#minimal-extension-example">Minimal Extension Example</a></h2>
+<p>Telemetry services are sorted first so their event subscriber captures other services' startup logs.</p>
+<h2 id="minimal-service-example"><a class="header" href="#minimal-service-example">Minimal Service Example</a></h2>
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
 
-pub struct HealthCheckExtension;
+pub struct HealthCheck;
 
-impl Extension for HealthCheckExtension {
-    fn name(&amp;self) -&gt; &amp;str { "health-check" }
+impl Service for HealthCheck {
+    fn id(&amp;self) -&gt; &amp;'static str { "health-check" }
+    fn name(&amp;self) -&gt; &amp;'static str { "Health Check" }
 
-    fn on_ready(&amp;self, ctx: ExtensionContext) -&gt; Result&lt;()&gt; {
-        yeti_log!(info, "Health check extension ready");
+    fn register(&amp;self, _ctx: &amp;mut RegistrationContext) -&gt; Result&lt;()&gt; {
         Ok(())
     }
-}
 
-export_extension!(HealthCheckExtension);
-export_plugin!();  // No resources, extension only</code></pre>
+    fn on_ready(&amp;self, _ctx: &amp;ServiceContext) -&gt; Result&lt;()&gt; {
+        tracing::info!("Health check service ready");
+        Ok(())
+    }
+}</code></pre>
 
                     </main>
 

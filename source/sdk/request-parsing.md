@@ -1,18 +1,140 @@
 # Request Parsing
 
-The SDK extends `http::Request` with three trait extensions: `RequestBodyExt` for body parsing, `RequestExt` for request metadata, and `JsonValueExt` for working with JSON values.
+`Context` accumulates data as a request flows through the pipeline. `ContextExt` adds convenience methods for common handler patterns.
 
-## Body Parsing (RequestBodyExt)
+## Context Struct
 
-Implemented on `Request<Vec<u8>>` and `Request<&[u8]>`.
+Each pipeline layer populates its fields:
 
-### json\<T\>()
+```text
+Protocol adapter  ->  Router  ->  Auth  ->  Dispatch  ->  Resource
+     |                  |          |           |             |
+     creates            adds       adds        adds          reads
+     method, path,      app_id,    identity,   json_body,    everything
+     body, headers      resource,  access,     backend
+                        path_id,   permission
+                        query
+```
 
-Parse the request body into a typed struct.
+### Fields
 
 ```rust,ignore
-fn json<T: DeserializeOwned>(&self) -> Result<T>
+pub struct Context {
+    // -- Protocol adapter --
+    pub method: http::Method,
+    pub path: String,
+    pub body: Bytes,
+    pub headers: http::HeaderMap,
+
+    // -- Router --
+    pub app_id: Arc<str>,
+    pub resource_id: Arc<str>,
+    pub path_id: Option<String>,
+    pub query_params: HashMap<String, String>,
+    pub is_collection: bool,
+
+    // -- Auth layer --
+    pub auth_identity: Option<AuthIdentity>,
+    pub access: Option<Arc<dyn AccessControl>>,
+    pub permission: TablePermission,
+
+    // -- Table registration --
+    pub database: Arc<str>,
+    pub table_name: Arc<str>,
+
+    // -- Dispatch layer --
+    pub json_body: Option<Value>,
+    pub backend_manager: Option<Arc<BackendManager>>,
+}
 ```
+
+### Built-in methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `query(name)` | `Option<&str>` | Query parameter by name |
+| `query_int(name, default)` | `i64` | Query parameter as integer with default |
+| `query_bool(name, default)` | `bool` | Query parameter as boolean with default |
+| `table(name)` | `Result<Arc<dyn KvBackend>>` | Low-level backend for a table |
+| `table_context()` | `(&str, &str)` | Database and table name pair |
+
+## ContextExt Trait
+
+Imported via `use yeti_sdk::prelude::*`. Higher-level convenience methods on `Context`.
+
+```rust,ignore
+pub trait ContextExt {
+    fn get_table(&self, name: &str) -> Result<Table>;
+    fn tables(&self) -> Result<Tables>;
+    fn require_id(&self) -> Result<&str>;
+    fn require_json_body(&self) -> Result<&Value>;
+    fn auth_identity(&self) -> Option<&AuthIdentity>;
+    fn cookie(&self, name: &str) -> Option<String>;
+}
+```
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get_table(name)` | `Result<Table>` | Table accessor by name |
+| `tables()` | `Result<Tables>` | Accessor for all tables |
+| `require_id()` | `Result<&str>` | `path_id` or validation error |
+| `require_json_body()` | `Result<&Value>` | Parsed JSON body or validation error |
+| `auth_identity()` | `Option<&AuthIdentity>` | Authenticated identity |
+| `cookie(name)` | `Option<String>` | Cookie value from request headers |
+
+## Path ID and Record Lookup
+
+The router extracts the path ID from the URL (e.g. `"123"` from `/app/Table/123`). Use `require_id()` when the ID is mandatory.
+
+```rust,ignore
+fn get(&self, ctx: Context) -> ResourceFuture {
+    Box::pin(async move {
+        let id = ctx.require_id()?;
+        let table = ctx.get_table("Product")?;
+        let product = table.get_or_404(id).await?;
+        ok(product)
+    })
+}
+```
+
+For collection requests (no ID), `ctx.is_collection` is `true` and `ctx.path_id` is `None`.
+
+```rust,ignore
+fn get(&self, ctx: Context) -> ResourceFuture {
+    Box::pin(async move {
+        if ctx.is_collection {
+            let table = ctx.get_table("Product")?;
+            let all = table.get_all().await?;
+            ok(all)
+        } else {
+            let id = ctx.require_id()?;
+            let table = ctx.get_table("Product")?;
+            let product = table.get_or_404(id).await?;
+            ok(product)
+        }
+    })
+}
+```
+
+## Request Body Parsing
+
+The dispatch layer eagerly parses JSON bodies into `ctx.json_body`. Use `require_json_body()` when a body is required, or read `ctx.json_body` directly for optional bodies.
+
+```rust,ignore
+fn post(&self, ctx: Context) -> ResourceFuture {
+    Box::pin(async move {
+        let body = ctx.require_json_body()?;
+        let name = body["name"].as_str()
+            .ok_or_else(|| YetiError::Validation("name is required".into()))?;
+
+        let table = ctx.get_table("User")?;
+        let record = table.create(body.clone()).await?;
+        ok(record)
+    })
+}
+```
+
+For typed deserialization, parse from the raw bytes:
 
 ```rust,ignore
 #[derive(Deserialize)]
@@ -21,286 +143,206 @@ struct CreateUser {
     email: String,
 }
 
-let user: CreateUser = request.json()?;
-```
-
-Returns `Err(YetiError::Validation)` if the body is not valid JSON or does not match the target type.
-
-### json_value()
-
-Parse the body as a generic `serde_json::Value`.
-
-```rust,ignore
-fn json_value(&self) -> Result<Value>
-```
-
-```rust,ignore
-let body: Value = request.json_value()?;
-let name = body["name"].as_str().unwrap_or("unknown");
-```
-
-### json_array()
-
-Normalize a body that may be a single object or an array into `Vec<Value>`:
-
-```rust,ignore
-fn json_array(&self) -> Result<Vec<Value>>
-```
-
-```rust,ignore
-// Accepts both: {"name": "Alice"} and [{"name": "Alice"}, {"name": "Bob"}]
-let items: Vec<Value> = request.json_array()?;
-for item in &items {
-    // process each item
+fn post(&self, ctx: Context) -> ResourceFuture {
+    Box::pin(async move {
+        let user: CreateUser = serde_json::from_slice(&ctx.body)
+            .map_err(|e| YetiError::Validation(e.to_string()))?;
+        // ...
+        ok(json!({"created": user.name}))
+    })
 }
 ```
 
-### json_field\<T\>(path)
+## Query Parameters
 
-Extract a nested field by dot-path.
-
-```rust,ignore
-fn json_field<T: DeserializeOwned>(&self, path: &str) -> Result<T>
-```
+The router parses query parameters into `ctx.query_params`. Access them with `query()`, `query_int()`, and `query_bool()`.
 
 ```rust,ignore
-// Body: {"user": {"email": "alice@example.com"}}
-let email: String = request.json_field("user.email")?;
-```
+fn get(&self, ctx: Context) -> ResourceFuture {
+    Box::pin(async move {
+        let limit = ctx.query_int("limit", 100);
+        let offset = ctx.query_int("offset", 0);
+        let active = ctx.query_bool("active", true);
 
-Returns `Err(YetiError::Validation)` if the field is missing.
+        // Raw string access
+        let sort = ctx.query("sort").unwrap_or("created_at");
 
-### json_field_opt\<T\>(path)
-
-Same as `json_field` but returns `None` instead of an error when the field is missing.
-
-```rust,ignore
-fn json_field_opt<T: DeserializeOwned>(&self, path: &str) -> Result<Option<T>>
-```
-
-```rust,ignore
-let bio: Option<String> = request.json_field_opt("user.bio")?;
-```
-
-### body_bytes()
-
-Access the raw request body as bytes.
-
-```rust,ignore
-fn body_bytes(&self) -> &[u8]
-```
-
-```rust,ignore
-let raw: &[u8] = request.body_bytes();
-```
-
-### Content type checks
-
-```rust,ignore
-fn is_csv(&self) -> bool
-fn is_json(&self) -> bool
-fn content_type_contains(&self, mime: &str) -> bool
-```
-
-```rust,ignore
-if request.is_csv() {
-    let items = parse_csv(request.body_bytes());
-} else if request.is_json() {
-    let items = request.json_array()?;
-}
-
-if request.content_type_contains("application/xml") {
-    // handle XML
+        let table = ctx.get_table("Product")?;
+        let results = table.query()
+            .limit(limit as usize)
+            .offset(offset as usize)
+            .execute()
+            .await?;
+        ok(results)
+    })
 }
 ```
 
-## Request Metadata (RequestExt)
+`query_bool` recognizes `"true"`, `"1"`, `"yes"`, `"on"` as true.
 
-Implemented on `Request<T>` for any body type. Provides access to request identity, routing, and headers.
+## Header Access
 
-### id()
-
-Get the request ID. Uses the `X-Request-Id` header if present, otherwise generates a UUID v7.
+Standard `http::HeaderMap` on `ctx.headers`.
 
 ```rust,ignore
-fn id(&self) -> String
+fn get(&self, ctx: Context) -> ResourceFuture {
+    Box::pin(async move {
+        let auth = ctx.headers.get("authorization")
+            .and_then(|v| v.to_str().ok());
+
+        let origin = ctx.headers.get("origin")
+            .and_then(|v| v.to_str().ok());
+
+        let accept = ctx.headers.get("accept")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("application/json");
+
+        // ...
+        ok(json!({"accept": accept}))
+    })
+}
+```
+
+For cookies, `cookie()` from `ContextExt` handles HTTP/2 cookie header splitting:
+
+```rust,ignore
+let session = ctx.cookie("session_id");
+let theme = ctx.cookie("theme").unwrap_or_else(|| "light".to_string());
+```
+
+## Auth Identity
+
+The auth layer populates `ctx.auth_identity` and `ctx.access`.
+
+```rust,ignore
+pub enum AuthIdentity {
+    Basic { username: String },
+    Jwt { username: String, claims: Value },
+    OAuth { email: Option<String>, provider: String, claims: Value },
+    Mtls { username: String, cn: String, sans: Vec<String> },
+}
 ```
 
 ```rust,ignore
-let req_id = request.id();
+fn post(&self, ctx: Context) -> ResourceFuture {
+    Box::pin(async move {
+        let identity = ctx.auth_identity()
+            .ok_or_else(|| YetiError::Validation("Authentication required".into()))?;
+
+        let username = identity.username();
+
+        // Check specific identity type
+        match identity {
+            AuthIdentity::Jwt { claims, .. } => {
+                let role = claims["role"].as_str();
+                // ...
+            }
+            AuthIdentity::OAuth { provider, .. } => {
+                tracing::info!("OAuth login via {}", provider);
+            }
+            _ => {}
+        }
+
+        ok(json!({"user": username}))
+    })
+}
 ```
 
-### ip()
+## Table Permission
 
-Get the client IP address. Checks `X-Forwarded-For` first, then `X-Real-IP`.
+The auth layer pre-computes `ctx.permission` for field-level access control. The `allow_*` methods use this automatically; read it directly for custom logic.
 
 ```rust,ignore
-fn ip(&self) -> Option<String>
+match &ctx.permission {
+    TablePermission::Public => { /* no auth required */ }
+    TablePermission::FullAccess => { /* super_user or wildcard */ }
+    TablePermission::AttributeRestricted { readable, writable } => {
+        // Filter response fields based on readable
+        // Validate input fields based on writable
+    }
+}
 ```
 
+## Table Access
+
+`Table` (from `ctx.get_table()`) provides CRUD operations, querying, and convenience methods.
+
+### CRUD Operations
+
 ```rust,ignore
-let client_ip = request.ip().unwrap_or_else(|| "unknown".to_string());
+let table = ctx.get_table("Product")?;
+
+// Read
+let product = table.get("prod-123").await?;          // Option<Value>
+let product = table.get_or_404("prod-123").await?;   // Value (404 if missing)
+let all = table.get_all().await?;                     // Vec<Value>
+
+// Create (auto-generates UUID v7 ID)
+let created = table.create(json!({"name": "Widget"})).await?;
+
+// Update
+table.put("prod-123", json!({"name": "Widget", "price": 29.99})).await?;
+table.patch("prod-123", json!({"price": 24.99})).await?;
+
+// Delete
+let existed = table.delete("prod-123").await?;        // bool
+let count = table.delete_all().await?;                 // u64
 ```
 
-### host() / hostname()
-
-Get the request host. `hostname()` strips the port.
+### Query and Search
 
 ```rust,ignore
-fn host(&self) -> Option<String>
-fn hostname(&self) -> Option<String>
+// Fluent query builder
+let results = table.query()
+    .where_eq("status", "active")
+    .limit(10)
+    .execute()
+    .await?;
+
+// Convenience scan methods
+let active = table.find("status", "active").await?;        // Vec<Value>
+let admin = table.find_one("role", "admin").await?;        // Option<Value>
+let total = table.count().await?;                           // u64
+let by_status = table.count_by("status").await?;           // HashMap<String, usize>
+let groups = table.group_by("category").await?;            // HashMap<String, Vec<Value>>
 ```
 
-```rust,ignore
-let host = request.host();         // Some("example.com:8080")
-let name = request.hostname();     // Some("example.com")
-```
-
-### protocol()
-
-Get the protocol. Checks `X-Forwarded-Proto`, defaults to `"https"`.
+### PubSub Subscriptions
 
 ```rust,ignore
-fn protocol(&self) -> &str
-```
+// Subscribe to all changes on a table
+let mut rx = table.subscribe_all().await?;
 
-### original_url()
+// Subscribe to changes on a specific record
+let mut rx = table.subscribe_id("order-123").await?;
 
-Get the request URI path (before internal routing).
-
-```rust,ignore
-fn original_url(&self) -> String
-```
-
-### param(key) / path_id()
-
-Get a path or query parameter by key. `path_id()` is shorthand for `param("_path_id")`.
-
-```rust,ignore
-fn param(&self, key: &str) -> Option<String>
-fn path_id(&self) -> Option<String>
-```
-
-### param_i64 / param_u64 / param_bool
-
-Get typed parameters with defaults:
-
-```rust,ignore
-fn param_i64(&self, key: &str, default: i64) -> i64
-fn param_u64(&self, key: &str, default: u64) -> u64
-fn param_bool(&self, key: &str, default: bool) -> bool
-```
-
-`param_bool` recognizes `"true"`, `"1"`, `"yes"` as true and `"false"`, `"0"`, `"no"` as false.
-
-### header_str(name)
-
-Get a header value as a string.
-
-```rust,ignore
-fn header_str(&self, name: &str) -> Option<&str>
-```
-
-```rust,ignore
-let auth = request.header_str("authorization");
-let origin = request.header_str("origin");
-```
-
-## JSON Value Helpers (JsonValueExt)
-
-Extension trait on `serde_json::Value` for ergonomic access with dot notation and defaults.
-
-### Typed access with defaults
-
-```rust,ignore
-fn get(&self, path: &str, default: &str) -> String
-fn get_i64(&self, path: &str, default: i64) -> i64
-fn get_u64(&self, path: &str, default: u64) -> u64
-fn get_f64(&self, path: &str, default: f64) -> f64
-fn get_bool(&self, path: &str, default: bool) -> bool
-```
-
-```rust,ignore
-let body = request.json_value()?;
-
-let name = JsonValueExt::get(&body, "user.name", "anonymous");
-let age = body.get_i64("user.age", 0);
-let score = body.get_f64("metrics.score", 0.0);
-let active = body.get_bool("flags.active", false);
-```
-
-### Optional access
-
-```rust,ignore
-fn opt_str(&self, path: &str) -> Option<&str>
-fn opt_bool(&self, path: &str) -> Option<bool>
-fn opt_u64(&self, path: &str) -> Option<u64>
-```
-
-### dot_get(path)
-
-Get the raw `&Value` at a dot-separated path.
-
-```rust,ignore
-fn dot_get(&self, path: &str) -> Option<&Value>
-```
-
-```rust,ignore
-let email = body.dot_get("user.contact.email").and_then(|v| v.as_str());
-```
-
-Supports nested objects, arrays (by index), and mixed access:
-
-```rust,ignore
-let data = json!({
-    "teams": [{"name": "Engineering", "members": [{"name": "Alice"}]}]
-});
-let name = data.dot_get("teams.0.members.0.name"); // Some("Alice")
-```
-
-### require_str / require_i64 / require_u64 / require_bool
-
-Get a required field, returning `Err(YetiError::Validation)` if missing.
-
-```rust,ignore
-fn require_str(&self, path: &str) -> Result<String>
-fn require_i64(&self, path: &str) -> Result<i64>
-fn require_u64(&self, path: &str) -> Result<u64>
-fn require_bool(&self, path: &str) -> Result<bool>
-```
-
-```rust,ignore
-let name = body.require_str("name")?;
-let count = body.require_i64("count")?;
+while let Ok(msg) = rx.recv().await {
+    // msg.message_type: Update | Delete | Publish | Retained
+    // msg.data: Value
+    // msg.id: Option<String>
+}
 ```
 
 ## Quick Reference
 
-| Trait | Method | Returns | Description |
-|-------|--------|---------|-------------|
-| `RequestBodyExt` | `json::<T>()` | `Result<T>` | Parse body as typed struct |
-| | `json_value()` | `Result<Value>` | Parse body as JSON value |
-| | `json_array()` | `Result<Vec<Value>>` | Normalize single/array to vec |
-| | `json_field::<T>(path)` | `Result<T>` | Extract nested field by dot-path |
-| | `json_field_opt::<T>(path)` | `Result<Option<T>>` | Extract field, None if missing |
-| | `body_bytes()` | `&[u8]` | Raw request body bytes |
-| | `is_csv()` | `bool` | Content-Type contains "csv" |
-| | `is_json()` | `bool` | Content-Type contains "json" |
-| | `content_type_contains(mime)` | `bool` | Content-Type contains string |
-| `RequestExt` | `id()` | `String` | Request ID (header or generated) |
-| | `ip()` | `Option<String>` | Client IP |
-| | `host()` | `Option<String>` | Host with port |
-| | `hostname()` | `Option<String>` | Host without port |
-| | `protocol()` | `&str` | "http" or "https" |
-| | `original_url()` | `String` | Request URI path |
-| | `param(key)` | `Option<String>` | Path/query parameter |
-| | `path_id()` | `Option<String>` | Path ID segment |
-| | `param_i64(key, default)` | `i64` | Integer parameter |
-| | `param_u64(key, default)` | `u64` | Unsigned integer parameter |
-| | `param_bool(key, default)` | `bool` | Boolean parameter |
-| | `header_str(name)` | `Option<&str>` | Header value |
-| `JsonValueExt` | `get(path, default)` | `String` | String with default |
-| | `get_i64(path, default)` | `i64` | Integer with default |
-| | `get_bool(path, default)` | `bool` | Boolean with default |
-| | `dot_get(path)` | `Option<&Value>` | Raw value at path |
-| | `require_str(path)` | `Result<String>` | Required string field |
+| Source | Method | Returns | Description |
+|--------|--------|---------|-------------|
+| `Context` | `method` | `http::Method` | HTTP method |
+| | `path` | `String` | Request path |
+| | `body` | `Bytes` | Raw body |
+| | `headers` | `HeaderMap` | HTTP headers |
+| | `app_id` | `Arc<str>` | Application ID |
+| | `resource_id` | `Arc<str>` | Resource name |
+| | `path_id` | `Option<String>` | Record ID from path |
+| | `is_collection` | `bool` | No ID in path |
+| | `json_body` | `Option<Value>` | Parsed JSON body |
+| | `query(name)` | `Option<&str>` | Query parameter |
+| | `query_int(name, default)` | `i64` | Integer query parameter |
+| | `query_bool(name, default)` | `bool` | Boolean query parameter |
+| | `table(name)` | `Result<Arc<dyn KvBackend>>` | Low-level table backend |
+| `ContextExt` | `get_table(name)` | `Result<Table>` | Table accessor |
+| | `tables()` | `Result<Tables>` | All-tables accessor |
+| | `require_id()` | `Result<&str>` | Path ID or 400 |
+| | `require_json_body()` | `Result<&Value>` | JSON body or 400 |
+| | `auth_identity()` | `Option<&AuthIdentity>` | Authenticated identity |
+| | `cookie(name)` | `Option<String>` | Cookie value |

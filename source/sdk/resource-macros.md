@@ -2,11 +2,11 @@
 
 ## resource!
 
-The primary macro for defining HTTP resources. It generates a struct, implements the `Resource` trait, and registers the resource for export.
+The primary macro for defining HTTP resources. Generates a struct, implements `Resource`, and registers it for export.
 
-### Simple (no request/context)
+### Simple (no context)
 
-For simple responses without request/context:
+Static responses without request data:
 
 ```rust,ignore
 resource!(Health {
@@ -14,27 +14,28 @@ resource!(Health {
 });
 ```
 
-The struct name becomes the route path (lowercased): `GET /app/health`.
+Struct name becomes the route path (lowercased): `GET /app/health`.
 
-### With request and context
+### With Context
 
-Use explicit parameter names to access the request and `ResourceParams`:
+Pass a parameter to access the `Context` (request, path ID, query params, auth identity, headers, body, tables):
 
 ```rust,ignore
 resource!(Items {
-    get(request, ctx) => {
+    get(ctx) => {
         let table = ctx.get_table("Items")?;
         let id = ctx.require_id()?;
-        let item = table.get_or_404(id).await?;
+        let item = table.get(id).await?;
         ok(item)
     },
-    post(request, ctx) => {
-        let body = request.json_value()?;
+    post(ctx) => {
+        let body = ctx.require_json_body()?.clone();
         let table = ctx.get_table("Items")?;
-        let result = table.create(body).await?;
-        created(result)
+        let id = body["id"].as_str().unwrap_or("unknown");
+        table.put(id, body.clone()).await?;
+        created(body)
     },
-    delete(request, ctx) => {
+    delete(ctx) => {
         let table = ctx.get_table("Items")?;
         let id = ctx.require_id()?;
         table.delete(id).await?;
@@ -43,11 +44,11 @@ resource!(Items {
 });
 ```
 
-Parameter names are arbitrary (`req`, `params`, `request`, `yeti`, etc.).
+The parameter name is arbitrary (`ctx`, `c`, `request`, etc.).
 
 ### Custom URL path
 
-Override the route path with `name =`:
+Override the route path:
 
 ```rust,ignore
 resource!(MyHandler {
@@ -56,17 +57,17 @@ resource!(MyHandler {
 });
 ```
 
-The resource registers at `/app/custom-path` instead of `/app/myhandler`.
+Registers at `/app/custom-path` instead of `/app/myhandler`.
 
 ### Catch-all (default)
 
-A default resource handles any path not matched by other resources or tables:
+A default resource handles unmatched paths:
 
 ```rust,ignore
 resource!(Fallback {
     default = true,
-    get(request, ctx) => {
-        let path = ctx.path_id().unwrap_or("/");
+    get(ctx) => {
+        let path = ctx.path_id.as_deref().unwrap_or("/");
         not_found(&format!("No resource at {}", path))
     }
 });
@@ -74,27 +75,27 @@ resource!(Fallback {
 
 ### Combined options
 
-`name` and `default` can be used together, in either order:
+`name` and `default` combine in either order:
 
 ```rust,ignore
 resource!(CatchAll {
     name = "fallback",
     default = true,
-    get(request, ctx) => {
-        ok_text("Not found")
+    get(ctx) => {
+        reply().text("Not found")
     }
 });
 ```
 
 ### Custom fields
 
-Resources can hold state via the `fields` block:
+Resources hold state via the `fields` block. Fields are accessible via `self` inside handlers (each handler is a `fn get(&self, ctx: Context)` method). The `fields` pattern does not support a context parameter.
 
 ```rust,ignore
 resource!(Counter {
     fields { count: Arc<std::sync::atomic::AtomicU64> },
-    get(request, ctx) => {
-        let n = ctx.count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    get => {
+        let n = self.count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         ok(json!({"count": n}))
     }
 });
@@ -102,43 +103,40 @@ resource!(Counter {
 
 ### Supported methods
 
-The macro supports: `get`, `post`, `put`, `patch`, `delete`, `search`. Each can be used with or without parameters.
+Supported HTTP methods (each with or without a context parameter):
 
-## simple_resource!
+| Method | Description |
+|--------|-------------|
+| `get` | GET requests |
+| `post` | POST requests |
+| `put` | PUT requests |
+| `patch` | PATCH requests |
+| `delete` | DELETE requests |
+| `search` | SEARCH requests |
 
-One-liner for resources that implement a single method:
+Real-time methods (available when implementing `Resource` directly):
 
-```rust,ignore
-simple_resource!(Ping, get => json!({"pong": true}));
-```
-
-Equivalent to:
-
-```rust,ignore
-resource!(Ping {
-    get => json!({"pong": true})
-});
-```
+| Method | Return type | Description |
+|--------|-------------|-------------|
+| `subscribe` | `SubscriptionFuture` | SSE event streams |
+| `publish` | `ResourceFuture` | MQTT publish handling |
+| `connect` | `ConnectionFuture` | WebSocket connections |
 
 ## extends_table!
 
-Override behavior on an auto-generated table resource. Only the methods you define are overridden; all others delegate to the default table implementation.
+Override behavior on an auto-generated table resource. Only defined methods are overridden; others delegate to the default table implementation.
 
 ```rust,ignore
 extends_table!(Product {
-    get(request, ctx) => {
-        let table = ctx.get_table("Product")?;
-        let records = table.get_all().await?;
-        ok(json!({"products": records, "count": records.len()}))
-    }
+    get => json!({"message": "custom product listing"})
 });
 ```
 
-The macro sets `extends_table()` to return the struct name and generates the appropriate `MethodOverrides`.
+`extends_table!` uses simple expression syntax (no context parameter). For context access, use `resource!` with the TableExtender pattern or implement `Resource` directly.
 
 ## Permission overrides (TableExtender)
 
-Declare which methods on a table resource are publicly accessible without authentication:
+Declare publicly accessible methods on a table resource (no authentication required):
 
 ```rust,ignore
 resource!(TableExtender for Product {
@@ -147,7 +145,7 @@ resource!(TableExtender for Product {
 });
 ```
 
-Available permission functions:
+Permission functions:
 
 | Function | Makes public | Applies to |
 |----------|-------------|------------|
@@ -156,7 +154,7 @@ Available permission functions:
 | `allow_update()` | Update access | `put`, `patch` |
 | `allow_delete()` | Delete access | `delete` |
 
-Multiple methods can map to the same permission. Duplicate permissions are automatically deduplicated:
+Multiple methods can map to the same permission. Duplicates are deduplicated:
 
 ```rust,ignore
 resource!(TableExtender for Chat {
@@ -169,108 +167,93 @@ resource!(TableExtender for Chat {
 });
 ```
 
-## Method macros
+## Response helpers
 
-Method macros simplify trait implementations:
+### reply() builder
 
-```rust,ignore
-impl Resource for MyResource {
-    fn name(&self) -> &str { "my" }
-
-    get!(request, ctx, {
-        ok(json!({"method": "GET"}))
-    });
-
-    post!(request, ctx, {
-        let body = request.json_value()?;
-        created(body)
-    });
-}
-```
-
-Available: `get!`, `post!`, `put!`, `patch!`, `delete!`, `search!`.
-
-## async_handler!
-
-Wraps an async block into a `ResourceFuture`. Use this when implementing the `Resource` trait directly:
+Chainable response builder:
 
 ```rust,ignore
-impl Resource for MyResource {
-    fn name(&self) -> &str { "my" }
-
-    fn get(&self, _req: Request<Vec<u8>>, ctx: ResourceParams) -> ResourceFuture {
-        async_handler!({
-            let table = ctx.get_table("Data")?;
-            let all = table.get_all().await?;
-            ok(json!(all))
-        })
+resource!(Api {
+    get(ctx) => {
+        reply()
+            .code(200)
+            .header("x-cache", "HIT")
+            .json(json!({"data": "value"}))
     }
-}
+});
 ```
 
-## export_plugin!
+Builder methods: `.code(status)`, `.header(name, value)`, `.json(value)`, `.text(content)`, `.html(content)`.
 
-Declares which resources the plugin exports. Placed at the end of `lib.rs` (auto-generated by the compiler):
+### Function helpers
 
-```rust,ignore
-// Export multiple resources
-export_plugin!(Items, Summary, Health);
-
-// Extension-only plugin (no resources)
-export_plugin!();
-```
-
-## register_resource!
-
-Manual resource registration. Only needed when implementing the `Resource` trait directly instead of using `resource!`:
-
-```rust,ignore
-pub struct CustomResource;
-
-impl Default for CustomResource {
-    fn default() -> Self { Self }
-}
-
-impl Resource for CustomResource {
-    fn name(&self) -> &str { "custom" }
-    // ... method implementations
-}
-
-register_resource!(CustomResource);
-```
-
-The `resource!` macro calls `register_resource!` automatically.
+| Function | Description |
+|----------|-------------|
+| `ok(value)` | 200 + JSON body |
+| `created(value)` | 201 + JSON body |
+| `no_content()` | 204 empty |
+| `not_found(msg)` | 404 error |
+| `bad_request(msg)` | 400 error |
+| `unauthorized(msg)` | 401 error |
+| `json_response(status, value)` | Custom status + JSON |
+| `html_response(content)` | 200 + text/html |
+| `text_response(content)` | 200 + text/plain |
 
 ## Resource trait reference
 
-For completeness, the full `Resource` trait that macros implement:
+The full trait that macros implement:
 
 ```rust,ignore
 pub trait Resource: Send + Sync {
     fn name(&self) -> &str;
     fn is_default(&self) -> bool { false }
+    fn attribute_names(&self) -> Option<Arc<Vec<String>>> { None }
     fn extends_table(&self) -> Option<&str> { None }
     fn method_overrides(&self) -> MethodOverrides { Default::default() }
 
-    fn get(&self, req: Request<Vec<u8>>, params: ResourceParams) -> ResourceFuture;
-    fn post(&self, req: Request<Vec<u8>>, params: ResourceParams) -> ResourceFuture;
-    fn put(&self, req: Request<Vec<u8>>, params: ResourceParams) -> ResourceFuture;
-    fn patch(&self, req: Request<Vec<u8>>, params: ResourceParams) -> ResourceFuture;
-    fn delete(&self, req: Request<Vec<u8>>, params: ResourceParams) -> ResourceFuture;
-    fn search(&self, req: Request<Vec<u8>>, params: ResourceParams) -> ResourceFuture;
+    fn get(&self, ctx: Context) -> ResourceFuture;
+    fn post(&self, ctx: Context) -> ResourceFuture;
+    fn put(&self, ctx: Context) -> ResourceFuture;
+    fn patch(&self, ctx: Context) -> ResourceFuture;
+    fn delete(&self, ctx: Context) -> ResourceFuture;
+    fn search(&self, ctx: Context) -> ResourceFuture;
+    fn copy(&self, ctx: Context) -> ResourceFuture;
+    fn move_record(&self, ctx: Context) -> ResourceFuture;
+    fn invalidate(&self, ctx: Context) -> ResourceFuture;
 
-    fn subscribe(&self, req: Request<Vec<u8>>, params: ResourceParams) -> SubscriptionFuture;
-    fn publish(&self, req: Request<Vec<u8>>, params: ResourceParams) -> ResourceFuture;
-    fn connect(&self, req: Request<Vec<u8>>, params: ResourceParams) -> ConnectionFuture;
+    fn subscribe(&self, ctx: Context) -> SubscriptionFuture;
+    fn publish(&self, ctx: Context) -> ResourceFuture;
+    fn connect(&self, ctx: Context) -> ConnectionFuture;
 
-    fn allow_read(&self, access: &dyn AccessControl, target: &RequestTarget, params: &ResourceParams) -> bool;
-    fn allow_create(&self, access: &dyn AccessControl, data: &Value, target: &RequestTarget, params: &ResourceParams) -> bool;
-    fn allow_update(&self, access: &dyn AccessControl, data: &Value, target: &RequestTarget, params: &ResourceParams) -> bool;
-    fn allow_delete(&self, access: &dyn AccessControl, target: &RequestTarget, params: &ResourceParams) -> bool;
-    fn allow_subscribe(&self, access: &dyn AccessControl, target: &RequestTarget, params: &ResourceParams) -> bool;
-    fn allow_connect(&self, access: &dyn AccessControl, target: &RequestTarget, params: &ResourceParams) -> bool;
-    fn allow_publish(&self, access: &dyn AccessControl, target: &RequestTarget, params: &ResourceParams) -> bool;
+    fn allow_read(&self, ctx: &Context) -> bool;
+    fn allow_create(&self, ctx: &Context) -> bool;
+    fn allow_update(&self, ctx: &Context) -> bool;
+    fn allow_delete(&self, ctx: &Context) -> bool;
+    fn allow_subscribe(&self, ctx: &Context) -> bool;
+    fn allow_connect(&self, ctx: &Context) -> bool;
+    fn allow_publish(&self, ctx: &Context) -> bool;
 }
 ```
 
-All methods except `name()` have default implementations. HTTP methods default to 405 Method Not Allowed. Authorization methods default to RBAC checks against `AccessControl`. `allow_publish` defaults to super_user only.
+All methods except `name()` have defaults. HTTP methods default to 405. Authorization methods default to RBAC checks against the context's `AccessControl`.
+ssControl`.
+l`.
+essControl`.
+ssControl`.
+l`.
+ext's `AccessControl`.
+ssControl`.
+l`.
+essControl`.
+ssControl`.
+l`.
+trol`.
+l`.
+`.
+essControl`.
+ssControl`.
+l`.
+trol`.
+l`.
+l`.

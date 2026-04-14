@@ -1,6 +1,6 @@
 # Plugin System & Hot Reload
 
-Yeti compiles custom resources into dynamic libraries (dylibs) loaded at runtime.
+Custom resources compile into dynamic libraries (dylibs) loaded at runtime.
 
 ## Compilation Pipeline
 
@@ -13,16 +13,16 @@ ApplicationCompiler
   3. Generate lib.rs (scans source for types)
   4. cargo build --release -> .dylib
         │
-cache/builds/{app}/target/release/lib{app}.dylib
+cache/builds/target/release/lib{app}.dylib
 ```
 
 Fresh builds take ~2 minutes per plugin. Cached rebuilds take ~10 seconds.
 
 ## Hot Reload
 
-Yeti monitors dylib files with filesystem watchers:
+Filesystem watchers monitor dylib files:
 
-1. Watcher detects change in `cache/builds/{app}/target/`
+1. Watcher detects change in `cache/builds/target/`
 2. New dylib copied to temp file (forces OS to load fresh copy)
 3. Plugin loaded, AutoRouter updated with new handlers
 4. Old dylib unloaded
@@ -35,21 +35,21 @@ The compiler copies source to `cache/builds/{app}/src/` before building. See [Tr
 
 ## Dylib Boundary Rules
 
-Dynamic libraries get separate copies of all static data, creating critical constraints:
+Dynamic libraries get separate copies of all static data, creating hard constraints:
 
 **Do not:**
-- Call `tokio::spawn()` from dylib code (crashes with "cannot catch foreign exceptions")
-- Use `tracing::info!()` etc. (doesn't reach host log due to TLS isolation)
+- Call `tokio::spawn()` (crashes with "cannot catch foreign exceptions")
+- Use `eprintln!()` (never reaches structured output)
 - Create tokio channels/futures in methods called from dylib context
 
 **Instead:**
-- Use `futures::stream::unfold` instead of spawn+channel patterns
-- Use tracing macros (`tracing::info!`, `tracing::warn!`, etc.) for consistent API, even in dylib context
-- Use flag-based patterns: dylib sets flags, host checks after `on_ready()` returns
+- `futures::stream::unfold` instead of spawn+channel patterns
+- `tracing` macros for logging (output may not reach the host subscriber due to TLS isolation, but tracing is the correct interface)
+- Flag-based patterns: dylib sets flags, host checks after `on_ready()` returns
 
-## Extension Plugins
+## Service Plugins
 
-Extensions follow the same pipeline but provide shared services. The compiler auto-detects extension types by scanning source for `struct {Type}Extension`.
+User-defined services follow the same pipeline. The compiler auto-detects service types by scanning for `struct {Type}Extension`.
 
 ```yaml
 extension: true

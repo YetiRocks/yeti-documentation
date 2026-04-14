@@ -147,10 +147,21 @@ curl -sk -X POST https://localhost:9996/my-app/User \
 }
 </code></pre>
 <h2 id="vector-type"><a class="header" href="#vector-type">Vector Type</a></h2>
-<p>Use the <code>Vector</code> scalar type for embedding fields. The <code>Vector</code> type automatically creates an HNSW index:</p>
-<pre><code class="language-graphql">embedding: Vector @indexed(source: "content")
+<p>The <code>Vector</code> scalar type stores f32 embedding arrays. Declaring a <code>Vector</code> field automatically creates an HNSW index for similarity search.</p>
+<pre><code class="language-graphql">type Document @table @export {
+    id: ID!
+    content: String!
+    embedding: Vector @indexed(source: "content")
+}
 </code></pre>
-<p>Dimensions are determined by the embedding model. See <a href="../guides/vector-search.html">Vector Search</a> for model selection and tuning parameters.</p>
+<p>In JSON, vectors are represented as arrays of numbers:</p>
+<pre><code class="language-json">{
+  "id": "doc-1",
+  "content": "Hello world",
+  "embedding": [0.1, 0.2, 0.3, 0.4]
+}
+</code></pre>
+<p>Dimensions are determined by the embedding model. Vector fields are excluded from MCP create/update tool schemas since they are auto-generated from the source field. See <a href="../guides/vector-search.html">Vector Search</a> for model selection and tuning parameters.</p>
 <h2 id="type-coercion"><a class="header" href="#type-coercion">Type Coercion</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Input</th><th>Target Type</th><th>Result</th></tr></thead><tbody>
 <tr><td><code>"42"</code></td><td>Int</td><td><code>42</code></td></tr>
@@ -160,6 +171,12 @@ curl -sk -X POST https://localhost:9996/my-app/User \
 </tbody></table>
 </div>
 <p>Coercion failures return a 400 validation error.</p>
+<h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
+<ul>
+<li><a href="../reference/schema-directives.html">Schema Directives</a> -- Directive reference</li>
+<li><a href="../guides/vector-search.html">Vector Search</a> -- Similarity search guide</li>
+<li><a href="rest.html">REST API</a> -- REST endpoint reference</li>
+</ul>
 
                     </main>
 

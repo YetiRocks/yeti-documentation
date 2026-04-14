@@ -1,6 +1,6 @@
 # Telemetry & Observability
 
-The `yeti-telemetry` extension captures tracing events from the core runtime and persists logs, spans, and metrics to tables with real-time SSE streaming and optional OTLP export.
+The `yeti-telemetry` service captures tracing events from the core runtime and persists logs, spans, and metrics to tables with real-time SSE streaming and optional OTLP export.
 
 ## Architecture
 
@@ -14,22 +14,22 @@ tracing::info!(...)
   mpsc::channel (bounded, 10K)  Host-created channel
       |
       v
-  EventSubscriber (extension)  Processes events
+  EventSubscriber (service)    Processes events
       |
       +---> Log/Span/Metric tables
       +---> SSE streams
       +---> OTLP export (optional)
 ```
 
-Core contains only the `DispatchLayer` (~260 lines). All processing lives in the extension.
+Core contains only the `DispatchLayer` (~260 lines). All processing lives in the service.
 
 ## Querying
 
 ```bash
 # REST
 curl -sk "https://localhost:9996/yeti-telemetry/Log?limit=50&sort=-timestamp"
-curl -sk "https://localhost:9996/yeti-telemetry/Log?filter=level==ERROR"
-curl -sk "https://localhost:9996/yeti-telemetry/Span?filter=traceId==abc-123"
+curl -sk "https://localhost:9996/yeti-telemetry/Log?level==ERROR"
+curl -sk "https://localhost:9996/yeti-telemetry/Span?traceId==abc-123"
 
 # SSE streaming
 curl -sk "https://localhost:9996/yeti-telemetry/Log?stream=sse"
@@ -60,18 +60,16 @@ Or: `export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"`
 ```yaml
 telemetry:
   metrics: true
-  tracing: false
-  auditLog: true
   serviceName: yeti
+  otlpEndpoint: "http://localhost:4317"   # optional
 
 logging:
   level: info
-  auditLog: true
 ```
 
 ## Custom Telemetry
 
-Replace yeti-telemetry by creating your own extension implementing `EventSubscriber`. Register via `ctx.set_event_subscriber()` in `on_ready()`. Without any telemetry extension, only stdout logging works.
+Replace yeti-telemetry by creating your own service implementing `EventSubscriber`. Register via `ctx.set_event_subscriber()` in `on_ready()`. Without any telemetry service, only stdout logging works.
 
 ## See Also
 

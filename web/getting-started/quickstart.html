@@ -119,9 +119,8 @@ version: "1.0.0"
 enabled: true
 rest: true
 graphql: true
-sse: true
 schemas:
-  - schema.graphql
+  path: schema.graphql
 </code></pre>
 <h2 id="step-2-define-your-schema"><a class="header" href="#step-2-define-your-schema">Step 2: Define Your Schema</a></h2>
 <p>Create <code>~/yeti/applications/my-app/schema.graphql</code>:</p>
@@ -146,6 +145,7 @@ schemas:
 <li><code>GET /my-app/User?stream=sse</code> - Real-time updates</li>
 </ul>
 <h2 id="step-3-restart-the-server"><a class="header" href="#step-3-restart-the-server">Step 3: Restart the Server</a></h2>
+<p>Yeti detects new applications on startup. Restart to pick up your new app:</p>
 <pre><code class="language-bash">yeti restart
 </code></pre>
 <p>First run compiles the plugin (~2 minutes). Output:</p>
@@ -153,7 +153,7 @@ schemas:
 </code></pre>
 <h2 id="step-4-test-your-api"><a class="header" href="#step-4-test-your-api">Step 4: Test Your API</a></h2>
 <h3 id="create-a-user"><a class="header" href="#create-a-user">Create a user</a></h3>
-<pre><code class="language-bash">curl -sk -X POST https://localhost/my-app/User \
+<pre><code class="language-bash">curl -sk -X POST https://localhost:9996/my-app/User \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Alice",
@@ -163,32 +163,32 @@ schemas:
   }'
 </code></pre>
 <h3 id="list-all-users"><a class="header" href="#list-all-users">List all users</a></h3>
-<pre><code class="language-bash">curl -sk https://localhost/my-app/User
+<pre><code class="language-bash">curl -sk https://localhost:9996/my-app/User
 </code></pre>
 <h3 id="filter-with-fiql"><a class="header" href="#filter-with-fiql">Filter with FIQL</a></h3>
 <pre><code class="language-bash"># Users with role "admin"
-curl -sk "https://localhost/my-app/User?role==admin"
+curl -sk "https://localhost:9996/my-app/User?role==admin"
 
 # Active users, sorted by name
-curl -sk "https://localhost/my-app/User?active==true&amp;sort=name"
+curl -sk "https://localhost:9996/my-app/User?active==true&amp;sort=name"
 
 # Pagination
-curl -sk "https://localhost/my-app/User?limit=10&amp;offset=0"
+curl -sk "https://localhost:9996/my-app/User?limit=10&amp;offset=0"
 </code></pre>
 <h3 id="update-a-user"><a class="header" href="#update-a-user">Update a user</a></h3>
-<pre><code class="language-bash">curl -sk -X PATCH https://localhost/my-app/User/USER_ID \
+<pre><code class="language-bash">curl -sk -X PATCH https://localhost:9996/my-app/User/USER_ID \
   -H "Content-Type: application/json" \
   -d '{"role": "viewer"}'
 </code></pre>
 <h3 id="delete-a-user"><a class="header" href="#delete-a-user">Delete a user</a></h3>
-<pre><code class="language-bash">curl -sk -X DELETE https://localhost/my-app/User/USER_ID
+<pre><code class="language-bash">curl -sk -X DELETE https://localhost:9996/my-app/User/USER_ID
 </code></pre>
 <h3 id="stream-real-time-updates"><a class="header" href="#stream-real-time-updates">Stream real-time updates</a></h3>
 <pre><code class="language-bash"># In one terminal, listen for updates
-curl -sk "https://localhost/my-app/User?stream=sse"
+curl -sk "https://localhost:9996/my-app/User?stream=sse"
 
 # In another terminal, create a user and it appears in the stream
-curl -sk -X POST https://localhost/my-app/User \
+curl -sk -X POST https://localhost:9996/my-app/User \
   -H "Content-Type: application/json" \
   -d '{"name": "Bob", "email": "bob@example.com"}'
 </code></pre>

@@ -155,11 +155,36 @@ curl -sk 'https://localhost:9996/my-app/Product?price=gt=10'
 <tr><td>200</td><td>Success (GET, PUT, PATCH)</td></tr>
 <tr><td>201</td><td>Created (POST)</td></tr>
 <tr><td>204</td><td>Deleted</td></tr>
-<tr><td>400</td><td>Bad Request</td></tr>
+<tr><td>400</td><td>Validation Error</td></tr>
 <tr><td>404</td><td>Not Found</td></tr>
 <tr><td>405</td><td>Method Not Allowed</td></tr>
+<tr><td>409</td><td>Write Conflict</td></tr>
 </tbody></table>
 </div>
+<h2 id="error-responses"><a class="header" href="#error-responses">Error Responses</a></h2>
+<p>All error responses use RFC 9457 Problem Details format with content type <code>application/problem+json</code>:</p>
+<pre><code class="language-json">{
+  "type": "urn:yeti:error:not_found",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "Record 'prod-999' not found in table 'Product'"
+}
+</code></pre>
+<pre><code class="language-json">{
+  "type": "urn:yeti:error:validation_error",
+  "title": "Validation Error",
+  "status": 400,
+  "detail": "Missing required field: name"
+}
+</code></pre>
+<pre><code class="language-json">{
+  "type": "urn:yeti:error:write_conflict",
+  "title": "Write Conflict",
+  "status": 409,
+  "detail": "Concurrent write conflict on key 'prod-1'"
+}
+</code></pre>
+<p>The <code>type</code> field is a stable URI for programmatic error handling. The <code>detail</code> field provides a human-readable explanation of the specific occurrence.</p>
 <h2 id="computed-fields"><a class="header" href="#computed-fields">Computed Fields</a></h2>
 <pre><code class="language-graphql">type Article @table @export {
     id: ID! @primaryKey

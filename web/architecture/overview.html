@@ -137,7 +137,7 @@
 <div class="table-wrapper"><table><thead><tr><th>Concern</th><th>Isolation</th></tr></thead><tbody>
 <tr><td>Database</td><td>Each app declares its own <code>database:</code> name</td></tr>
 <tr><td>Routes</td><td>Prefixed by <code>/{app-id}/</code></td></tr>
-<tr><td>Auth</td><td>Per-app extension configuration</td></tr>
+<tr><td>Auth</td><td>Per-app service configuration</td></tr>
 <tr><td>Plugins</td><td>Separate dylib per application</td></tr>
 </tbody></table>
 </div>
@@ -151,7 +151,7 @@
 <li><strong>Health Endpoint</strong> - <code>/health</code> for liveness checks and app count</li>
 </ul>
 <h2 id="yeti-cloud"><a class="header" href="#yeti-cloud">Yeti Cloud</a></h2>
-<p>Yeti Cloud is the managed hosting option, providing automated deployment, replication, cgroup isolation, and built-in backups. See the Yeti Cloud documentation for details.</p>
+<p>Yeti Cloud is the managed hosting option, providing automated deployment, replication, cgroup isolation, and built-in backups. See <a href="../deployment/cloud.html">Yeti Cloud</a> for details.</p>
 <h2 id="directory-layout"><a class="header" href="#directory-layout">Directory Layout</a></h2>
 <pre><code>~/yeti/
 ├── yeti-config.yaml

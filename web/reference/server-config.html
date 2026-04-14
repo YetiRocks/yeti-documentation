@@ -110,11 +110,15 @@
                         <h1 id="server-configuration"><a class="header" href="#server-configuration">Server Configuration</a></h1>
 <p>Reference for <code>yeti-config.yaml</code> at the root directory (default: <code>~/yeti/yeti-config.yaml</code>).</p>
 <p>Only override what you need — missing fields use sensible defaults. The root directory itself is set in <code>~/.yeti/settings.toml</code>, not in this file.</p>
+<p>Yeti also loads a <code>.env</code> file from the root directory if present. Variables defined there are injected into the process environment, but real environment variables always take precedence.</p>
 <hr />
 <h2 id="complete-default-configuration"><a class="header" href="#complete-default-configuration">Complete Default Configuration</a></h2>
 <p>This is every field with its default value. Your config file only needs the fields you want to change.</p>
 <pre><code class="language-yaml"># ─── Environment ────────────────────────────────────────────────────────────
 environment: development          # development | production
+
+# ─── Root App ───────────────────────────────────────────────────────────────
+# rootApp: null                   # App ID that serves at "/" instead of "/{appId}/"
 
 # ─── Interfaces ─────────────────────────────────────────────────────────────
 # All protocols share the main port except MQTT (separate TLS port).
@@ -138,8 +142,8 @@ interfaces:
     enabled: true
     audit: false
     port: 8883                    # MQTTS native TLS port (separate from main port)
-    maxClients: 10000             # Maximum simultaneous MQTT connections
-    qos: 2                       # Default QoS for bridge-published messages (0, 1, or 2)
+    max_clients: 10000            # Maximum simultaneous MQTT connections
+    qos: 2                        # Default QoS for bridge-published messages (0, 1, or 2)
   grpc:
     enabled: true
     audit: false
@@ -158,7 +162,7 @@ http:
   disconnectTimeout: 5000         # Client disconnect timeout (ms)
   maxConnectionRate: 256          # Maximum new connections per second
   maxInFlightRequests: 10000      # Maximum concurrent requests (503 when exceeded)
-  compressionThreshold: 1024     # Compress responses larger than this (bytes)
+  compressionThreshold: 1024      # Compress responses larger than this (bytes)
   maxQueryDepth: 50               # Maximum FIQL query nesting depth
   maxQueryConditions: 200         # Maximum conditions in a single FIQL query
   maxResultSetSize: 10000         # Maximum records returned by scan operations
@@ -188,49 +192,87 @@ replication:
   replicationFactor: 3            # Number of replicas per shard
 
 # ─── Logging ────────────────────────────────────────────────────────────────
-# Core writes to stdout only. File logging is handled by the yeti-telemetry extension.
+# Core writes to stdout only. File logging is handled by the yeti-telemetry service.
 logging:
   level: info                     # trace | debug | info | warn | error
-  # path: null                   # Log directory override (default: {rootDirectory}/logs/)
+  # path: null                    # Log directory override (default: {rootDirectory}/logs/)
 
 # ─── Applications ───────────────────────────────────────────────────────────
 applications:
-  # path: null                   # Applications directory override (default: {rootDirectory}/applications/)
+  # path: null                    # Applications directory override (default: {rootDirectory}/applications/)
   autoLoad: []                    # Git repos to clone on startup
 
 # ─── Threads ────────────────────────────────────────────────────────────────
 threads:
-  # count: null                  # Tokio worker threads (default: CPU count)
+  # count: null                   # Tokio worker threads (default: CPU count)
   debug: false                    # Thread pool debugging
 
 # ─── TLS ────────────────────────────────────────────────────────────────────
 tls:
   autoGenerate: true              # Auto-generate self-signed certs if missing
   domain: localhost               # Domain for cert generation (certs/{domain}-cert.pem)
-  # privateKey: null             # Path to PEM private key
-  # certificate: null            # Path to PEM certificate
+  # privateKey: null              # Path to PEM private key
+  # certificate: null             # Path to PEM certificate
 
 # ─── Rate Limiting ──────────────────────────────────────────────────────────
 rateLimiting:
   maxRequestsPerSecond: 1000      # Server-wide rate limit
 
 # ─── Telemetry ──────────────────────────────────────────────────────────────
-# Metrics and OTLP export. The yeti-telemetry extension handles log/span/metric persistence.
+# Metrics and OTLP export. The yeti-telemetry service handles log/span/metric persistence.
 telemetry:
   metrics: true                   # Enable metrics collection
   serviceName: yeti               # Service name for OTLP export
-  # otlpEndpoint: null           # OpenTelemetry collector endpoint (e.g. http://otel:4317)
-  metricsIntervalSecs: 10        # System metrics emission interval (seconds)
+  # otlpEndpoint: null            # OpenTelemetry collector endpoint (e.g. http://otel:4317)
+  metricsIntervalSecs: 10         # System metrics emission interval (seconds)
+
+# ─── RustFS / S3-Compatible Object Store ────────────────────────────────────
+# When disabled (default), uses filesystem fallback at {rootDirectory}/object-store/.
+rustfs:
+  enabled: false                  # Enable S3 transport
+  endpoint: "http://localhost:9000"  # S3-compatible endpoint URL
+  accessKey: minioadmin           # Access key (matches MinIO/RustFS defaults)
+  secretKey: minioadmin           # Secret key
 
 # ─── Environment Variables ──────────────────────────────────────────────────
 # Injected at startup. Real env vars take precedence.
 env: {}
 
-# ─── Auth ───────────────────────────────────────────────────────────────────
-# Top-level shorthand for extensions.yeti_auth configuration.
+# ─── Extensions ─────────────────────────────────────────────────────────────
+# Per-extension runtime configuration. Each extension has an enabled flag.
+extensions:
+  yeti-auth:
+    enabled: true
+    jwt:
+      secret: "development-secret-change-in-production"
+      algorithm: HS256
+      accessTtl: 900              # Access token TTL in seconds (15 minutes)
+      refreshTtl: 604800          # Refresh token TTL in seconds (7 days)
+    oauth:
+      github:
+        clientId: ""
+        clientSecret: ""
+      google:
+        clientId: ""
+        clientSecret: ""
+      microsoft:
+        clientId: ""
+        clientSecret: ""
+  yeti-telemetry:
+    enabled: true
+  yeti-ai:
+    enabled: true
+
+# ─── Auth (shorthand) ──────────────────────────────────────────────────────
+# Top-level shorthand parsed into extensions.yeti-auth configuration.
 # auth:
-#   methods: [basic, jwt, oauth]
-#   providers: { ... }
+#   enabled: true
+#   jwt:
+#     secret: "my-secret"
+#   oauth:
+#     github:
+#       clientId: "..."
+#       clientSecret: "..."
 </code></pre>
 <hr />
 <h2 id="field-reference"><a class="header" href="#field-reference">Field Reference</a></h2>
@@ -238,6 +280,11 @@ env: {}
 <div class="table-wrapper"><table><thead><tr><th>Value</th><th>Auth Behavior</th><th>Logging</th><th>TLS</th></tr></thead><tbody>
 <tr><td><code>development</code></td><td>Bypasses auth for user-defined apps</td><td><code>info</code> default</td><td>Self-signed OK</td></tr>
 <tr><td><code>production</code></td><td>Enforces auth on all routes</td><td><code>warn</code> default</td><td>Real certs expected</td></tr>
+</tbody></table>
+</div>
+<h3 id="rootapp"><a class="header" href="#rootapp">rootApp</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>rootApp</code></td><td>string</td><td><code>null</code></td><td>App ID that serves at <code>"/"</code> instead of <code>"/{appId}/"</code>. All other apps continue to serve at their app ID path. Also accepts the alias <code>root_app</code>.</td></tr>
 </tbody></table>
 </div>
 <h3 id="interfaces"><a class="header" href="#interfaces">interfaces</a></h3>
@@ -255,7 +302,7 @@ env: {}
 <tr><td><code>interfaces.mqtt.enabled</code></td><td>boolean</td><td><code>true</code></td><td>Enable MQTT broker</td></tr>
 <tr><td><code>interfaces.mqtt.audit</code></td><td>boolean</td><td><code>false</code></td><td>Log MQTT publish/subscribe</td></tr>
 <tr><td><code>interfaces.mqtt.port</code></td><td>integer</td><td><code>8883</code></td><td>MQTTS native TLS port (separate from main port)</td></tr>
-<tr><td><code>interfaces.mqtt.maxClients</code></td><td>integer</td><td><code>10000</code></td><td>Maximum simultaneous MQTT connections</td></tr>
+<tr><td><code>interfaces.mqtt.max_clients</code></td><td>integer</td><td><code>10000</code></td><td>Maximum simultaneous MQTT connections</td></tr>
 <tr><td><code>interfaces.mqtt.qos</code></td><td>integer</td><td><code>2</code></td><td>Default QoS for bridge messages (0=at most once, 1=at least once, 2=exactly once)</td></tr>
 <tr><td><code>interfaces.grpc.enabled</code></td><td>boolean</td><td><code>true</code></td><td>Enable gRPC tables service (same port as HTTP)</td></tr>
 <tr><td><code>interfaces.grpc.audit</code></td><td>boolean</td><td><code>false</code></td><td>Log gRPC operations</td></tr>
@@ -311,7 +358,7 @@ env: {}
 <tr><td><code>logging.path</code></td><td>string</td><td><code>null</code></td><td>Log directory override. Default: <code>{rootDirectory}/logs/</code></td></tr>
 </tbody></table>
 </div>
-<p>Core writes to stdout only. The yeti-telemetry extension handles file logging, log rotation, and persistence to RocksDB.</p>
+<p>Core writes to stdout only. The yeti-telemetry service handles file logging, log rotation, and persistence to RocksDB.</p>
 <p><strong>Optimization</strong>: Use <code>warn</code> in production to reduce log volume. Use <code>debug</code> only when diagnosing specific issues — <code>trace</code> generates massive output.</p>
 <h3 id="applications"><a class="header" href="#applications">applications</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
@@ -349,15 +396,43 @@ env: {}
 </tbody></table>
 </div>
 <p><strong>Optimization</strong>: Increase <code>metricsIntervalSecs</code> to 30-60 in production to reduce telemetry overhead. Set <code>otlpEndpoint</code> to export to Grafana, Datadog, or other observability platforms.</p>
+<h3 id="rustfs"><a class="header" href="#rustfs">rustfs</a></h3>
+<p>S3-compatible object store configuration. When disabled (the default), the server uses a local filesystem fallback at <code>{rootDirectory}/object-store/</code>.</p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>rustfs.enabled</code></td><td>boolean</td><td><code>false</code></td><td>Enable S3 transport. When false, uses filesystem fallback.</td></tr>
+<tr><td><code>rustfs.endpoint</code></td><td>string</td><td><code>"http://localhost:9000"</code></td><td>S3-compatible endpoint URL</td></tr>
+<tr><td><code>rustfs.accessKey</code></td><td>string</td><td><code>"minioadmin"</code></td><td>Access key (matches MinIO/RustFS defaults)</td></tr>
+<tr><td><code>rustfs.secretKey</code></td><td>string</td><td><code>"minioadmin"</code></td><td>Secret key</td></tr>
+</tbody></table>
+</div>
 <h3 id="env"><a class="header" href="#env">env</a></h3>
 <p>Key-value map of environment variables injected at startup. Real environment variables take precedence. Useful for secrets that extensions read via <code>std::env::var()</code>.</p>
+<p>Additionally, a <code>.env</code> file in the root directory is loaded automatically if present. Variables defined in <code>.env</code> are also overridden by real environment variables. Lines starting with <code>#</code> are treated as comments.</p>
 <pre><code class="language-yaml">env:
   JWT_SECRET_KEY: "my-production-secret"
   GOOGLE_CLIENT_ID: "123456.apps.googleusercontent.com"
   GOOGLE_CLIENT_SECRET: "secret-value"
 </code></pre>
-<h3 id="auth"><a class="header" href="#auth">auth</a></h3>
-<p>Top-level shorthand parsed into <code>extensions.yeti_auth</code> configuration. See the <a href="../guides/authentication.html">Authentication</a> guide for full details.</p>
+<h3 id="extensions"><a class="header" href="#extensions">extensions</a></h3>
+<p>Per-extension runtime configuration. Each built-in extension has an <code>enabled</code> flag and extension-specific settings.</p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>extensions.yeti-auth.enabled</code></td><td>boolean</td><td><code>true</code></td><td>Enable the authentication extension</td></tr>
+<tr><td><code>extensions.yeti-auth.jwt.secret</code></td><td>string</td><td><code>"development-secret-change-in-production"</code></td><td>JWT signing secret. Change in production.</td></tr>
+<tr><td><code>extensions.yeti-auth.jwt.algorithm</code></td><td>string</td><td><code>"HS256"</code></td><td>JWT signing algorithm</td></tr>
+<tr><td><code>extensions.yeti-auth.jwt.accessTtl</code></td><td>integer</td><td><code>900</code></td><td>Access token TTL in seconds (15 minutes)</td></tr>
+<tr><td><code>extensions.yeti-auth.jwt.refreshTtl</code></td><td>integer</td><td><code>604800</code></td><td>Refresh token TTL in seconds (7 days)</td></tr>
+<tr><td><code>extensions.yeti-auth.oauth.github.clientId</code></td><td>string</td><td><code>""</code></td><td>GitHub OAuth client ID</td></tr>
+<tr><td><code>extensions.yeti-auth.oauth.github.clientSecret</code></td><td>string</td><td><code>""</code></td><td>GitHub OAuth client secret</td></tr>
+<tr><td><code>extensions.yeti-auth.oauth.google.clientId</code></td><td>string</td><td><code>""</code></td><td>Google OAuth client ID</td></tr>
+<tr><td><code>extensions.yeti-auth.oauth.google.clientSecret</code></td><td>string</td><td><code>""</code></td><td>Google OAuth client secret</td></tr>
+<tr><td><code>extensions.yeti-auth.oauth.microsoft.clientId</code></td><td>string</td><td><code>""</code></td><td>Microsoft OAuth client ID</td></tr>
+<tr><td><code>extensions.yeti-auth.oauth.microsoft.clientSecret</code></td><td>string</td><td><code>""</code></td><td>Microsoft OAuth client secret</td></tr>
+<tr><td><code>extensions.yeti-telemetry.enabled</code></td><td>boolean</td><td><code>true</code></td><td>Enable the telemetry extension</td></tr>
+<tr><td><code>extensions.yeti-ai.enabled</code></td><td>boolean</td><td><code>true</code></td><td>Enable the yeti-ai service (embeddings, inference, model management)</td></tr>
+</tbody></table>
+</div>
+<h3 id="auth-shorthand"><a class="header" href="#auth-shorthand">auth (shorthand)</a></h3>
+<p>Top-level <code>auth:</code> key is a shorthand that is parsed into <code>extensions.yeti-auth</code> configuration. The two forms are equivalent -- use whichever you prefer. See the <a href="../guides/auth-overview.html">Authentication</a> guide for full details.</p>
 <hr />
 <h2 id="environment-variable-overrides"><a class="header" href="#environment-variable-overrides">Environment Variable Overrides</a></h2>
 <p>These environment variables override config file values at startup:</p>
@@ -373,6 +448,8 @@ env: {}
 <hr />
 <h2 id="production-example"><a class="header" href="#production-example">Production Example</a></h2>
 <pre><code class="language-yaml">environment: production
+
+rootApp: www
 
 interfaces:
   port: 443
@@ -404,8 +481,18 @@ telemetry:
   otlpEndpoint: "http://otel-collector:4317"
   metricsIntervalSecs: 30
 
+extensions:
+  yeti-auth:
+    jwt:
+      secret: "${JWT_SECRET}"
+      accessTtl: 300
+    oauth:
+      github:
+        clientId: "${GITHUB_CLIENT_ID}"
+        clientSecret: "${GITHUB_CLIENT_SECRET}"
+
 env:
-  JWT_SECRET_KEY: "${JWT_SECRET}"
+  JWT_SECRET: "loaded-from-env-or-dotenv"
 </code></pre>
 <hr />
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>

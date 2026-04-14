@@ -48,8 +48,8 @@
   - [WebSocket](guides/websocket.md)
   - [PubSub](guides/pubsub.md)
   - [MQTT](guides/mqtt.md)
-- [Building Extensions](guides/building-extensions.md)
-  - [Extension Lifecycle](guides/extension-lifecycle.md)
+- [Building Services](guides/building-extensions.md)
+  - [Service Lifecycle](guides/extension-lifecycle.md)
   - [Event Subscribers](guides/event-subscribers.md)
   - [Auth Hooks](guides/auth-hooks.md)
 - [Caching & Performance](guides/caching.md)
@@ -57,6 +57,9 @@
   - [Table Expiration](guides/table-expiration.md)
   - [Rate Limiting](guides/rate-limiting.md)
 - [URL Redirect Management](guides/redirects.md)
+- [Resource Hooks](guides/resource-hooks.md)
+- [Kafka Integration](guides/kafka.md)
+- [AI & Inference](guides/ai-inference.md)
 - [Telemetry & Observability](guides/telemetry.md)
 - [gRPC](guides/grpc.md)
 - [MCP Integration](guides/mcp.md)
@@ -71,7 +74,6 @@
 - [Request Parsing](sdk/request-parsing.md)
 - [Response Helpers](sdk/response-helpers.md)
 - [Table Access](sdk/table-access.md)
-- [ResourceParams](sdk/resource-params.md)
 - [Utilities](sdk/utilities.md)
 - [Extension API](sdk/extension-api.md)
 
@@ -135,4 +137,3 @@
 
 - [API Compatibility Matrix](appendix/api-compatibility.md)
 - [Performance Benchmarks](appendix/benchmarks.md)
-- [Migration Guide](appendix/migration.md)

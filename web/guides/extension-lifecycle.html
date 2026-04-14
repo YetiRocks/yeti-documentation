@@ -9,7 +9,7 @@
     })(window,document,'script','dataLayer','GTM-KGB7BN8B');</script>
     <!-- End Google Tag Manager -->
     <meta charset="UTF-8">
-    <title>Documentation | Yeti | Extension Lifecycle</title>
+    <title>Documentation | Yeti | Service Lifecycle</title>
     <meta name="description" content="Distributed application platform built in Rust">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#121212">
@@ -107,61 +107,129 @@
                 <!-- Content -->
                 <div id="content" class="content">
                     <main>
-                        <h1 id="extension-lifecycle"><a class="header" href="#extension-lifecycle">Extension Lifecycle</a></h1>
-<h2 id="stages"><a class="header" href="#stages">Stages</a></h2>
-<h3 id="1-compiler-detection"><a class="header" href="#1-compiler-detection">1. Compiler Detection</a></h3>
-<p>The compiler scans source files for <code>struct {Name}Extension</code> - no config declaration needed.</p>
-<pre><code class="language-rust ignore">pub struct TelemetryExtension {
-    config: TelemetryConfig,
+                        <h1 id="service-lifecycle"><a class="header" href="#service-lifecycle">Service Lifecycle</a></h1>
+<p>Services start in a well-defined sequence. The runtime calls each <code>Service</code> trait method in order, providing context objects that expose progressively more capability.</p>
+<h2 id="startup-sequence"><a class="header" href="#startup-sequence">Startup Sequence</a></h2>
+<h3 id="1-discovery"><a class="header" href="#1-discovery">1. Discovery</a></h3>
+<p>All services are registered in the <code>ServiceRegistry</code> (a <code>Vec&lt;Box&lt;dyn Service&gt;&gt;</code>). Built-in services are compiled into the binary.</p>
+<h3 id="2-dependency-sort"><a class="header" href="#2-dependency-sort">2. Dependency Sort</a></h3>
+<p>Services are sorted topologically based on <code>depends_on()</code>. Services with no dependencies start first. Telemetry services are sorted earliest so their event subscriber captures other services' startup events.</p>
+<pre><code class="language-rust ignore">fn depends_on(&amp;self) -&gt; &amp;[&amp;'static str] {
+    &amp;["yeti-auth"]  // Start after yeti-auth
 }</code></pre>
-<p>Source files are copied to <code>cache/builds/{app}/src/</code> and <code>lib.rs</code> is generated with entry points.</p>
-<h3 id="2-dylib-compilation"><a class="header" href="#2-dylib-compilation">2. Dylib Compilation</a></h3>
-<p>Compiled as <code>.dylib</code> (macOS) or <code>.so</code> (Linux). First build ~2 minutes per plugin; cached rebuilds ~10 seconds.</p>
-<h3 id="3-dylib-loading"><a class="header" href="#3-dylib-loading">3. Dylib Loading</a></h3>
-<p>Host loads each dylib via <code>dlopen</code>. The extension gets separate copies of thread-local storage, statics, and the tokio runtime.</p>
-<h3 id="4-initialize"><a class="header" href="#4-initialize">4. initialize()</a></h3>
-<p>Earliest point for extension code. Use for lightweight setup only.</p>
-<pre><code class="language-rust ignore">fn initialize(&amp;self) -&gt; Result&lt;()&gt; {
-    tracing::info!("[my-ext] Loaded");
-    Ok(())
+<h3 id="3-is_requiredstartupcontext"><a class="header" href="#3-is_requiredstartupcontext">3. is_required(StartupContext)</a></h3>
+<p>Each service decides whether to activate. The <code>StartupContext</code> provides read-only introspection:</p>
+<pre><code class="language-rust ignore">pub struct StartupContext&lt;'a&gt; {
+    pub tables: &amp;'a [TableDefinition],     // All discovered table definitions
+    pub app_configs: &amp;'a [serde_json::Value], // All app configs as raw JSON
 }</code></pre>
-<h3 id="5-auth-provider-registration"><a class="header" href="#5-auth-provider-registration">5. Auth Provider Registration</a></h3>
-<p>Host calls <code>auth_providers()</code> and <code>auth_hooks()</code> to collect auth components before any requests are processed.</p>
-<h3 id="6-routes-and-tables-registered"><a class="header" href="#6-routes-and-tables-registered">6. Routes and Tables Registered</a></h3>
-<p>Tables created in storage, REST/GraphQL routes mapped, SSE/WebSocket wired up, seed data loaded.</p>
-<h3 id="7-on_ready"><a class="header" href="#7-on_ready">7. on_ready()</a></h3>
-<p>Main setup hook with full runtime access:</p>
-<pre><code class="language-rust ignore">fn on_ready(&amp;self, ctx: &amp;ExtensionContext) -&gt; Result&lt;()&gt; {
-    let log_table = ctx.table("log").expect("Log table registered");
-
-    let handler = Box::new(MyEventHandler { log_table });
-    ctx.set_event_subscriber(handler);
-    Ok(())
-}</code></pre>
-<h3 id="8-host-spawns-event-subscriber"><a class="header" href="#8-host-spawns-event-subscriber">8. Host Spawns Event Subscriber</a></h3>
-<p>After <code>on_ready()</code> returns, the host:</p>
-<ol>
-<li>Takes the event subscriber</li>
-<li>Creates <code>mpsc::channel(10_000)</code> in host context</li>
-<li>Registers sender with <code>DispatchLayer</code></li>
-<li>Spawns <code>subscriber.run(rx)</code> on host tokio runtime</li>
-</ol>
-<h2 id="extensioncontext-methods"><a class="header" href="#extensioncontext-methods">ExtensionContext Methods</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>table(name)</code></td><td><code>Option&lt;Arc&lt;TableResource&gt;&gt;</code></td><td>Get table by lowercase name</td></tr>
-<tr><td><code>root_dir()</code></td><td><code>&amp;str</code></td><td>Runtime root directory</td></tr>
-<tr><td><code>auto_router()</code></td><td><code>&amp;Arc&lt;AutoRouter&gt;</code></td><td>App's router</td></tr>
-<tr><td><code>set_event_subscriber(sub)</code></td><td>-</td><td>Store handler for host to spawn</td></tr>
+<p><strong>StartupContext methods:</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>any_app_has_config(key)</code></td><td>Check if any app has a top-level config key</td></tr>
+<tr><td><code>any_table_has_field_directive(directive)</code></td><td>Check if any table field type matches</td></tr>
+<tr><td><code>any_app_requires_auth()</code></td><td>Check if any app has required roles</td></tr>
 </tbody></table>
 </div>
-<h2 id="load-order"><a class="header" href="#load-order">Load Order</a></h2>
-<p>Telemetry extensions are sorted first so the event subscriber captures other extensions' startup events.</p>
+<p>Example: yeti-kafka only activates when an app has <code>kafka:</code> config:</p>
+<pre><code class="language-rust ignore">fn is_required(&amp;self, ctx: &amp;StartupContext) -&gt; bool {
+    ctx.any_app_has_config("kafka")
+}</code></pre>
+<p>Services with <code>is_required() == false</code> are skipped entirely.</p>
+<h3 id="4-registerregistrationcontext"><a class="header" href="#4-registerregistrationcontext">4. register(RegistrationContext)</a></h3>
+<p>Active services add their schemas, resources, hooks, and providers:</p>
+<pre><code class="language-rust ignore">pub struct RegistrationContext {
+    pub schemas: Vec&lt;String&gt;,
+    pub resources: Vec&lt;Box&lt;dyn Resource&gt;&gt;,
+    pub auth_providers: Vec&lt;Arc&lt;dyn AuthProvider&gt;&gt;,
+    pub auth_hooks: Vec&lt;Arc&lt;dyn AuthHook&gt;&gt;,
+    pub vector_hooks: Vec&lt;Arc&lt;dyn VectorHook&gt;&gt;,
+    pub ai_hooks: Vec&lt;Arc&lt;dyn AiHook&gt;&gt;,
+    pub computed_field_hooks: Vec&lt;Arc&lt;dyn ComputedFieldHook&gt;&gt;,
+    pub middleware: Vec&lt;Arc&lt;dyn RequestMiddleware&gt;&gt;,
+    pub event_subscribers: Vec&lt;Box&lt;dyn EventSubscriber&gt;&gt;,
+    pub web_files: Vec&lt;EmbeddedFile&gt;,
+    pub background_tasks: Vec&lt;Pin&lt;Box&lt;dyn Future&lt;Output = ()&gt; + Send&gt;&gt;&gt;,
+    pub app_id: String,
+    pub root_directory: String,
+}</code></pre>
+<p>Helper methods: <code>add_schema()</code>, <code>add_resource()</code>, <code>add_auth_provider()</code>, <code>add_vector_hook()</code>, <code>add_ai_hook()</code>, <code>add_middleware()</code>, <code>add_event_subscriber()</code>, <code>add_web_files()</code>.</p>
+<p>Services with <code>is_critical() == true</code> abort startup on registration failure.</p>
+<h3 id="5-schema-and-table-creation"><a class="header" href="#5-schema-and-table-creation">5. Schema and Table Creation</a></h3>
+<p>After all services register, the runtime:</p>
+<ul>
+<li>Parses GraphQL schemas into <code>TableDefinition</code> structs</li>
+<li>Creates storage backends (RocksDB)</li>
+<li>Maps REST/GraphQL/SSE/WebSocket/MQTT routes</li>
+<li>Loads seed data</li>
+</ul>
+<h3 id="6-on_readyservicecontext"><a class="header" href="#6-on_readyservicecontext">6. on_ready(ServiceContext)</a></h3>
+<p>Post-registration hook with full runtime access. Tables exist and are queryable:</p>
+<pre><code class="language-rust ignore">pub struct ServiceContext {
+    pub app_id: String,
+    pub root_directory: String,
+    // + private fields for table/pubsub lookup
+}</code></pre>
+<p><strong>ServiceContext methods:</strong></p>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>table(name)</code></td><td><code>Option&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Get table backend by name</td></tr>
+<tr><td><code>require_table(name)</code></td><td><code>Result&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Get table or error (logs warning)</td></tr>
+<tr><td><code>pubsub(table_name)</code></td><td><code>Option&lt;Arc&lt;PubSubManager&gt;&gt;</code></td><td>Get PubSub manager for a table</td></tr>
+<tr><td><code>set_event_subscriber(sub)</code></td><td>--</td><td>Store handler for host to spawn</td></tr>
+<tr><td><code>take_event_subscriber()</code></td><td><code>Option&lt;Box&lt;dyn EventSubscriber&gt;&gt;</code></td><td>Take the stored subscriber</td></tr>
+<tr><td><code>app_id()</code></td><td><code>&amp;str</code></td><td>Application ID</td></tr>
+<tr><td><code>root_dir()</code></td><td><code>&amp;str</code></td><td>Root directory path</td></tr>
+</tbody></table>
+</div>
+<p>Example: yeti-auth bootstraps admin user from <code>.bootstrap.json</code>:</p>
+<pre><code class="language-rust ignore">fn on_ready(&amp;self, ctx: &amp;ServiceContext) -&gt; Result&lt;()&gt; {
+    let users = ctx.require_table("User")?;
+    let roles = ctx.require_table("Role")?;
+    // Bootstrap admin user if .bootstrap.json exists
+    bootstrap_from_file(ctx.root_dir(), &amp;users, &amp;roles)?;
+    Ok(())
+}</code></pre>
+<h3 id="7-host-spawns-event-subscribers"><a class="header" href="#7-host-spawns-event-subscribers">7. Host Spawns Event Subscribers</a></h3>
+<p>After <code>on_ready()</code> returns, the host:</p>
+<ol>
+<li>Takes the event subscriber via <code>take_event_subscriber()</code></li>
+<li>Creates <code>mpsc::channel(10_000)</code> in host context</li>
+<li>Registers the sender with <code>DispatchLayer</code></li>
+<li>Spawns <code>subscriber.run(rx)</code> on the host tokio runtime</li>
+</ol>
+<p>This runs in host context, not dylib context, so all tokio operations are safe.</p>
+<h3 id="8-on_shutdown"><a class="header" href="#8-on_shutdown">8. on_shutdown()</a></h3>
+<p>Called during graceful shutdown in reverse dependency order.</p>
+<h2 id="complete-sequence-diagram"><a class="header" href="#complete-sequence-diagram">Complete Sequence Diagram</a></h2>
+<pre><code>ServiceRegistry
+    |
+    v
+[topological sort by depends_on()]
+    |
+    v
+for each service:
+    is_required(StartupContext) -----&gt; skip if false
+    register(RegistrationContext) ---&gt; add schemas, resources, hooks
+    |
+[create tables, map routes, load seed data]
+    |
+for each service:
+    on_ready(ServiceContext) ---------&gt; bootstrap data, PubSub, event subscribers
+    |
+[host spawns event subscribers]
+    |
+[server starts accepting requests]
+    |
+[shutdown signal]
+    |
+for each service (reverse order):
+    on_shutdown()
+</code></pre>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
-<li><a href="building-extensions.html">Building Extensions</a> - Extension trait overview</li>
-<li><a href="telemetry.html">Telemetry &amp; Observability</a> - Event subscriber example</li>
-<li><a href="pubsub.html">PubSub</a> - Internal messaging</li>
-<li><a href="troubleshooting.html">Troubleshooting</a> - Plugin and dylib issues</li>
+<li><a href="building-extensions.html">Building Services</a> -- <code>Service</code> trait overview</li>
+<li><a href="event-subscribers.html">Event Subscribers</a> -- Tracing event capture</li>
+<li><a href="telemetry.html">Telemetry &amp; Observability</a> -- Telemetry service</li>
+<li><a href="pubsub.html">PubSub</a> -- Internal messaging backbone</li>
 </ul>
 
                     </main>
@@ -169,7 +237,7 @@
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <a rel="prev" href="../guides/building-extensions.html" class="nav-prev" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                             <i class="fa fa-angle-left"></i>
-                            <span class="nav-label">Building Extensions</span>
+                            <span class="nav-label">Building Services</span>
                         </a>
                         <a rel="next" href="../guides/event-subscribers.html" class="nav-next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                             <span class="nav-label">Event Subscribers</span>

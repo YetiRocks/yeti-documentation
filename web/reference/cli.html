@@ -131,7 +131,7 @@
 <tr><td><code>-h</code>, <code>--help</code></td><td>Print help</td></tr>
 <tr><td><code>--buildonly</code></td><td>Compile plugins only, then exit</td></tr>
 <tr><td><code>--apps &lt;a,b,c&gt;</code></td><td>Only load specified applications (comma-separated)</td></tr>
-<tr><td><code>--port &lt;PORT&gt;</code></td><td>HTTP port (default: 443)</td></tr>
+<tr><td><code>--port &lt;PORT&gt;</code></td><td>HTTP port (default: 9996)</td></tr>
 <tr><td><code>--dir &lt;PATH&gt;</code></td><td>Root directory (default: ~/yeti)</td></tr>
 </tbody></table>
 </div>
@@ -173,7 +173,7 @@ yeti --version
 <li>Filter by <code>--apps</code> if specified</li>
 <li>Compile application plugins (~2 min per plugin on first run, ~10 seconds cached)</li>
 <li>Load plugins and register resources</li>
-<li>Start HTTPS server on configured port (default 443). Use <code>--port 8443</code> for a custom port.</li>
+<li>Start HTTPS server on configured port (default 9996). Use <code>--port 8443</code> for a custom port.</li>
 </ol>
 <h2 id="plugin-cache"><a class="header" href="#plugin-cache">Plugin Cache</a></h2>
 <p>Clear the plugin cache when builds are stale:</p>

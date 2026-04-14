@@ -118,13 +118,13 @@ ApplicationCompiler
   3. Generate lib.rs (scans source for types)
   4. cargo build --release -&gt; .dylib
         │
-cache/builds/{app}/target/release/lib{app}.dylib
+cache/builds/target/release/lib{app}.dylib
 </code></pre>
 <p>Fresh builds take ~2 minutes per plugin. Cached rebuilds take ~10 seconds.</p>
 <h2 id="hot-reload"><a class="header" href="#hot-reload">Hot Reload</a></h2>
 <p>Yeti monitors dylib files with filesystem watchers:</p>
 <ol>
-<li>Watcher detects change in <code>cache/builds/{app}/target/</code></li>
+<li>Watcher detects change in <code>cache/builds/target/</code></li>
 <li>New dylib copied to temp file (forces OS to load fresh copy)</li>
 <li>Plugin loaded, AutoRouter updated with new handlers</li>
 <li>Old dylib unloaded</li>
@@ -137,17 +137,17 @@ cache/builds/{app}/target/release/lib{app}.dylib
 <p><strong>Do not:</strong></p>
 <ul>
 <li>Call <code>tokio::spawn()</code> from dylib code (crashes with "cannot catch foreign exceptions")</li>
-<li>Use <code>tracing::info!()</code> etc. (doesn't reach host log due to TLS isolation)</li>
+<li>Use <code>eprintln!()</code> for logging (never reaches structured output)</li>
 <li>Create tokio channels/futures in methods called from dylib context</li>
 </ul>
 <p><strong>Instead:</strong></p>
 <ul>
 <li>Use <code>futures::stream::unfold</code> instead of spawn+channel patterns</li>
-<li>Use tracing macros (<code>tracing::info!</code>, <code>tracing::warn!</code>, etc.) for consistent API, even in dylib context</li>
+<li>Use tracing macros (<code>tracing::info!</code>, <code>tracing::warn!</code>, etc.) for consistent API. Output may not reach the host subscriber due to TLS isolation, but tracing remains the correct logging interface.</li>
 <li>Use flag-based patterns: dylib sets flags, host checks after <code>on_ready()</code> returns</li>
 </ul>
-<h2 id="extension-plugins"><a class="header" href="#extension-plugins">Extension Plugins</a></h2>
-<p>Extensions follow the same pipeline but provide shared services. The compiler auto-detects extension types by scanning source for <code>struct {Type}Extension</code>.</p>
+<h2 id="service-plugins"><a class="header" href="#service-plugins">Service Plugins</a></h2>
+<p>User-defined services follow the same pipeline but provide shared capabilities. The compiler auto-detects service types by scanning source for <code>struct {Type}Extension</code>.</p>
 <pre><code class="language-yaml">extension: true
 </code></pre>
 

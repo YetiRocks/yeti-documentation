@@ -110,9 +110,10 @@
                         <h1 id="jwt-authentication"><a class="header" href="#jwt-authentication">JWT Authentication</a></h1>
 <p>JWT provides stateless, token-based access. Authenticate once, receive a token pair (access + refresh), then use the access token for subsequent requests.</p>
 <h2 id="login"><a class="header" href="#login">Login</a></h2>
+<p>Login targets a specific app. The returned token includes the user's permissions for that app:</p>
 <pre><code class="language-bash">curl -sk -X POST https://localhost:9996/yeti-auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin"}'
+  -d '{"username":"admin","password":"admin","app_id":"my-app"}'
 </code></pre>
 <pre><code class="language-json">{
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
@@ -121,30 +122,57 @@
   "expires_in": 900
 }
 </code></pre>
+<h2 id="per-app-token-accumulation"><a class="header" href="#per-app-token-accumulation">Per-App Token Accumulation</a></h2>
+<p>Tokens use a merged per-app format. The JWT claims contain an <code>apps</code> map where each key is an app ID and the value holds the user's role and permissions for that app:</p>
+<pre><code class="language-json">{
+  "sub": "admin",
+  "exp": 1700000000,
+  "iat": 1699999100,
+  "token_type": "access",
+  "apps": {
+    "my-app": {
+      "role": "admin",
+      "permissions": {
+        "super_user": false,
+        "databases": { ... }
+      }
+    }
+  }
+}
+</code></pre>
+<p>Each login adds the target app's entry to the <code>apps</code> map. Logging out of an app removes its entry. This allows a single token to carry permissions for multiple apps without re-authenticating.</p>
+<p>When a request arrives, the <code>JwtAuthProvider</code> extracts the entry for the target app from the <code>apps</code> map. If the app is present, permissions are used directly from the token with no database lookup. If the app is not in the token, the system falls through to AppMembership lookup.</p>
 <h2 id="making-requests"><a class="header" href="#making-requests">Making Requests</a></h2>
 <pre><code class="language-bash">TOKEN=$(curl -sk -X POST https://localhost:9996/yeti-auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin"}' | jq -r .access_token)
+  -d '{"username":"admin","password":"admin","app_id":"my-app"}' | jq -r .access_token)
 
 curl -sk -H "Authorization: Bearer $TOKEN" https://localhost:9996/my-app/MyTable
 </code></pre>
-<h2 id="embedded-permissions"><a class="header" href="#embedded-permissions">Embedded Permissions</a></h2>
-<p>The access token contains the user's role permissions directly. The <code>JwtAuthProvider</code> decodes permissions from the token without any database call, making JWT the fastest auth method.</p>
 <h2 id="refreshing-tokens"><a class="header" href="#refreshing-tokens">Refreshing Tokens</a></h2>
 <pre><code class="language-bash">curl -sk -X POST https://localhost:9996/yeti-auth/jwt_refresh \
   -H "Content-Type: application/json" \
   -d '{"refresh_token":"eyJhbGciOiJIUzI1NiIs..."}'
 </code></pre>
-<p>Returns a new token pair.</p>
+<p>Returns a new token pair with all accumulated app entries preserved.</p>
 <h2 id="auth-status"><a class="header" href="#auth-status">Auth Status</a></h2>
 <pre><code class="language-bash">curl -sk -H "Authorization: Bearer $TOKEN" https://localhost:9996/yeti-auth/auth
 </code></pre>
+<h2 id="per-app-jwt-configuration"><a class="header" href="#per-app-jwt-configuration">Per-App JWT Configuration</a></h2>
+<p>Each app can define its own JWT secret and token TTLs:</p>
+<pre><code class="language-yaml">auth:
+  jwt:
+    secret: "${MY_APP_JWT_SECRET}"
+    accessTtl: 1800     # 30 minutes
+    refreshTtl: 86400   # 24 hours
+</code></pre>
+<p>Environment variable interpolation (<code>${VAR}</code>) is supported for secrets.</p>
 <h2 id="javascript-example"><a class="header" href="#javascript-example">JavaScript Example</a></h2>
-<pre><code class="language-javascript">async function login(username, password) {
+<pre><code class="language-javascript">async function login(username, password, appId) {
   const res = await fetch('https://localhost:9996/yeti-auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, app_id: appId }),
   });
   return res.json();
 }
@@ -160,7 +188,7 @@ async function fetchData(token) {
 <ul>
 <li>Access tokens are short-lived (default 15 minutes). Keep in memory, not localStorage.</li>
 <li>Refresh tokens are longer-lived. Store securely (httpOnly cookie or secure storage).</li>
-<li>Changing a user's password invalidates all tokens.</li>
+<li>Embedded permissions mean JWT is the fastest auth method -- no database call per request.</li>
 </ul>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>

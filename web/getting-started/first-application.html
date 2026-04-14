@@ -122,11 +122,10 @@ version: "1.0.0"
 enabled: true
 rest: true
 graphql: true
-sse: true
 schemas:
-  - schema.graphql
+  path: schema.graphql
 resources:
-  - resources/*.rs
+  path: "resources/*.rs"
 dataLoader: data/*.json
 </code></pre>
 <h2 id="step-3-define-the-schema"><a class="header" href="#step-3-define-the-schema">Step 3: Define the Schema</a></h2>
@@ -145,8 +144,8 @@ dataLoader: data/*.json
     dueDate: String
     tagId: ID @indexed
     tag: Tag @relationship(from: "tagId")
-    __createdAt__: String
-    __updatedAt__: String
+    createdAt: String @createdTime
+    updatedAt: String @updatedTime
 }
 
 type Tag @table(database: "task-tracker") @export(
@@ -173,7 +172,8 @@ type Tag @table(database: "task-tracker") @export(
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
 
 resource!(Summary {
-    get(_request, ctx) =&gt; {
+    name = "summary",
+    get(ctx) =&gt; {
         let tasks = ctx.get_table("Task")?;
         let total = tasks.count().await?;
         let by_status = tasks.count_by("status").await?;
@@ -238,25 +238,25 @@ resource!(Summary {
 <p>First startup compiles the plugin (~2 minutes). Cached restarts take ~10 seconds.</p>
 <h2 id="step-7-test-it"><a class="header" href="#step-7-test-it">Step 7: Test It</a></h2>
 <pre><code class="language-bash"># List all tasks
-curl -sk https://localhost/task-tracker/Task
+curl -sk https://localhost:9996/task-tracker/Task
 
 # Filter: high priority tasks
-curl -sk "https://localhost/task-tracker/Task?priority==high"
+curl -sk "https://localhost:9996/task-tracker/Task?priority==high"
 
 # Filter: tasks not done, sorted by due date
-curl -sk "https://localhost/task-tracker/Task?status!=done&amp;sort=-dueDate"
+curl -sk "https://localhost:9996/task-tracker/Task?status!=done&amp;sort=-dueDate"
 
 # Pagination
-curl -sk "https://localhost/task-tracker/Task?limit=2&amp;offset=0"
+curl -sk "https://localhost:9996/task-tracker/Task?limit=2&amp;offset=0"
 
 # Include related tag data
-curl -sk "https://localhost/task-tracker/Task/task-001?select=id,title,tag%7Bname,color%7D"
+curl -sk "https://localhost:9996/task-tracker/Task/task-001?select=id,title,tag%7Bname,color%7D"
 
 # Custom resource
-curl -sk https://localhost/task-tracker/summary
+curl -sk https://localhost:9996/task-tracker/summary
 
 # SSE stream
-curl -sk --max-time 30 "https://localhost/task-tracker/Task?stream=sse"
+curl -sk --max-time 30 "https://localhost:9996/task-tracker/Task?stream=sse"
 </code></pre>
 <h2 id="final-structure"><a class="header" href="#final-structure">Final Structure</a></h2>
 <pre><code>~/yeti/applications/task-tracker/
@@ -273,7 +273,7 @@ curl -sk --max-time 30 "https://localhost/task-tracker/Task?stream=sse"
 <ul>
 <li><a href="../guides/auth-overview.html">Authentication</a> - Add Basic, JWT, or OAuth auth</li>
 <li><a href="../guides/realtime-overview.html">Real-Time Features</a> - SSE, WebSocket, PubSub</li>
-<li><a href="../guides/building-extensions.html">Building Extensions</a> - Shared services across apps</li>
+<li><a href="../guides/building-extensions.html">Building Services</a> - Shared services across apps</li>
 <li><a href="../guides/fiql.html">FIQL Queries</a> - Advanced filtering</li>
 </ul>
 

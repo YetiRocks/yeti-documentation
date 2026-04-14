@@ -1,6 +1,6 @@
 # System Overview
 
-Yeti is a schema-driven application platform built in Rust. It hosts multiple applications within one runtime, each with isolated databases, routes, and authentication.
+Schema-driven application platform in Rust. Hosts multiple applications within one runtime, each with isolated databases, routes, and authentication.
 
 ## Architecture
 
@@ -35,7 +35,7 @@ HTTPS/gRPC/MCP :9996 ──> DynamicRouter ──> /{app-id}/ prefix match
 |---------|-----------|
 | Database | Each app declares its own `database:` name |
 | Routes | Prefixed by `/{app-id}/` |
-| Auth | Per-app extension configuration |
+| Auth | Per-app service configuration |
 | Plugins | Separate dylib per application |
 
 ## Key Components
@@ -49,7 +49,7 @@ HTTPS/gRPC/MCP :9996 ──> DynamicRouter ──> /{app-id}/ prefix match
 
 ## Yeti Cloud
 
-Yeti Cloud is the managed hosting option, providing automated deployment, replication, cgroup isolation, and built-in backups. See the Yeti Cloud documentation for details.
+Managed hosting with automated deployment, replication, cgroup isolation, and built-in backups. See [Yeti Cloud](../deployment/cloud.md).
 
 ## Directory Layout
 

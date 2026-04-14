@@ -40,7 +40,7 @@ Yeti API feature implementation status.
 | `GET /yeti-auth/users` | Complete (requires super_user) |
 | `GET /yeti-auth/roles` | Complete (requires super_user) |
 | `GET /yeti-telemetry/Log` | Complete (requires super_user) |
-| `GET /yeti-vectors/models` | Complete (requires super_user) |
+| `GET /yeti-ai/AiModel` | Complete (requires super_user) |
 
 ## Other Features
 
@@ -54,7 +54,7 @@ Yeti API feature implementation status.
 | WebSocket subscriptions | Complete |
 | MQTT publish/subscribe | Complete |
 | GraphQL queries | Complete |
-| Auto-embedding (yeti-vectors) | Complete |
+| Auto-embedding (yeti-ai) | Complete |
 | OAuth 2.0 (Google, GitHub, Microsoft) | Complete |
 | JWT authentication | Complete |
 | Role-based access control | Complete |

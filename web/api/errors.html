@@ -107,22 +107,62 @@
                 <!-- Content -->
                 <div id="content" class="content">
                     <main>
-                        <h1 id="error-codes"><a class="header" href="#error-codes">Error Codes</a></h1>
-<p>All errors return JSON: <code>{"error": "Human-readable message"}</code>.</p>
-<h2 id="http-status-codes"><a class="header" href="#http-status-codes">HTTP Status Codes</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Status</th><th>YetiError Variant</th><th>Description</th></tr></thead><tbody>
-<tr><td>400</td><td><code>Validation(msg)</code></td><td>Invalid input, malformed request, missing required fields</td></tr>
-<tr><td>400</td><td><code>Query(ParseError)</code></td><td>Invalid FIQL filter syntax</td></tr>
-<tr><td>400</td><td><code>Schema(...)</code></td><td>Invalid schema or type definition</td></tr>
-<tr><td>400</td><td><code>Encoding(...)</code></td><td>JSON serialization error</td></tr>
-<tr><td>401</td><td><code>Unauthorized(msg)</code></td><td>Authentication required or credentials invalid</td></tr>
-<tr><td>403</td><td><code>Forbidden(msg)</code></td><td>Authenticated but insufficient permissions</td></tr>
-<tr><td>404</td><td><code>NotFound { resource_type, id }</code></td><td>Resource does not exist</td></tr>
-<tr><td>409</td><td><code>Storage(WriteConflict)</code></td><td>Concurrent write conflict (retryable)</td></tr>
-<tr><td>500</td><td><code>Storage(...)</code> / <code>Internal(msg)</code></td><td>Database or unexpected error</td></tr>
-<tr><td>503</td><td>-</td><td>Backpressure (maxInFlightRequests exceeded)</td></tr>
+                        <h1 id="error-responses"><a class="header" href="#error-responses">Error Responses</a></h1>
+<p>All error responses use <a href="https://www.rfc-editor.org/rfc/rfc9457.html">RFC 9457 Problem Details</a> format.</p>
+<h2 id="response-format"><a class="header" href="#response-format">Response Format</a></h2>
+<p>Content-Type: <code>application/problem+json</code></p>
+<pre><code class="language-json">{
+  "type": "urn:yeti:error:not_found",
+  "title": "not_found",
+  "status": 404,
+  "detail": "Resource not found: Product with id 'prod-999'"
+}
+</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>type</code></td><td>URI identifying the error category</td></tr>
+<tr><td><code>title</code></td><td>Error category label (matches <code>error_type</code> in code)</td></tr>
+<tr><td><code>status</code></td><td>HTTP status code</td></tr>
+<tr><td><code>detail</code></td><td>Human-readable explanation of this occurrence</td></tr>
 </tbody></table>
 </div>
+<h2 id="error-type-reference"><a class="header" href="#error-type-reference">Error Type Reference</a></h2>
+<p>Every <code>YetiError</code> variant maps to a specific type URI, title, and HTTP status.</p>
+<h3 id="client-errors-4xx"><a class="header" href="#client-errors-4xx">Client Errors (4xx)</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>HTTP</th><th>Type URI</th><th>Title</th><th>When</th></tr></thead><tbody>
+<tr><td>400</td><td><code>urn:yeti:error:validation_error</code></td><td>validation</td><td>Invalid input, malformed request, missing required fields</td></tr>
+<tr><td>400</td><td><code>urn:yeti:error:query_parse_error</code></td><td>query</td><td>FIQL filter syntax error</td></tr>
+<tr><td>400</td><td><code>urn:yeti:error:query_error</code></td><td>query</td><td>Invalid select, sort, pagination, or query too complex</td></tr>
+<tr><td>400</td><td><code>urn:yeti:error:schema_error</code></td><td>schema</td><td>Schema parse error, missing table/field, invalid directive, duplicate definition</td></tr>
+<tr><td>400</td><td><code>urn:yeti:error:encoding_error</code></td><td>encoding</td><td>JSON, MessagePack, UTF-8, key/value encoding errors</td></tr>
+<tr><td>401</td><td><code>urn:yeti:error:unauthorized</code></td><td>unauthorized</td><td>Authentication required or credentials invalid</td></tr>
+<tr><td>403</td><td><code>urn:yeti:error:forbidden</code></td><td>forbidden</td><td>Authenticated but insufficient permissions</td></tr>
+<tr><td>404</td><td><code>urn:yeti:error:not_found</code></td><td>not_found</td><td>Resource does not exist</td></tr>
+<tr><td>409</td><td><code>urn:yeti:error:write_conflict</code></td><td>storage</td><td>Concurrent write conflict (retryable)</td></tr>
+</tbody></table>
+</div>
+<h3 id="server-errors-5xx"><a class="header" href="#server-errors-5xx">Server Errors (5xx)</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>HTTP</th><th>Type URI</th><th>Title</th><th>When</th></tr></thead><tbody>
+<tr><td>500</td><td><code>urn:yeti:error:storage_error</code></td><td>storage</td><td>Key not found in storage, corruption, I/O, RocksDB, WAL, or initialization failure</td></tr>
+<tr><td>500</td><td><code>urn:yeti:error:backend_error</code></td><td>backend</td><td>Backend not available, initialization failed, config error, missing table mapping</td></tr>
+<tr><td>500</td><td><code>urn:yeti:error:index_error</code></td><td>index</td><td>Index not found, corruption, update failure, scan error</td></tr>
+<tr><td>500</td><td><code>urn:yeti:error:config_error</code></td><td>config</td><td>Configuration error</td></tr>
+<tr><td>500</td><td><code>urn:yeti:error:internal_error</code></td><td>internal</td><td>Unexpected internal error</td></tr>
+</tbody></table>
+</div>
+<h2 id="error-properties"><a class="header" href="#error-properties">Error Properties</a></h2>
+<p>All errors expose three metadata fields used internally:</p>
+<ul>
+<li><code>status_code</code> -- HTTP status code</li>
+<li><code>error_type</code> -- category string for metrics and the <code>title</code> field</li>
+<li><code>error_code</code> -- machine-readable code (e.g., <code>NOT_FOUND</code>, <code>WRITE_CONFLICT</code>)</li>
+</ul>
+<h2 id="retryable-errors"><a class="header" href="#retryable-errors">Retryable Errors</a></h2>
+<p>The following errors are safe to retry with exponential backoff:</p>
+<ul>
+<li><code>urn:yeti:error:write_conflict</code> (409) -- optimistic locking failure</li>
+<li><code>urn:yeti:error:storage_error</code> (500) -- when caused by transient I/O</li>
+<li><code>urn:yeti:error:backend_error</code> (500) -- when backend is temporarily unavailable</li>
+</ul>
 <h2 id="errors-in-resource-handlers"><a class="header" href="#errors-in-resource-handlers">Errors in Resource Handlers</a></h2>
 <pre><code class="language-rust ignore">// 400 - static message
 return Err(BadRequest("Email is required"))?;
@@ -138,50 +178,19 @@ return Err(Forbidden("Admin access required"))?;
 
 // 404
 return Err(NotFoundError("Product not found"))?;</code></pre>
-<h2 id="error-properties"><a class="header" href="#error-properties">Error Properties</a></h2>
-<p>All <code>YetiError</code> variants expose <code>status_code()</code>, <code>error_type()</code>, and <code>is_retryable()</code>.</p>
-<p>Retryable errors: <code>Storage(Io(...))</code>, <code>Storage(WriteConflict(...))</code>, <code>Backend(NotAvailable(...))</code>.</p>
-<h2 id="sub-error-types"><a class="header" href="#sub-error-types">Sub-Error Types</a></h2>
-<h3 id="storageerror"><a class="header" href="#storageerror">StorageError</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>Variant</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>KeyNotFound(key)</code></td><td>Record not found</td></tr>
-<tr><td><code>WriteConflict(key)</code></td><td>Optimistic locking failure</td></tr>
-<tr><td><code>Corruption(msg)</code></td><td>Data corruption detected</td></tr>
-<tr><td><code>Io(err)</code></td><td>File system I/O error</td></tr>
-<tr><td><code>RocksDb(msg)</code></td><td>RocksDB-specific error</td></tr>
-<tr><td><code>InitializationFailed(msg)</code></td><td>Database startup failure</td></tr>
-</tbody></table>
-</div>
-<h3 id="queryerror"><a class="header" href="#queryerror">QueryError</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>Variant</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>ParseError(msg)</code></td><td>FIQL syntax error</td></tr>
-<tr><td><code>InvalidSelectField(msg)</code></td><td>Unknown field in select</td></tr>
-<tr><td><code>InvalidSort(msg)</code></td><td>Invalid sort expression</td></tr>
-<tr><td><code>InvalidPagination(msg)</code></td><td>Invalid limit/offset</td></tr>
-<tr><td><code>TooComplex { reason }</code></td><td>Query exceeds limits</td></tr>
-</tbody></table>
-</div>
-<h3 id="schemaerror"><a class="header" href="#schemaerror">SchemaError</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>Variant</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>ParseError(msg)</code></td><td>GraphQL syntax error</td></tr>
-<tr><td><code>TableNotFound(name)</code></td><td>Referenced table not defined</td></tr>
-<tr><td><code>FieldNotFound { table, field }</code></td><td>Referenced field not defined</td></tr>
-<tr><td><code>InvalidDirective(msg)</code></td><td>Invalid directive usage</td></tr>
-<tr><td><code>Duplicate(name)</code></td><td>Duplicate type or field definition</td></tr>
-</tbody></table>
-</div>
 <h2 id="client-best-practices"><a class="header" href="#client-best-practices">Client Best Practices</a></h2>
 <ol>
-<li>Check HTTP status code first, then parse the error JSON body.</li>
-<li>Implement exponential backoff for 503 and 409 responses.</li>
+<li>Parse the <code>type</code> URI to identify the error category programmatically.</li>
+<li>Display the <code>detail</code> field to users.</li>
+<li>Implement exponential backoff for 409 and retryable 500 responses.</li>
 <li>Do not retry 400, 401, 403, or 404 errors.</li>
-<li>Log full error responses for 500 errors.</li>
+<li>Log full Problem Details bodies for 500 errors.</li>
 </ol>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
-<li><a href="rest.html">REST API</a> - REST endpoint reference</li>
-<li><a href="operations.html">Operations API</a> - Administrative API</li>
-<li><a href="graphql.html">GraphQL API</a> - GraphQL error format</li>
+<li><a href="rest.html">REST API</a> -- REST endpoint reference</li>
+<li><a href="graphql.html">GraphQL API</a> -- GraphQL error format</li>
+<li><a href="operations.html">MCP API</a> -- MCP endpoint reference</li>
 </ul>
 
                     </main>

@@ -1,6 +1,6 @@
 # Table Expiration
 
-Yeti supports automatic record expiration (TTL) using RocksDB's built-in TTL compaction.
+Automatic record expiration (TTL) using RocksDB's built-in TTL compaction.
 
 ## Expiration Configuration
 

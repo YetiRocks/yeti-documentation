@@ -1,127 +1,197 @@
-# Building Extensions
+# Building Services
 
-Extensions add shared services to Yeti - authentication, telemetry, middleware. They compile as dylib plugins and are loaded at startup.
+Services (formerly "extensions") add shared capabilities to Yeti -- authentication, telemetry, AI, Kafka bridging. Each service implements the `Service` trait from `yeti-types` and is compiled into the binary.
 
-## Capabilities
-
-Extensions can:
-- Register **auth providers** (Basic, JWT, OAuth)
-- Register **middleware** that intercepts requests
-- Register **auth hooks** for custom role resolution
-- Provide an **event subscriber** for tracing events
-- Access **tables** for reading and writing data
-
-## Extension Trait
+## The Service Trait
 
 ```rust,ignore
-use yeti_sdk::prelude::*;
-
-pub struct MyExtension;
-
-impl Extension for MyExtension {
-    fn name(&self) -> &str { "my-extension" }
-
-    fn initialize(&self) -> Result<()> {
-        tracing::info!("[my-extension] Initializing");
-        Ok(())
-    }
-
-    fn on_ready(&self, ctx: &ExtensionContext) -> Result<()> {
-        if let Some(table) = ctx.table("my-table") {
-            tracing::info!("[my-extension] Table available");
-        }
-        Ok(())
-    }
+pub trait Service: Send + Sync + 'static {
+    /// Unique identifier (e.g., "yeti-auth").
+    fn id(&self) -> &'static str;
+    /// Human-readable name.
+    fn name(&self) -> &'static str;
+    /// Semantic version.
+    fn version(&self) -> &'static str { "0.1.0" }
+    /// Service IDs this service depends on (for topological ordering).
+    fn depends_on(&self) -> &[&'static str] { &[] }
+    /// Whether this service should activate given the current config.
+    fn is_required(&self, ctx: &StartupContext) -> bool { true }
+    /// Register schemas, resources, hooks, and providers.
+    fn register(&self, ctx: &mut RegistrationContext) -> Result<()>;
+    /// Post-registration setup (bootstrap data, background tasks).
+    fn on_ready(&self, ctx: &ServiceContext) -> Result<()> { Ok(()) }
+    /// Whether this is a global extension (loaded before user apps).
+    fn is_extension(&self) -> bool { false }
+    /// Whether registration failure should abort startup.
+    fn is_critical(&self) -> bool { false }
+    /// Embedded config.yaml content.
+    fn config_yaml(&self) -> Option<&'static str> { None }
+    /// Called during graceful shutdown.
+    fn on_shutdown(&self) {}
 }
 ```
 
-## Auto-Detection
+## Lifecycle
 
-The compiler scans source files for `struct {Name}Extension` - no config field needed.
+The runtime calls methods in this order:
 
-## Configuration
+1. **`is_required(StartupContext)`** -- Decide whether to activate. Inspect tables, app configs, schema directives.
+2. **`register(RegistrationContext)`** -- Add schemas, resources, auth providers, hooks, middleware, event subscribers.
+3. **`on_ready(ServiceContext)`** -- Post-registration work: bootstrap data, start background tasks, wire up PubSub.
+4. **`on_shutdown()`** -- Cleanup on graceful shutdown.
 
-Mark as extension in `config.yaml`:
+## Conditional Activation
 
-```yaml
-name: "My Extension"
-app_id: "my-extension"
-extension: true
-schemas:
-  - schema.graphql
-resources:
-  - resources/*.rs
-```
-
-Apps opt in via top-level config keys:
-
-```yaml
-auth:
-  oauth:
-    rules:
-      - strategy: provider
-        pattern: "github"
-        role: standard
-```
-
-Order matters - extensions initialize and run middleware in listed order.
-
-## Dylib Rules
-
-The dylib boundary creates important constraints:
-
-**Do NOT use in on_ready():**
-- `tokio::spawn()` - crashes across dylib boundary
-- `tracing::info!()` - messages don't reach host log (TLS isolation)
-- `tokio::sync::mpsc::channel()` - channels don't work across boundary
-- Host statics (`OnceLock`) - dylib has separate copies
-
-**Safe to use:**
-- `tracing::info!()` / `tracing::warn!()` - use tracing macros for consistent API, even in dylib context
-- `ctx.table(name)` - Arc clones work across boundary
-- `ctx.set_event_subscriber()` - host spawns after on_ready()
-- Pure functions (serde, UUID generation, string ops)
-
-**Pattern**: Set state in on_ready(), return. Host performs tokio operations after.
-
-## Auth Providers
+`is_required()` receives a `StartupContext` for introspecting the current deployment:
 
 ```rust,ignore
-fn auth_providers(&self) -> Vec<Arc<dyn AuthProvider>> {
-    vec![
-        Arc::new(BasicAuthProvider::new()),
-        Arc::new(JwtAuthProvider::new("secret".to_string())),
-    ]
-}
-
-fn auth_hooks(&self) -> Vec<Arc<dyn AuthHook>> {
-    vec![Arc::new(CustomRoleResolver::new())]
+fn is_required(&self, ctx: &StartupContext) -> bool {
+    // Only activate if any app has a "kafka" config key
+    ctx.any_app_has_config("kafka")
 }
 ```
 
-## Middleware
+`StartupContext` methods:
+
+| Method | Description |
+|--------|-------------|
+| `any_app_has_config(key)` | True if any app config has the given top-level key |
+| `any_table_has_field_directive(directive)` | True if any table field type matches (case-insensitive) |
+| `any_app_requires_auth()` | True if any app has non-empty `requiredRoles` / `required_roles` |
+
+Services with `is_required() == false` are skipped entirely.
+
+## Registration
+
+`register()` receives a mutable `RegistrationContext` where you add components:
 
 ```rust,ignore
-fn middleware(&self) -> Option<Arc<dyn RequestMiddleware>> {
-    Some(Arc::new(RateLimiter::new(100)))
-}
-```
+fn register(&self, ctx: &mut RegistrationContext) -> Result<()> {
+    // Add GraphQL schemas
+    ctx.add_schema(include_str!("schema.graphql"));
 
-## Event Subscriber
+    // Add resource handlers
+    ctx.add_resource(Box::new(MyResource::new()));
 
-```rust,ignore
-fn on_ready(&self, ctx: &ExtensionContext) -> Result<()> {
-    let log_table = ctx.table("log");
-    ctx.set_event_subscriber(Box::new(MyHandler { log_table }));
+    // Add auth providers
+    ctx.add_auth_provider(Arc::new(BasicAuthProvider::new()));
+
+    // Add vector hooks
+    ctx.add_vector_hook(Arc::new(MyVectorHook::new()));
+
+    // Add AI hooks
+    ctx.add_ai_hook(Arc::new(MyAiHook::new()));
+
+    // Add request middleware
+    ctx.add_middleware(Arc::new(RateLimiter::new(100)));
+
+    // Add embedded web files
+    ctx.add_web_files(vec![EmbeddedFile {
+        path: "index.html",
+        content: include_bytes!("../web/index.html"),
+    }]);
+
     Ok(())
 }
 ```
 
-See [Extension Lifecycle](extension-lifecycle.md) for the full initialization sequence.
+`RegistrationContext` methods:
+
+| Method | Description |
+|--------|-------------|
+| `add_schema(graphql)` | Add a GraphQL schema string |
+| `add_resource(handler)` | Add a resource handler |
+| `add_auth_provider(provider)` | Add an authentication provider |
+| `add_vector_hook(hook)` | Add a vector embedding hook |
+| `add_ai_hook(hook)` | Add an AI inference hook |
+| `add_middleware(middleware)` | Add request middleware |
+| `add_event_subscriber(subscriber)` | Add an event subscriber |
+| `add_web_files(files)` | Add embedded static files |
+| `app_id()` | Get the application ID |
+| `root_dir()` | Get the root directory path |
+
+## Post-Registration Setup
+
+`on_ready()` runs after all schemas and tables are registered:
+
+```rust,ignore
+fn on_ready(&self, ctx: &ServiceContext) -> Result<()> {
+    // Access tables by name
+    let users = ctx.require_table("User")?;
+
+    // Access PubSub for a table
+    if let Some(pubsub) = ctx.pubsub("Order") {
+        // Subscribe to order changes
+    }
+
+    // Set up an event subscriber for tracing events
+    ctx.set_event_subscriber(Box::new(MySubscriber::new()));
+
+    Ok(())
+}
+```
+
+`ServiceContext` methods:
+
+| Method | Description |
+|--------|-------------|
+| `table(name)` | Get a table backend by name (`Option`) |
+| `require_table(name)` | Get a table backend or return an error |
+| `pubsub(table_name)` | Get PubSub manager for a table |
+| `set_event_subscriber(sub)` | Store an event subscriber for host to spawn |
+| `app_id()` | Get the application ID |
+| `root_dir()` | Get the root directory path |
+
+## Dependency Ordering
+
+Services declare dependencies via `depends_on()`. The runtime sorts services topologically:
+
+```rust,ignore
+fn depends_on(&self) -> &[&'static str] {
+    &["yeti-auth"]  // This service starts after yeti-auth
+}
+```
+
+## Built-In Services
+
+| Service | ID | Purpose |
+|---------|----|---------|
+| yeti-auth | `yeti-auth` | Authentication (Basic, JWT, OAuth) |
+| yeti-telemetry | `yeti-telemetry` | Tracing event capture, log persistence, OTLP export |
+| yeti-ai | `yeti-ai` | Vector embeddings and LLM inference (Candle) |
+| yeti-admin | `yeti-admin` | Admin dashboard and management API |
+| yeti-kafka | `yeti-kafka` | Bidirectional Kafka bridge |
+| yeti-benchmarks | `yeti-benchmarks` | Performance benchmarks |
+
+All built-in services are binary-embedded (no filesystem extraction).
+
+## Example: Minimal Service
+
+```rust,ignore
+pub struct PingService;
+
+impl Service for PingService {
+    fn id(&self) -> &'static str { "ping" }
+    fn name(&self) -> &'static str { "Ping" }
+
+    fn is_required(&self, _ctx: &StartupContext) -> bool {
+        true  // Always active
+    }
+
+    fn register(&self, ctx: &mut RegistrationContext) -> Result<()> {
+        ctx.add_resource(Box::new(PingResource));
+        Ok(())
+    }
+}
+
+pub fn service() -> Box<dyn Service> {
+    Box::new(PingService)
+}
+```
 
 ## See Also
 
-- [Extension Lifecycle](extension-lifecycle.md) - Detailed initialization order
-- [Telemetry & Observability](telemetry.md) - Event subscriber example
-- [Authentication Overview](auth-overview.md) - Auth provider integration
-- [Troubleshooting](troubleshooting.md) - Plugin and dylib issues
+- [Service Lifecycle](extension-lifecycle.md) -- Detailed startup sequence
+- [Event Subscribers](event-subscribers.md) -- Tracing event capture
+- [Authentication Overview](auth-overview.md) -- Auth provider integration
+- [Telemetry & Observability](telemetry.md) -- Telemetry service

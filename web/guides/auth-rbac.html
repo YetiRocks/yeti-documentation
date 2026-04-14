@@ -108,15 +108,32 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="roles--permissions"><a class="header" href="#roles--permissions">Roles &amp; Permissions</a></h1>
-<p>Each user has a <code>roleId</code> that maps to a Role record with structured permissions.</p>
+<p>Each user's access to an application is determined by their <strong>AppMembership</strong> record, which links to an app-scoped <strong>Role</strong> with structured permissions.</p>
+<h2 id="appmembership-table"><a class="header" href="#appmembership-table">AppMembership Table</a></h2>
+<p>The AppMembership table controls per-app access. Each record uses a compound key:</p>
+<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>id</code></td><td>String (PK)</td><td><code>{appId}:{username}</code> compound key</td></tr>
+<tr><td><code>appId</code></td><td>String</td><td>Application this membership grants access to</td></tr>
+<tr><td><code>username</code></td><td>String</td><td>User this membership belongs to</td></tr>
+<tr><td><code>roleId</code></td><td>String</td><td>FK to Role.id (<code>{appId}:{roleName}</code>)</td></tr>
+<tr><td><code>status</code></td><td>String</td><td><code>active</code>, <code>invited</code>, or <code>suspended</code></td></tr>
+<tr><td><code>invitedBy</code></td><td>String</td><td>Username of the inviter (if applicable)</td></tr>
+<tr><td><code>lastAccessAt</code></td><td>Int</td><td>Unix timestamp of last access</td></tr>
+<tr><td><code>createdAt</code></td><td>Int</td><td>Unix timestamp of creation</td></tr>
+</tbody></table>
+</div>
+<p>A user with no AppMembership for an app has no access to that app (unless auto-signup creates one).</p>
 <h2 id="role-structure"><a class="header" href="#role-structure">Role Structure</a></h2>
+<p>Roles are scoped to an application via compound key <code>{appId}:{roleName}</code>. A role with <code>appId: "*"</code> is global.</p>
 <pre><code class="language-json">{
-  "id": "standard",
-  "name": "Standard User",
+  "id": "my-app:editor",
+  "appId": "my-app",
+  "name": "Editor",
   "permissions": "{\"super_user\":false,\"databases\":{\"data\":{\"tables\":{\"*\":{\"read\":true,\"insert\":true,\"update\":true,\"delete\":false}}}}}"
 }
 </code></pre>
-<p>The <code>permissions</code> field is a double-encoded JSON string (a JSON object serialized as a string value). The auth system unwraps this before deserializing:</p>
+<p>The <code>permissions</code> field is a double-encoded JSON string (a JSON object serialized as a string value). The auth system unwraps this before deserializing into the <code>Permission</code> struct.</p>
+<h2 id="permission-struct"><a class="header" href="#permission-struct">Permission Struct</a></h2>
 <pre><code class="language-json">{
   "super_user": false,
   "databases": {
@@ -126,80 +143,75 @@
           "read": true, "insert": true, "update": true, "delete": false
         },
         "AuditLog": {
-          "read": true, "insert": false, "update": false, "delete": false
+          "read": true, "insert": false, "update": false, "delete": false,
+          "attribute_permissions": {
+            "salary": { "read": false, "write": false }
+          }
         }
       }
     }
   }
 }
 </code></pre>
-<h2 id="permission-hierarchy"><a class="header" href="#permission-hierarchy">Permission Hierarchy</a></h2>
-<p>Evaluated most-specific first:</p>
-<ol>
-<li><strong>Table-specific</strong>: <code>databases.{db}.tables.{TableName}</code></li>
-<li><strong>Wildcard</strong>: <code>databases.{db}.tables.*</code></li>
-<li><strong>Super user</strong>: <code>super_user: true</code> bypasses all checks</li>
-</ol>
-<h2 id="built-in-roles"><a class="header" href="#built-in-roles">Built-in Roles</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Role</th><th>Permissions</th></tr></thead><tbody>
-<tr><td><code>super_user</code></td><td>Full access. Cannot be deleted.</td></tr>
-<tr><td><code>admin</code></td><td>Full access (super_user: true).</td></tr>
-<tr><td><code>standard</code></td><td>Read, insert, update. No delete.</td></tr>
-<tr><td><code>viewer</code></td><td>Read-only.</td></tr>
-</tbody></table>
-</div>
+<p>The hierarchy:</p>
+<ul>
+<li><code>super_user: true</code> -- bypasses all permission checks</li>
+<li><code>databases.{db}.tables.{TableName}</code> -- table-specific CRUD grants (<code>read</code>, <code>insert</code>, <code>update</code>, <code>delete</code>)</li>
+<li><code>databases.{db}.tables.*</code> -- wildcard fallback for tables without explicit entries</li>
+<li><code>attribute_permissions</code> -- per-field overrides within a table (see <a href="auth-attributes.html">Attribute-Level Access</a>)</li>
+</ul>
+<p>Table name matching is case-insensitive: roles store PascalCase names from the schema, but URL-based lookups work regardless of case.</p>
 <h2 id="role-management"><a class="header" href="#role-management">Role Management</a></h2>
-<pre><code class="language-bash"># Create
+<pre><code class="language-bash"># Create an app-scoped role
 curl -sk -u admin:admin -X POST https://localhost:9996/yeti-auth/roles \
   -H "Content-Type: application/json" \
-  -d '{"id":"editor","name":"Editor","permissions":"{\"super_user\":false,\"databases\":{\"data\":{\"tables\":{\"*\":{\"read\":true,\"insert\":true,\"update\":true,\"delete\":false}}}}}"}'
+  -d '{"id":"my-app:editor","appId":"my-app","name":"Editor","permissions":"{\"super_user\":false,\"databases\":{\"data\":{\"tables\":{\"*\":{\"read\":true,\"insert\":true,\"update\":true,\"delete\":false}}}}}"}'
 
-# List
+# List all roles
 curl -sk -u admin:admin https://localhost:9996/yeti-auth/roles
 
-# Update
-curl -sk -u admin:admin -X PUT https://localhost:9996/yeti-auth/roles/editor \
+# Update a role
+curl -sk -u admin:admin -X PUT https://localhost:9996/yeti-auth/roles/my-app:editor \
   -H "Content-Type: application/json" \
-  -d '{"id":"editor","name":"Editor (Updated)","permissions":"{\"super_user\":false,\"databases\":{\"data\":{\"tables\":{\"*\":{\"read\":true,\"insert\":true,\"update\":true,\"delete\":true}}}}}"}'
+  -d '{"id":"my-app:editor","appId":"my-app","name":"Editor (Updated)","permissions":"{\"super_user\":false,\"databases\":{\"data\":{\"tables\":{\"*\":{\"read\":true,\"insert\":true,\"update\":true,\"delete\":true}}}}}"}'
 
-# Delete (super_user is protected)
-curl -sk -u admin:admin -X DELETE https://localhost:9996/yeti-auth/roles/editor
+# Delete (super_user is protected from deletion)
+curl -sk -u admin:admin -X DELETE https://localhost:9996/yeti-auth/roles/my-app:editor
+</code></pre>
+<h2 id="membership-management"><a class="header" href="#membership-management">Membership Management</a></h2>
+<pre><code class="language-bash"># Create a membership (grant access)
+curl -sk -u admin:admin -X POST https://localhost:9996/yeti-auth/memberships \
+  -H "Content-Type: application/json" \
+  -d '{"id":"my-app:alice","appId":"my-app","username":"alice","roleId":"my-app:editor","status":"active"}'
+
+# List memberships
+curl -sk -u admin:admin https://localhost:9996/yeti-auth/memberships
+
+# Remove access
+curl -sk -u admin:admin -X DELETE https://localhost:9996/yeti-auth/memberships/my-app:alice
 </code></pre>
 <h2 id="role-resolution"><a class="header" href="#role-resolution">Role Resolution</a></h2>
-<ul>
-<li><strong>Basic Auth / JWT</strong>: User's <code>roleId</code> looked up in Role table</li>
-<li><strong>OAuth</strong>: Per-app config rules map provider/email patterns to role IDs</li>
-</ul>
-<p>Extensions can provide an <code>AuthHook</code> to intercept role resolution before default logic. See <a href="auth-hooks.html">Auth Hooks</a>.</p>
-<h2 id="seed-data"><a class="header" href="#seed-data">Seed Data</a></h2>
-<p>Place role/user JSON in <code>yeti-auth/data/</code> for new deployments:</p>
-<pre><code class="language-json">{
-  "database": "auth",
-  "table": "Role",
-  "records": [
-    {
-      "id": "custom-role",
-      "name": "Custom Role",
-      "permissions": "{\"super_user\":false,\"databases\":{\"data\":{\"tables\":{\"*\":{\"read\":true,\"insert\":false,\"update\":false,\"delete\":false}}}}}",
-      "createdAt": 1738800000
-    }
-  ]
-}
-</code></pre>
-<p>Loaded automatically on first start with empty database.</p>
-<h2 id="permission-checks"><a class="header" href="#permission-checks">Permission Checks</a></h2>
+<p>All auth methods follow the same resolution path:</p>
 <ol>
-<li><code>check_table_read_permission()</code> - table read access</li>
-<li><code>check_table_write_permission()</code> - insert/update/delete access</li>
-<li><code>validate_writable_attributes()</code> - field-level write permissions</li>
-<li><code>filter_readable_attributes()</code> - removes restricted fields from responses</li>
+<li><strong>JWT with embedded permissions</strong>: Fast path -- if the token's <code>apps</code> map contains the target app, permissions are used directly (no DB lookup)</li>
+<li><strong>AppMembership exists</strong>: Use its <code>roleId</code> to load the Role from the Role table</li>
+<li><strong>No membership + auto-signup</strong>: Create a membership with the configured default role</li>
+<li><strong>No membership + invite/disabled</strong>: Deny access</li>
 </ol>
-<p>Super users bypass all checks.</p>
+<p>For OAuth users, the role is determined by the app's <code>oauth.rules</code> configuration before creating the auto-signup membership.</p>
+<p>Services can provide an <code>AuthHook</code> to intercept role resolution before the default logic. See <a href="auth-hooks.html">Auth Hooks</a>.</p>
+<h2 id="permission-checks"><a class="header" href="#permission-checks">Permission Checks</a></h2>
+<p>The permission system operates at two levels:</p>
+<ol>
+<li><strong>Table-level</strong>: <code>can_read_table()</code>, <code>can_insert_table()</code>, <code>can_update_table()</code>, <code>can_delete_table()</code></li>
+<li><strong>Attribute-level</strong>: <code>can_read_attribute()</code>, <code>can_write_attribute()</code>, <code>has_unrestricted_attributes()</code></li>
+</ol>
+<p>Super users bypass all checks. See <a href="auth-attributes.html">Attribute-Level Access</a> for field-level details.</p>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
 <li><a href="auth-overview.html">Authentication Overview</a></li>
 <li><a href="auth-attributes.html">Attribute-Level Access</a> - Field-level permissions</li>
-<li><a href="building-extensions.html">Building Extensions</a> - Custom auth hooks</li>
+<li><a href="auth-hooks.html">Auth Hooks</a> - Custom role resolution</li>
 </ul>
 
                     </main>

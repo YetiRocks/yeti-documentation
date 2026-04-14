@@ -108,36 +108,72 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="mcp-api"><a class="header" href="#mcp-api">MCP API</a></h1>
-<p>Yeti exposes a <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> (MCP) endpoint for any application with <code>mcp: true</code> in its <code>config.yaml</code>. MCP enables AI agents and tool-calling LLMs to interact with application tables using a standardized JSON-RPC 2.0 interface.</p>
+<p>Yeti exposes a <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> (MCP) endpoint for AI agents and tool-calling LLMs to interact with application tables using a standardized JSON-RPC 2.0 interface.</p>
 <h2 id="enabling-mcp"><a class="header" href="#enabling-mcp">Enabling MCP</a></h2>
-<pre><code class="language-yaml"># config.yaml (application)
-mcp: true
+<p>MCP is auto-enabled for any table with <code>@export(mcp: true)</code> in its schema. When <code>@export</code> is present without arguments, <code>mcp</code> defaults to <code>true</code>.</p>
+<pre><code class="language-graphql">type Product @table @export(mcp: true) {
+    id: ID!
+    name: String!
+    price: Float!
+}
 </code></pre>
-<p>The MCP endpoint is available at <code>/{app}/mcp</code>.</p>
-<h2 id="protocol"><a class="header" href="#protocol">Protocol</a></h2>
-<p>All requests use <strong>JSON-RPC 2.0</strong> over HTTP POST:</p>
+<p>The MCP endpoint is available at <code>POST /{app-id}/mcp</code>.</p>
+<h2 id="transport"><a class="header" href="#transport">Transport</a></h2>
+<p>Streamable HTTP. All requests use <strong>JSON-RPC 2.0</strong> over HTTP POST:</p>
 <pre><code class="language-bash">curl -sk -X POST https://localhost:9996/my-app/mcp \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"my-agent","version":"1.0"}}}'
 </code></pre>
+<p>Protocol version: <code>2025-03-26</code>.</p>
+<h2 id="session-lifecycle"><a class="header" href="#session-lifecycle">Session Lifecycle</a></h2>
+<ol>
+<li>Send <code>initialize</code> to start a session. The response includes an <code>mcp-session-id</code> header.</li>
+<li>Send <code>notifications/initialized</code> (no <code>id</code> field -- it is a notification, returns 202).</li>
+<li>Use <code>tools/list</code>, <code>resources/list</code>, or <code>prompts/list</code> to discover capabilities.</li>
+<li>Call <code>tools/call</code> to perform operations.</li>
+<li>Send <code>DELETE /{app-id}/mcp</code> with the <code>mcp-session-id</code> header to terminate.</li>
+</ol>
 <h2 id="methods"><a class="header" href="#methods">Methods</a></h2>
-<h3 id="toolslist"><a class="header" href="#toolslist"><code>tools/list</code></a></h3>
-<p>Returns the available CRUD tools for all MCP-enabled tables in the application.</p>
+<h3 id="initialize"><a class="header" href="#initialize"><code>initialize</code></a></h3>
+<p>Starts a session and returns server capabilities.</p>
 <pre><code class="language-json">{
   "jsonrpc": "2.0",
   "id": 1,
-  "method": "tools/list"
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-03-26",
+    "capabilities": {},
+    "clientInfo": { "name": "my-agent", "version": "1.0" }
+  }
 }
 </code></pre>
-<p>Each tool describes its name, description, and input schema (JSON Schema format).</p>
-<h3 id="toolscall"><a class="header" href="#toolscall"><code>tools/call</code></a></h3>
-<p>Invokes a tool to perform a CRUD operation on a table.</p>
+<p>Response includes <code>tools</code>, <code>resources</code>, and <code>prompts</code> capability declarations.</p>
+<h3 id="toolslist"><a class="header" href="#toolslist"><code>tools/list</code></a></h3>
+<p>Returns tool definitions for all MCP-enabled tables. Each table generates six tools:</p>
+<div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>{table}_get</code></td><td>Get a record by ID</td></tr>
+<tr><td><code>{table}_list</code></td><td>List records with optional limit, offset, order_by</td></tr>
+<tr><td><code>{table}_create</code></td><td>Create a new record</td></tr>
+<tr><td><code>{table}_update</code></td><td>Update an existing record (requires id)</td></tr>
+<tr><td><code>{table}_delete</code></td><td>Delete a record by ID</td></tr>
+<tr><td><code>{table}_search</code></td><td>Search with a FIQL filter or text query</td></tr>
+</tbody></table>
+</div>
+<p>Tool names use lowercase table names: <code>product_get</code>, <code>product_list</code>, etc.</p>
 <pre><code class="language-json">{
   "jsonrpc": "2.0",
   "id": 2,
+  "method": "tools/list"
+}
+</code></pre>
+<h3 id="toolscall"><a class="header" href="#toolscall"><code>tools/call</code></a></h3>
+<p>Invokes a tool to perform an operation.</p>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 3,
   "method": "tools/call",
   "params": {
-    "name": "create_Product",
+    "name": "product_create",
     "arguments": {
       "id": "p1",
       "name": "Widget",
@@ -146,30 +182,72 @@ mcp: true
   }
 }
 </code></pre>
-<p>Tool names follow the pattern <code>{operation}_{TableName}</code> where operation is one of: <code>get</code>, <code>list</code>, <code>create</code>, <code>update</code>, <code>delete</code>.</p>
-<h3 id="resourceslist"><a class="header" href="#resourceslist"><code>resources/list</code></a></h3>
-<p>Lists the data resources (tables) available in the application.</p>
+<p>Tool results follow the MCP content format:</p>
 <pre><code class="language-json">{
   "jsonrpc": "2.0",
   "id": 3,
-  "method": "resources/list"
+  "result": {
+    "content": [{ "type": "text", "text": "..." }],
+    "isError": false
+  }
 }
 </code></pre>
-<h3 id="promptslist"><a class="header" href="#promptslist"><code>prompts/list</code></a></h3>
-<p>Lists any registered prompts for the application.</p>
+<h3 id="resourceslist"><a class="header" href="#resourceslist"><code>resources/list</code></a></h3>
+<p>Lists data resources (tables) as MCP resources with <code>yeti://</code> URIs.</p>
 <pre><code class="language-json">{
   "jsonrpc": "2.0",
   "id": 4,
-  "method": "prompts/list"
+  "method": "resources/list"
 }
 </code></pre>
+<p>Each resource has the URI pattern <code>yeti://{app-id}/{table}</code>.</p>
+<h3 id="resourcestemplateslist"><a class="header" href="#resourcestemplateslist"><code>resources/templates/list</code></a></h3>
+<p>Lists URI templates for record-level access: <code>yeti://{app-id}/{table}/{id}</code>.</p>
+<h3 id="resourcesread"><a class="header" href="#resourcesread"><code>resources/read</code></a></h3>
+<p>Reads a resource by URI. Returns table listing or single record depending on the URI.</p>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "resources/read",
+  "params": { "uri": "yeti://my-app/product/p1" }
+}
+</code></pre>
+<h3 id="promptslist"><a class="header" href="#promptslist"><code>prompts/list</code></a></h3>
+<p>Lists prompt templates. Each table generates three prompts:</p>
+<div class="table-wrapper"><table><thead><tr><th>Prompt</th><th>Arguments</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>list_{table}</code></td><td><code>limit</code> (optional)</td><td>List records</td></tr>
+<tr><td><code>search_{table}</code></td><td><code>query</code> (required)</td><td>Search records</td></tr>
+<tr><td><code>describe_{table}</code></td><td>none</td><td>Describe table schema</td></tr>
+</tbody></table>
+</div>
+<h3 id="promptsget"><a class="header" href="#promptsget"><code>prompts/get</code></a></h3>
+<p>Retrieves a prompt with arguments expanded into messages.</p>
+<pre><code class="language-json">{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "prompts/get",
+  "params": { "name": "search_product", "arguments": { "query": "widget" } }
+}
+</code></pre>
+<h3 id="ping"><a class="header" href="#ping"><code>ping</code></a></h3>
+<p>Health check. Returns <code>{}</code>.</p>
+<h2 id="tool-annotations"><a class="header" href="#tool-annotations">Tool Annotations</a></h2>
+<p>Each tool includes MCP annotations for agent safety:</p>
+<div class="table-wrapper"><table><thead><tr><th>Annotation</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>readOnlyHint</code></td><td><code>true</code> for get, list, search</td></tr>
+<tr><td><code>destructiveHint</code></td><td><code>true</code> for delete</td></tr>
+<tr><td><code>idempotentHint</code></td><td><code>true</code> for get, list, search, update, delete; <code>false</code> for create</td></tr>
+</tbody></table>
+</div>
 <h2 id="authentication"><a class="header" href="#authentication">Authentication</a></h2>
-<p>MCP endpoints use the same authentication as the rest of the application (Basic, JWT, or OAuth). Include credentials in the request headers as you would for any other API call.</p>
+<p>MCP endpoints use the same authentication as the rest of the application (Basic, JWT, or OAuth). Include credentials in the request headers.</p>
+<h2 id="get-endpoint"><a class="header" href="#get-endpoint">GET Endpoint</a></h2>
+<p><code>GET /{app-id}/mcp</code> returns a JSON description of the endpoint including available tables, tool counts, and instructions.</p>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
 <li><a href="rest.html">REST API</a> -- Standard REST interface</li>
 <li><a href="graphql.html">GraphQL API</a> -- GraphQL interface</li>
-<li><a href="../reference/app-config.html">Application Configuration</a> -- Config reference</li>
+<li><a href="../reference/schema-directives.html">Schema Directives</a> -- <code>@export</code> directive reference</li>
 </ul>
 
                     </main>

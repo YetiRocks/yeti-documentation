@@ -12,7 +12,7 @@
 
 ## Backup Procedure
 
-RocksDB supports hot backup - safe to copy while server is running:
+RocksDB supports hot backup -- safe to copy while the server is running:
 
 ```bash
 BACKUP_DIR="/backups/yeti-$(date +%Y%m%d-%H%M%S)"
@@ -31,12 +31,11 @@ rsync -av --delete /var/lib/yeti/applications/ /backups/yeti-latest/applications
 
 ### Automated Backups
 
-```yaml
-maintenance:
-  backup:
-    enabled: true
-    intervalHours: 24
-    retentionDays: 30
+Use cron or systemd timers to schedule backup scripts:
+
+```bash
+# Example crontab entry: daily backup at 2 AM
+0 2 * * * /usr/local/bin/yeti-backup.sh
 ```
 
 ## Recovery
@@ -66,12 +65,12 @@ After recovery or Yeti upgrade:
 ```bash
 rm -rf /var/lib/yeti/cache/builds/*/target/
 rm -rf /var/lib/yeti/cache/builds/*/src/
-yeti start --root-dir /var/lib/yeti
+yeti start --dir /var/lib/yeti
 ```
 
 ## Replication as Durability Strategy
 
-Yeti uses RocksDB as its sole storage engine (no TiKV or other external databases). For additional durability beyond backups, enable replication to maintain copies across multiple nodes:
+For durability beyond backups, enable replication across multiple nodes:
 
 ```yaml
 replication:
@@ -93,6 +92,6 @@ Replication is license-gated. See [Storage Engine](../architecture/storage.md) f
 ## Verify Backups
 
 ```bash
-yeti start --root-dir /backups/yeti-latest --apps yeti-auth
+yeti start --dir /backups/yeti-latest --apps yeti-auth
 curl -sk https://localhost:9996/yeti-auth/auth
 ```

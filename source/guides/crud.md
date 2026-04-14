@@ -71,9 +71,43 @@ Returns 204 No Content on success.
 | 200 | Success (GET, PUT, PATCH) |
 | 201 | Created (POST) |
 | 204 | Deleted |
-| 400 | Bad Request |
+| 400 | Validation Error |
 | 404 | Not Found |
 | 405 | Method Not Allowed |
+| 409 | Write Conflict |
+
+## Error Responses
+
+All error responses use RFC 9457 Problem Details format with content type `application/problem+json`:
+
+```json
+{
+  "type": "urn:yeti:error:not_found",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "Record 'prod-999' not found in table 'Product'"
+}
+```
+
+```json
+{
+  "type": "urn:yeti:error:validation_error",
+  "title": "Validation Error",
+  "status": 400,
+  "detail": "Missing required field: name"
+}
+```
+
+```json
+{
+  "type": "urn:yeti:error:write_conflict",
+  "title": "Write Conflict",
+  "status": 409,
+  "detail": "Concurrent write conflict on key 'prod-1'"
+}
+```
+
+The `type` field is a stable URI for programmatic error handling. The `detail` field provides a human-readable explanation of the specific occurrence.
 
 ## Computed Fields
 

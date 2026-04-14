@@ -8,7 +8,7 @@ Place `.rs` files in `resources/` and reference them in `config.yaml`:
 
 ```yaml
 resources:
-  - resources/*.rs
+  path: "resources/*.rs"
 ```
 
 Every resource file starts with:
@@ -31,13 +31,15 @@ resource!(Greeting {
 
 Creates `GET /my-app/greeting` returning JSON.
 
-### With Request and Context
+### With Context Access
+
+The `ctx` parameter is a `Context` that provides access to the request, path parameters, tables, and auth identity:
 
 ```rust,ignore
 use yeti_sdk::prelude::*;
 
 resource!(Items {
-    get(request, ctx) => {
+    get(ctx) => {
         let table = ctx.get_table("Items")?;
         let id = ctx.require_id()?;
         let item = table.get(id).await?;
@@ -46,11 +48,12 @@ resource!(Items {
             None => reply().code(404).json(json!({"error": "Not found"})),
         }
     },
-    post(request, ctx) => {
-        let body = request.json_value()?;
-        let name = body.require_str("name")?;
+    post(ctx) => {
+        let body = ctx.require_json_body()?.clone();
+        let name = body["name"].as_str()
+            .ok_or_else(|| YetiError::Validation("name is required".into()))?;
         let table = ctx.get_table("Items")?;
-        table.put(&name, body.clone()).await?;
+        table.put(name, body.clone()).await?;
         created(body)
     }
 });
@@ -68,14 +71,14 @@ resource!(MyHandler {
 // Catch-all for unmatched paths
 resource!(Fallback {
     default = true,
-    get(request, ctx) => {
-        let path = ctx.path_id().unwrap_or("/");
+    get(ctx) => {
+        let path = ctx.path_id.as_deref().unwrap_or("/");
         reply().code(404).json(json!({"error": "Not found", "path": path}))
     }
 });
 ```
 
-## ResourceParams API
+## Context API
 
 The `ctx` parameter provides access to the application environment.
 
@@ -90,33 +93,33 @@ table.put("prod-123", json!({"id": "prod-123", "name": "Widget"})).await?;
 ### Path Parameters
 
 ```rust,ignore
-let id = ctx.path_id();       // Option<&str> from /Resource/{id}
-let id = ctx.require_id()?;   // Returns 400 if missing
+let id = ctx.path_id.as_deref();   // Option<&str> from /Resource/{id}
+let id = ctx.require_id()?;        // Returns 400 if missing
 ```
 
-### Configuration Access
+### Request Body
 
 ```rust,ignore
-let url = ctx.config().get_str("origin.url", "https://default.com");
-let timeout = ctx.config().get_i64("api.timeout", 30);
-let enabled = ctx.config().get_bool("features.cache", false);
-```
-
-### Response Headers
-
-```rust,ignore
-ctx.response_headers().append("x-cache", "HIT");
-ctx.response_headers().set("X-Custom-Header", "value");
-```
-
-## Request Parsing
-
-The `request` parameter is `http::Request<Vec<u8>>`:
-
-```rust,ignore
-let body = request.json_value()?;
-let name = body.require_str("name")?;
+let body = ctx.require_json_body()?;   // Returns 400 if not valid JSON
+let name = body["name"].as_str()
+    .ok_or_else(|| YetiError::Validation("name is required".into()))?;
 let bio = body.get("bio").and_then(|v| v.as_str());
+```
+
+### Auth Identity
+
+```rust,ignore
+if let Some(identity) = ctx.auth_identity() {
+    // Access authenticated user info
+}
+```
+
+### Cookies
+
+```rust,ignore
+if let Some(session) = ctx.cookie("session_id") {
+    // Use cookie value
+}
 ```
 
 ## Response Helpers
@@ -162,18 +165,21 @@ impl Resource for PageCache {
     fn name(&self) -> &str { "PageCache" }
     fn is_default(&self) -> bool { true }
 
-    fn get(&self, _request: Request<Vec<u8>>, ctx: ResourceParams) -> ResourceFuture {
-        async_handler!({
-            let path = ctx.id().unwrap_or("/");
+    fn get(&self, ctx: Context) -> ResourceFuture {
+        Box::pin(async move {
+            let path = ctx.path_id.as_deref().unwrap_or("/");
             let cache = ctx.get_table("PageCache")?;
             match cache.get(path).await? {
                 Some(cached) => {
-                    ctx.response_headers().append("x-cache", "HIT");
-                    ok_html(cached.as_str().unwrap_or_default())
+                    reply()
+                        .header("x-cache", "HIT")
+                        .html(cached.as_str().unwrap_or_default())
                 }
                 None => {
-                    ctx.response_headers().append("x-cache", "MISS");
-                    reply().code(404).text("Not cached")
+                    reply()
+                        .code(404)
+                        .header("x-cache", "MISS")
+                        .text("Not cached")
                 }
             }
         })
@@ -187,40 +193,40 @@ The `resource!` macro handles registration automatically. For manual implementat
 
 ## External HTTP Requests
 
-Use `fetch()` from `yeti_sdk::prelude` for external HTTP calls. Do not use `reqwest::blocking::Client` -- it crashes in the dylib context.
+Use the `fetch!` macro from `yeti_sdk::prelude` for external HTTP calls. Do not use `reqwest::blocking::Client` -- it crashes in the dylib context.
 
 ```rust,ignore
 use yeti_sdk::prelude::*;
 
 resource!(Proxy {
-    get(request, ctx) => {
-        let res = fetch("https://api.example.com/data", None)
-            .map_err(|e| YetiError::Validation(e))?;
+    get(ctx) => {
+        let resp = fetch!("https://api.example.com/data").send()?;
 
-        if res.ok() {
-            ok_json!(res.json()?)
+        if resp.ok() {
+            let data = resp.json().map_err(|e| YetiError::Internal(e))?;
+            ok(data)
         } else {
-            reply().code(res.status).text(&format!("Upstream error: {}", res.status))
+            reply().code(resp.status).text(&format!("Upstream error: {}", resp.status))
         }
     },
-    post(request, ctx) => {
-        let body = request.json_value()?;
-        let res = fetch("https://api.example.com/data", Some(FetchOptions {
-            method: "POST".to_string(),
-            headers: vec![("Content-Type".to_string(), "application/json".to_string())]
-                .into_iter().collect(),
-            body: Some(body.to_string()),
-            ..Default::default()
-        })).map_err(|e| YetiError::Validation(e))?;
+    post(ctx) => {
+        let body = ctx.require_json_body()?.clone();
+        let data: Value = fetch!("POST", "https://api.example.com/data")
+            .json_body(&body)?
+            .json()?;
 
-        ok_json!(res.json()?)
+        ok(data)
     }
 });
 ```
 
-`FetchResponse` methods: `.ok()`, `.json()`, `.text()`, `.header(name)`, `.status`, `.url`, `.redirected`.
+`fetch!` accepts one or two arguments: `fetch!(url)` for GET, `fetch!(method, url)` for other methods. Chain builder methods, then call a terminal method:
 
-`FetchOptions` fields: `method`, `headers`, `body`, `redirect`, `timeout`, `signal_timeout`.
+**Builder methods:** `.header(key, value)`, `.body(str)`, `.json_body(&Value)?`, `.no_redirect()`, `.timeout(seconds)`, `.abort_after(seconds)`.
+
+**Terminal methods:** `.json()` (send + parse JSON), `.text()` (send + return String), `.send()` (raw `FetchResponse`).
+
+**`FetchResponse` fields/methods:** `.status` (u16), `.body` (String), `.url` (String), `.redirected` (bool), `.ok()` (bool), `.json()`, `.text()`, `.header(name)`.
 
 ## Supported HTTP Methods
 

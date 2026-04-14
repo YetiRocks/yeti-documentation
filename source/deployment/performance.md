@@ -9,8 +9,7 @@ Start with defaults and adjust based on workload.
 | `storage.cacheSizeMb` | 2048 | Set to 10-20% of available RAM |
 | `storage.writeBufferSizeMb` | 512 | Increase for write-heavy workloads |
 | `storage.shardCount` | num_cpus / 2 | Override automatic shard count |
-| `sync_writes` | true | Set `false` for 5-10x write throughput (trades durability) |
-| `enable_compression` | false | Enable for 50-70% storage reduction with minimal CPU cost |
+| `storage.compression` | true | LZ4 compression (default on). Disable only to reduce CPU at the cost of larger storage. |
 
 ## Protocol Interfaces
 

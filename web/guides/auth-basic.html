@@ -114,11 +114,16 @@
 <li>Client sends <code>Authorization: Basic base64(username:password)</code></li>
 <li><code>BasicAuthProvider</code> looks up the user in the User table</li>
 <li>Password verified against stored Argon2id hash</li>
-<li>User's <code>roleId</code> resolves to a Role with permissions</li>
+<li>Returns an <code>AuthIdentity::Basic { username }</code> to the auth pipeline</li>
+<li>AppMembership lookup resolves the user's role for the target app</li>
 </ol>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
-<p>Add <code>auth:</code> to your app's config.yaml. Basic auth is always available when enabled:</p>
+<p>Add <code>auth:</code> to your app's config.yaml. Basic auth is always available when auth is enabled:</p>
 <pre><code class="language-yaml">auth: {}
+</code></pre>
+<p>Or explicitly list methods:</p>
+<pre><code class="language-yaml">auth:
+  methods: [basic]
 </code></pre>
 <h2 id="user-creation"><a class="header" href="#user-creation">User Creation</a></h2>
 <pre><code class="language-bash">curl -sk -X POST https://localhost:9996/yeti-auth/users \
@@ -148,8 +153,7 @@ curl -sk -u admin:admin -X DELETE https://localhost:9996/yeti-auth/users/alice
 </code></pre>
 <h2 id="security-notes"><a class="header" href="#security-notes">Security Notes</a></h2>
 <ul>
-<li>Always use HTTPS - Basic auth credentials are base64-encoded, not encrypted</li>
-<li>Yeti runs HTTPS on port 443 by default</li>
+<li>Always use HTTPS -- Basic auth credentials are base64-encoded, not encrypted</li>
 <li>For browser apps, prefer <a href="auth-jwt.html">JWT</a> or <a href="auth-oauth.html">OAuth</a></li>
 <li>Basic auth is ideal for server-to-server, CLI tools, and scripts</li>
 </ul>

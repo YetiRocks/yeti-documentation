@@ -1,15 +1,15 @@
 # Static File Serving
 
-> **Warning:** Do not use `default = true` in a custom resource when the app also has `static_files:` configured. The SPA fallback and the default resource conflict over routes. Use explicit named resources instead.
+> **Warning:** Do not use `default = true` in a custom resource when the app also has static file serving configured. The SPA fallback and the default resource conflict over routes. Use explicit named resources instead.
 
-Yeti serves frontend applications alongside your API.
+Serve frontend applications alongside your API.
 
 ## SPA Mode
 
 For single-page applications (React, Vue, etc.), set `spa: true`. Unmatched paths serve `index.html` with status 200, letting the client-side router handle navigation. Route defaults to `/`.
 
 ```yaml
-static_files:
+static:
   path: web
   spa: true
   build:
@@ -17,10 +17,12 @@ static_files:
     command: npm run build
 ```
 
+The config key `static` is preferred. The aliases `static_files` and `staticFiles` are also accepted for backward compatibility.
+
 To mount the SPA at a subpath instead of the root, add `route`:
 
 ```yaml
-static_files:
+static:
   path: web
   spa: true
   route: /dashboard
@@ -33,7 +35,7 @@ Unmatched paths under `/dashboard/...` serve `index.html`. Paths outside `/dashb
 Without `spa`, Yeti serves files directly and returns 404 for unmatched paths. Use `route` to control the URL prefix.
 
 ```yaml
-static_files:
+static:
   path: web
   route: /assets
 ```
@@ -61,16 +63,18 @@ Subfolders work in both SPA and plain modes. The only difference is what happens
 
 ## Build Pipelines
 
-Yeti can build your frontend before serving. The `YETI_BASE_PATH` env var is set to the app's route prefix so bundlers generate correct asset URLs.
+Build configuration lives inside the `static` block:
 
 ```yaml
-static_files:
+static:
   path: web
   spa: true
   build:
     sourceDir: source          # Frontend project directory (default: "source")
     command: npm run build     # Build command (default: "npm run build")
 ```
+
+`sourceDir` contains the frontend project (package.json, vite.config.ts, etc.). Build output must land in the directory specified by `path`.
 
 ## Vite Integration
 
@@ -104,3 +108,5 @@ Table endpoints and custom resources are matched first; static files serve as fa
 | `index` | string | `"index.html"` | Default file for directory requests |
 | `notFound` | object | - | Custom 404 page (overrides SPA default). Use `{ file: "404.html", statusCode: 404 }` |
 | `build` | object | - | Frontend build configuration |
+| `build.sourceDir` | string | `"source"` | Frontend project directory |
+| `build.command` | string | `"npm run build"` | Build command to run |

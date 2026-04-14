@@ -1,6 +1,6 @@
 # Routing
 
-Yeti routes requests through a two-level router: a top-level DynamicRouter dispatches by app prefix, then each application's AutoRouter resolves to table endpoints, custom resources, or static files.
+Two-level routing: DynamicRouter dispatches by app prefix, then each application's AutoRouter resolves to table endpoints, custom resources, or static files.
 
 ## URL Structure
 
@@ -8,26 +8,41 @@ Yeti routes requests through a two-level router: a top-level DynamicRouter dispa
 https://localhost/{app-id}/{resource-or-table}/{id}
 ```
 
-Every application's routes live under its `app_id` prefix. The `route_prefix` config option can override this:
+All routes live under the `app_id` prefix. Resources use `resources.route` (default: `/api`), static files use `static.route` (default: `/`).
+
+## Root App
+
+Designate one application as the root app to serve at `/` instead of `/{app-id}/`:
 
 ```yaml
-app_id: "my-admin"
-route_prefix: /admin
+# yeti-config.yaml
+root_app: www
 ```
+
+The root app occupies `/`. All other apps remain under `/{app-id}/`. Only one root app is allowed.
 
 ## Resolution Order
 
-When multiple handlers could match a request, they resolve in this order:
+When multiple handlers match a request:
 
-1. **Custom resources** (exact name match)
+1. **Custom resources** (exact name match under `resources.route`)
 2. **Table endpoints** (auto-generated from `@export`)
 3. **Default resource** (catch-all, one per app)
-4. **Static files** (from `web/` directory)
+4. **Static files** (from `static.path` directory under `static.route`)
 5. **404 Not Found**
 
 A custom resource with the same name as a table takes precedence. Unoverridden methods fall through to the default table handler.
 
-## Generated Endpoints
+## Route Defaults
+
+| Config Section | Default Route | Purpose |
+|----------------|---------------|---------|
+| `resources.route` | `/api` | URL prefix for custom resource handlers |
+| `static.route` | `/` | URL prefix for static file serving |
+
+Apps without a `resources:` section serve tables at the root path (typical for services and static-only apps).
+
+## Generated Table Endpoints
 
 Every `@export`ed table produces:
 
@@ -40,25 +55,48 @@ PATCH  /{app-id}/{Table}/{id}   # Partial update
 DELETE /{app-id}/{Table}/{id}   # Delete
 ```
 
-With `sse: true`, the table supports `GET /{app-id}/{Table}?stream=sse` for real-time change streams.
+With `@export(sse: true)`, the table supports `GET /{app-id}/{Table}?stream=sse` for real-time change streams.
+
+### Custom Endpoint Paths
+
+Use `@export(name: "custom-path")` to override the default endpoint path (lowercase type name):
+
+```graphql
+type Product @table @export(name: "api/v1/products") { ... }
+```
+
+This serves the table at `/{app-id}/api/v1/products` instead of `/{app-id}/product`.
+
+An empty name (`@export(name: "")`) mounts the table at the app root.
 
 ## Protocol-Specific Endpoints
 
-With `graphql: true`, the table is queryable via `POST /{app-id}/graphql`.
-
-With `mcp: true` in the app's config.yaml, a JSON-RPC 2.0 endpoint is available at `POST /{app-id}/mcp` for Model Context Protocol clients.
-
-With `interfaces.grpc.enabled` in yeti-config.yaml, all `@export`ed tables are accessible via gRPC on the same port. HTTP/2 requests with `content-type: application/grpc` are routed to the gRPC tables service (Get, Put, Delete, Scan, Query, ListTables, Subscribe).
+- **GraphQL** (`graphql: true`): All GraphQL-enabled tables queryable via `POST /{app-id}/graphql`
+- **MCP** (`mcp: true` or `@export(mcp: true)`): JSON-RPC 2.0 at `POST /{app-id}/mcp`
+- **gRPC** (`interfaces.grpc.enabled`): HTTP/2 `application/grpc` requests route to the gRPC tables service (Get, Put, Delete, Scan, Query, ListTables, Subscribe)
 
 ## Special Routes
 
 | Route | Purpose |
 |-------|---------|
 | `/health` | Server health check (always available) |
-| `/studio/` | Studio admin UI |
+| `/admin/` | Admin UI (yeti-admin service) |
 | `/mqtt` | MQTT WebSocket proxy (if MQTT enabled) |
 | `/{app-id}/graphql` | GraphQL endpoint (if `graphql: true`) |
 | `/{app-id}/mcp` | MCP JSON-RPC 2.0 endpoint (if `mcp: true`) |
 | `/yeti.tables.Tables/*` | gRPC tables service (if `interfaces.grpc.enabled`) |
 
-See also: [Resources](resources.md), [Custom Resources](../guides/custom-resources.md), [Static File Serving](../guides/static-files.md).
+## Static File Routing
+
+Static files serve from `static.path`. With `spa: true`, unmatched paths return `index.html` (status 200), letting the client-side router handle navigation.
+
+```yaml
+static:
+  path: web
+  route: /
+  spa: true
+```
+
+Without `spa`, unmatched paths return 404.
+
+See also: [Resources](resources.md), [Schemas](schemas.md).

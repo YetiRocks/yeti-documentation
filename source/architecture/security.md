@@ -1,6 +1,6 @@
 # Security Architecture
 
-Layered authentication through the `yeti-auth` extension.
+Layered authentication through the `yeti-auth` service.
 
 ## Auth Pipeline
 
@@ -43,16 +43,15 @@ curl -sk -X POST https://localhost:9996/yeti-auth/jwt_refresh \
 Per-app OAuth rules in config.yaml:
 
 ```yaml
-extensions:
-  - yeti-auth:
-      oauth:
-        rules:
-          - strategy: provider
-            pattern: "google"
-            role: admin
-          - strategy: email
-            pattern: "*@mycompany.com"
-            role: standard
+auth:
+  oauth:
+    rules:
+      - strategy: provider
+        pattern: "google"
+        role: admin
+      - strategy: email
+        pattern: "*@mycompany.com"
+        role: standard
 ```
 
 - **CSRF tokens** stored in DashMap (10-minute TTL, periodic cleanup)
@@ -94,11 +93,11 @@ The `super_user` role is protected from deletion and privilege removal.
 
 ## MQTT Auth Adapter
 
-The MQTT broker integrates with yeti-auth for client authentication. MQTT `CONNECT` packets are validated against the same User/Role tables, enforcing the same permission model as HTTP. The broker uses in-memory storage (no file persistence).
+The MQTT broker validates `CONNECT` packets against the same User/Role tables as HTTP. In-memory storage (no file persistence).
 
 ## MCP Audit Logging
 
-The MCP interface (Model Context Protocol) has audit logging enabled by default. All MCP tool invocations are captured through the telemetry pipeline, providing a complete record of AI agent interactions.
+MCP tool invocations are audit-logged by default through the telemetry pipeline.
 
 ```yaml
 interfaces:
@@ -109,11 +108,11 @@ interfaces:
 
 ## Cgroup Isolation (Yeti Cloud)
 
-In Yeti Cloud deployments, each application runs within cgroup boundaries for CPU, memory, and I/O isolation. This prevents noisy-neighbor effects between tenants.
+In Yeti Cloud, each application runs within cgroup boundaries for CPU, memory, and I/O isolation.
 
 ## Unix Socket Permissions
 
-When using Unix socket listeners, filesystem permissions on the socket file control access. Ensure the socket path is readable/writable only by the intended service user.
+Filesystem permissions on the socket file control access. Restrict the socket path to the intended service user.
 
 ## Rate Limiting
 

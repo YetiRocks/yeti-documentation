@@ -1,6 +1,6 @@
-# Caching Guide
+# Caching
 
-Yeti offers three caching strategies. Choosing the right one depends on your access pattern.
+Three caching strategies, chosen by access pattern.
 
 ## Decision Flowchart
 

@@ -114,8 +114,7 @@
 <tr><td><code>storage.cacheSizeMb</code></td><td>2048</td><td>Set to 10-20% of available RAM</td></tr>
 <tr><td><code>storage.writeBufferSizeMb</code></td><td>512</td><td>Increase for write-heavy workloads</td></tr>
 <tr><td><code>storage.shardCount</code></td><td>num_cpus / 2</td><td>Override automatic shard count</td></tr>
-<tr><td><code>sync_writes</code></td><td>true</td><td>Set <code>false</code> for 5-10x write throughput (trades durability)</td></tr>
-<tr><td><code>enable_compression</code></td><td>false</td><td>Enable for 50-70% storage reduction with minimal CPU cost</td></tr>
+<tr><td><code>storage.compression</code></td><td>true</td><td>LZ4 compression (default on). Disable only to reduce CPU at the cost of larger storage.</td></tr>
 </tbody></table>
 </div>
 <h2 id="protocol-interfaces"><a class="header" href="#protocol-interfaces">Protocol Interfaces</a></h2>

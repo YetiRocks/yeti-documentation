@@ -110,35 +110,36 @@
                         <h1 id="resource-macros"><a class="header" href="#resource-macros">Resource Macros</a></h1>
 <h2 id="resource"><a class="header" href="#resource">resource!</a></h2>
 <p>The primary macro for defining HTTP resources. It generates a struct, implements the <code>Resource</code> trait, and registers the resource for export.</p>
-<h3 id="simple-no-requestcontext"><a class="header" href="#simple-no-requestcontext">Simple (no request/context)</a></h3>
-<p>For simple responses without request/context:</p>
+<h3 id="simple-no-context"><a class="header" href="#simple-no-context">Simple (no context)</a></h3>
+<p>For static responses that don't need request data:</p>
 <pre><code class="language-rust ignore">resource!(Health {
     get =&gt; json!({"status": "ok"})
 });</code></pre>
 <p>The struct name becomes the route path (lowercased): <code>GET /app/health</code>.</p>
-<h3 id="with-request-and-context"><a class="header" href="#with-request-and-context">With request and context</a></h3>
-<p>Use explicit parameter names to access the request and <code>ResourceParams</code>:</p>
+<h3 id="with-context"><a class="header" href="#with-context">With Context</a></h3>
+<p>Use a single parameter to access the <code>Context</code>, which carries the request, path ID, query params, auth identity, headers, body, and table access:</p>
 <pre><code class="language-rust ignore">resource!(Items {
-    get(request, ctx) =&gt; {
+    get(ctx) =&gt; {
         let table = ctx.get_table("Items")?;
         let id = ctx.require_id()?;
-        let item = table.get_or_404(id).await?;
+        let item = table.get(id).await?;
         ok(item)
     },
-    post(request, ctx) =&gt; {
-        let body = request.json_value()?;
+    post(ctx) =&gt; {
+        let body = ctx.require_json_body()?.clone();
         let table = ctx.get_table("Items")?;
-        let result = table.create(body).await?;
-        created(result)
+        let id = body["id"].as_str().unwrap_or("unknown");
+        table.put(id, body.clone()).await?;
+        created(body)
     },
-    delete(request, ctx) =&gt; {
+    delete(ctx) =&gt; {
         let table = ctx.get_table("Items")?;
         let id = ctx.require_id()?;
         table.delete(id).await?;
         no_content()
     }
 });</code></pre>
-<p>Parameter names are arbitrary (<code>req</code>, <code>params</code>, <code>request</code>, <code>yeti</code>, etc.).</p>
+<p>The parameter name is arbitrary (<code>ctx</code>, <code>c</code>, <code>request</code>, etc.).</p>
 <h3 id="custom-url-path"><a class="header" href="#custom-url-path">Custom URL path</a></h3>
 <p>Override the route path with <code>name =</code>:</p>
 <pre><code class="language-rust ignore">resource!(MyHandler {
@@ -150,8 +151,8 @@
 <p>A default resource handles any path not matched by other resources or tables:</p>
 <pre><code class="language-rust ignore">resource!(Fallback {
     default = true,
-    get(request, ctx) =&gt; {
-        let path = ctx.path_id().unwrap_or("/");
+    get(ctx) =&gt; {
+        let path = ctx.path_id.as_deref().unwrap_or("/");
         not_found(&amp;format!("No resource at {}", path))
     }
 });</code></pre>
@@ -160,38 +161,44 @@
 <pre><code class="language-rust ignore">resource!(CatchAll {
     name = "fallback",
     default = true,
-    get(request, ctx) =&gt; {
-        ok_text("Not found")
+    get(ctx) =&gt; {
+        reply().text("Not found")
     }
 });</code></pre>
 <h3 id="custom-fields"><a class="header" href="#custom-fields">Custom fields</a></h3>
 <p>Resources can hold state via the <code>fields</code> block:</p>
+<p>Custom fields are accessible via <code>self</code> inside handler bodies, since each handler is a <code>fn get(&amp;self, ctx: Context)</code> method. Note: the <code>fields</code> pattern does not support a context parameter.</p>
 <pre><code class="language-rust ignore">resource!(Counter {
     fields { count: Arc&lt;std::sync::atomic::AtomicU64&gt; },
-    get(request, ctx) =&gt; {
-        let n = ctx.count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    get =&gt; {
+        let n = self.count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         ok(json!({"count": n}))
     }
 });</code></pre>
 <h3 id="supported-methods"><a class="header" href="#supported-methods">Supported methods</a></h3>
-<p>The macro supports: <code>get</code>, <code>post</code>, <code>put</code>, <code>patch</code>, <code>delete</code>, <code>search</code>. Each can be used with or without parameters.</p>
-<h2 id="simple_resource"><a class="header" href="#simple_resource">simple_resource!</a></h2>
-<p>One-liner for resources that implement a single method:</p>
-<pre><code class="language-rust ignore">simple_resource!(Ping, get =&gt; json!({"pong": true}));</code></pre>
-<p>Equivalent to:</p>
-<pre><code class="language-rust ignore">resource!(Ping {
-    get =&gt; json!({"pong": true})
-});</code></pre>
+<p>The macro supports these HTTP methods, each with or without a context parameter:</p>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>get</code></td><td>Handle GET requests</td></tr>
+<tr><td><code>post</code></td><td>Handle POST requests</td></tr>
+<tr><td><code>put</code></td><td>Handle PUT requests</td></tr>
+<tr><td><code>patch</code></td><td>Handle PATCH requests</td></tr>
+<tr><td><code>delete</code></td><td>Handle DELETE requests</td></tr>
+<tr><td><code>search</code></td><td>Handle SEARCH requests</td></tr>
+</tbody></table>
+</div>
+<p>Real-time methods are available when implementing the <code>Resource</code> trait directly:</p>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Return type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>subscribe</code></td><td><code>SubscriptionFuture</code></td><td>SSE event streams</td></tr>
+<tr><td><code>publish</code></td><td><code>ResourceFuture</code></td><td>MQTT publish handling</td></tr>
+<tr><td><code>connect</code></td><td><code>ConnectionFuture</code></td><td>WebSocket connections</td></tr>
+</tbody></table>
+</div>
 <h2 id="extends_table"><a class="header" href="#extends_table">extends_table!</a></h2>
 <p>Override behavior on an auto-generated table resource. Only the methods you define are overridden; all others delegate to the default table implementation.</p>
 <pre><code class="language-rust ignore">extends_table!(Product {
-    get(request, ctx) =&gt; {
-        let table = ctx.get_table("Product")?;
-        let records = table.get_all().await?;
-        ok(json!({"products": records, "count": records.len()}))
-    }
+    get =&gt; json!({"message": "custom product listing"})
 });</code></pre>
-<p>The macro sets <code>extends_table()</code> to return the struct name and generates the appropriate <code>MethodOverrides</code>.</p>
+<p>Note: <code>extends_table!</code> uses simple expression syntax (no context parameter). For table extensions that need context access, use <code>resource!</code> with the TableExtender pattern or implement the <code>Resource</code> trait directly.</p>
 <h2 id="permission-overrides-tableextender"><a class="header" href="#permission-overrides-tableextender">Permission overrides (TableExtender)</a></h2>
 <p>Declare which methods on a table resource are publicly accessible without authentication:</p>
 <pre><code class="language-rust ignore">resource!(TableExtender for Product {
@@ -206,7 +213,7 @@
 <tr><td><code>allow_delete()</code></td><td>Delete access</td><td><code>delete</code></td></tr>
 </tbody></table>
 </div>
-<p>Multiple methods can map to the same permission. Duplicate permissions are automatically deduplicated:</p>
+<p>Multiple methods can map to the same permission. Duplicates are automatically deduplicated:</p>
 <pre><code class="language-rust ignore">resource!(TableExtender for Chat {
     get =&gt; allow_read(),
     post =&gt; allow_create(),
@@ -215,84 +222,63 @@
     delete =&gt; allow_delete(),
     subscribe =&gt; allow_read(),
 });</code></pre>
-<h2 id="method-macros"><a class="header" href="#method-macros">Method macros</a></h2>
-<p>Method macros simplify trait implementations:</p>
-<pre><code class="language-rust ignore">impl Resource for MyResource {
-    fn name(&amp;self) -&gt; &amp;str { "my" }
-
-    get!(request, ctx, {
-        ok(json!({"method": "GET"}))
-    });
-
-    post!(request, ctx, {
-        let body = request.json_value()?;
-        created(body)
-    });
-}</code></pre>
-<p>Available: <code>get!</code>, <code>post!</code>, <code>put!</code>, <code>patch!</code>, <code>delete!</code>, <code>search!</code>.</p>
-<h2 id="async_handler"><a class="header" href="#async_handler">async_handler!</a></h2>
-<p>Wraps an async block into a <code>ResourceFuture</code>. Use this when implementing the <code>Resource</code> trait directly:</p>
-<pre><code class="language-rust ignore">impl Resource for MyResource {
-    fn name(&amp;self) -&gt; &amp;str { "my" }
-
-    fn get(&amp;self, _req: Request&lt;Vec&lt;u8&gt;&gt;, ctx: ResourceParams) -&gt; ResourceFuture {
-        async_handler!({
-            let table = ctx.get_table("Data")?;
-            let all = table.get_all().await?;
-            ok(json!(all))
-        })
+<h2 id="response-helpers"><a class="header" href="#response-helpers">Response helpers</a></h2>
+<h3 id="reply-builder"><a class="header" href="#reply-builder">reply() builder</a></h3>
+<p>The preferred way to build responses. Chainable, Fastify-style API:</p>
+<pre><code class="language-rust ignore">resource!(Api {
+    get(ctx) =&gt; {
+        reply()
+            .code(200)
+            .header("x-cache", "HIT")
+            .json(json!({"data": "value"}))
     }
-}</code></pre>
-<h2 id="export_plugin"><a class="header" href="#export_plugin">export_plugin!</a></h2>
-<p>Declares which resources the plugin exports. Placed at the end of <code>lib.rs</code> (auto-generated by the compiler):</p>
-<pre><code class="language-rust ignore">// Export multiple resources
-export_plugin!(Items, Summary, Health);
-
-// Extension-only plugin (no resources)
-export_plugin!();</code></pre>
-<h2 id="register_resource"><a class="header" href="#register_resource">register_resource!</a></h2>
-<p>Manual resource registration. Only needed when implementing the <code>Resource</code> trait directly instead of using <code>resource!</code>:</p>
-<pre><code class="language-rust ignore">pub struct CustomResource;
-
-impl Default for CustomResource {
-    fn default() -&gt; Self { Self }
-}
-
-impl Resource for CustomResource {
-    fn name(&amp;self) -&gt; &amp;str { "custom" }
-    // ... method implementations
-}
-
-register_resource!(CustomResource);</code></pre>
-<p>The <code>resource!</code> macro calls <code>register_resource!</code> automatically.</p>
+});</code></pre>
+<p>Builder methods: <code>.code(status)</code>, <code>.header(name, value)</code>, <code>.json(value)</code>, <code>.text(content)</code>, <code>.html(content)</code>.</p>
+<h3 id="function-helpers"><a class="header" href="#function-helpers">Function helpers</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Function</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>ok(value)</code></td><td>200 with JSON body</td></tr>
+<tr><td><code>created(value)</code></td><td>201 with JSON body</td></tr>
+<tr><td><code>no_content()</code></td><td>204 empty response</td></tr>
+<tr><td><code>not_found(msg)</code></td><td>404 error</td></tr>
+<tr><td><code>bad_request(msg)</code></td><td>400 error</td></tr>
+<tr><td><code>unauthorized(msg)</code></td><td>401 error</td></tr>
+<tr><td><code>json_response(status, value)</code></td><td>Custom status with JSON</td></tr>
+<tr><td><code>html_response(content)</code></td><td>200 with text/html</td></tr>
+<tr><td><code>text_response(content)</code></td><td>200 with text/plain</td></tr>
+</tbody></table>
+</div>
 <h2 id="resource-trait-reference"><a class="header" href="#resource-trait-reference">Resource trait reference</a></h2>
-<p>For completeness, the full <code>Resource</code> trait that macros implement:</p>
+<p>The full <code>Resource</code> trait that macros implement:</p>
 <pre><code class="language-rust ignore">pub trait Resource: Send + Sync {
     fn name(&amp;self) -&gt; &amp;str;
     fn is_default(&amp;self) -&gt; bool { false }
+    fn attribute_names(&amp;self) -&gt; Option&lt;Arc&lt;Vec&lt;String&gt;&gt;&gt; { None }
     fn extends_table(&amp;self) -&gt; Option&lt;&amp;str&gt; { None }
     fn method_overrides(&amp;self) -&gt; MethodOverrides { Default::default() }
 
-    fn get(&amp;self, req: Request&lt;Vec&lt;u8&gt;&gt;, params: ResourceParams) -&gt; ResourceFuture;
-    fn post(&amp;self, req: Request&lt;Vec&lt;u8&gt;&gt;, params: ResourceParams) -&gt; ResourceFuture;
-    fn put(&amp;self, req: Request&lt;Vec&lt;u8&gt;&gt;, params: ResourceParams) -&gt; ResourceFuture;
-    fn patch(&amp;self, req: Request&lt;Vec&lt;u8&gt;&gt;, params: ResourceParams) -&gt; ResourceFuture;
-    fn delete(&amp;self, req: Request&lt;Vec&lt;u8&gt;&gt;, params: ResourceParams) -&gt; ResourceFuture;
-    fn search(&amp;self, req: Request&lt;Vec&lt;u8&gt;&gt;, params: ResourceParams) -&gt; ResourceFuture;
+    fn get(&amp;self, ctx: Context) -&gt; ResourceFuture;
+    fn post(&amp;self, ctx: Context) -&gt; ResourceFuture;
+    fn put(&amp;self, ctx: Context) -&gt; ResourceFuture;
+    fn patch(&amp;self, ctx: Context) -&gt; ResourceFuture;
+    fn delete(&amp;self, ctx: Context) -&gt; ResourceFuture;
+    fn search(&amp;self, ctx: Context) -&gt; ResourceFuture;
+    fn copy(&amp;self, ctx: Context) -&gt; ResourceFuture;
+    fn move_record(&amp;self, ctx: Context) -&gt; ResourceFuture;
+    fn invalidate(&amp;self, ctx: Context) -&gt; ResourceFuture;
 
-    fn subscribe(&amp;self, req: Request&lt;Vec&lt;u8&gt;&gt;, params: ResourceParams) -&gt; SubscriptionFuture;
-    fn publish(&amp;self, req: Request&lt;Vec&lt;u8&gt;&gt;, params: ResourceParams) -&gt; ResourceFuture;
-    fn connect(&amp;self, req: Request&lt;Vec&lt;u8&gt;&gt;, params: ResourceParams) -&gt; ConnectionFuture;
+    fn subscribe(&amp;self, ctx: Context) -&gt; SubscriptionFuture;
+    fn publish(&amp;self, ctx: Context) -&gt; ResourceFuture;
+    fn connect(&amp;self, ctx: Context) -&gt; ConnectionFuture;
 
-    fn allow_read(&amp;self, access: &amp;dyn AccessControl, target: &amp;RequestTarget, params: &amp;ResourceParams) -&gt; bool;
-    fn allow_create(&amp;self, access: &amp;dyn AccessControl, data: &amp;Value, target: &amp;RequestTarget, params: &amp;ResourceParams) -&gt; bool;
-    fn allow_update(&amp;self, access: &amp;dyn AccessControl, data: &amp;Value, target: &amp;RequestTarget, params: &amp;ResourceParams) -&gt; bool;
-    fn allow_delete(&amp;self, access: &amp;dyn AccessControl, target: &amp;RequestTarget, params: &amp;ResourceParams) -&gt; bool;
-    fn allow_subscribe(&amp;self, access: &amp;dyn AccessControl, target: &amp;RequestTarget, params: &amp;ResourceParams) -&gt; bool;
-    fn allow_connect(&amp;self, access: &amp;dyn AccessControl, target: &amp;RequestTarget, params: &amp;ResourceParams) -&gt; bool;
-    fn allow_publish(&amp;self, access: &amp;dyn AccessControl, target: &amp;RequestTarget, params: &amp;ResourceParams) -&gt; bool;
+    fn allow_read(&amp;self, ctx: &amp;Context) -&gt; bool;
+    fn allow_create(&amp;self, ctx: &amp;Context) -&gt; bool;
+    fn allow_update(&amp;self, ctx: &amp;Context) -&gt; bool;
+    fn allow_delete(&amp;self, ctx: &amp;Context) -&gt; bool;
+    fn allow_subscribe(&amp;self, ctx: &amp;Context) -&gt; bool;
+    fn allow_connect(&amp;self, ctx: &amp;Context) -&gt; bool;
+    fn allow_publish(&amp;self, ctx: &amp;Context) -&gt; bool;
 }</code></pre>
-<p>All methods except <code>name()</code> have default implementations. HTTP methods default to 405 Method Not Allowed. Authorization methods default to RBAC checks against <code>AccessControl</code>. <code>allow_publish</code> defaults to super_user only.</p>
+<p>All methods except <code>name()</code> have default implementations. HTTP methods default to 405 Method Not Allowed. Authorization methods default to RBAC checks against the context's <code>AccessControl</code>.</p>
 
                     </main>
 

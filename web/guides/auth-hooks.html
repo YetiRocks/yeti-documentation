@@ -108,28 +108,31 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="auth-hooks"><a class="header" href="#auth-hooks">Auth Hooks</a></h1>
-<p>Auth hooks let extensions override role resolution at request time, enabling tenant-based roles, subdomain permissions, or header-driven access control.</p>
+<p>Auth hooks let services override role resolution at request time, enabling tenant-based roles, subdomain permissions, or header-driven access control.</p>
 <h2 id="the-authhook-trait"><a class="header" href="#the-authhook-trait">The AuthHook Trait</a></h2>
-<pre><code class="language-rust ignore">#[async_trait::async_trait]
+<pre><code class="language-rust ignore">#[async_trait]
 pub trait AuthHook: Send + Sync {
     async fn on_resolve_role(
         &amp;self,
         identity: &amp;AuthIdentity,
-        params: &amp;ResourceParams,
+        ctx: &amp;Context,
     ) -&gt; Option&lt;Arc&lt;dyn AccessControl&gt;&gt;;
 }</code></pre>
-<p>If any hook returns <code>Some(access)</code>, default role resolution is skipped. If all return <code>None</code>, standard resolution proceeds.</p>
+<p>If any hook returns <code>Some(access)</code>, default role resolution is skipped. If all return <code>None</code>, standard resolution proceeds (AppMembership lookup).</p>
 <h2 id="authidentity"><a class="header" href="#authidentity">AuthIdentity</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>username</code></td><td><code>String</code></td><td>Authenticated username</td></tr>
-<tr><td><code>provider</code></td><td><code>String</code></td><td>Auth provider ("basic", "jwt", "oauth")</td></tr>
-<tr><td><code>claims</code></td><td><code>Option&lt;Value&gt;</code></td><td>JWT claims or OAuth user data</td></tr>
-<tr><td><code>role_id</code></td><td><code>Option&lt;String&gt;</code></td><td>Role ID from User record</td></tr>
+<p>An enum representing the authenticated user's identity:</p>
+<div class="table-wrapper"><table><thead><tr><th>Variant</th><th>Fields</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>Basic</code></td><td><code>username</code></td><td>HTTP Basic auth</td></tr>
+<tr><td><code>Jwt</code></td><td><code>username</code>, <code>claims</code></td><td>JWT Bearer token</td></tr>
+<tr><td><code>OAuth</code></td><td><code>email</code>, <code>provider</code>, <code>claims</code></td><td>OAuth session</td></tr>
+<tr><td><code>Mtls</code></td><td><code>username</code>, <code>cn</code>, <code>sans</code></td><td>Client certificate</td></tr>
 </tbody></table>
 </div>
+<p>Use <code>identity.username()</code> for a unified accessor (returns <code>Cow&lt;str&gt;</code>; OAuth falls back to <code>oauth:{provider}</code> when email is absent).</p>
 <h2 id="accesscontrol-trait"><a class="header" href="#accesscontrol-trait">AccessControl Trait</a></h2>
 <pre><code class="language-rust ignore">pub trait AccessControl: Send + Sync + std::fmt::Debug {
     fn is_super_user(&amp;self) -&gt; bool;
+    fn role(&amp;self) -&gt; &amp;str;
     fn username(&amp;self) -&gt; &amp;str;
     fn can_read_table(&amp;self, database: &amp;str, table: &amp;str) -&gt; bool;
     fn can_insert_table(&amp;self, database: &amp;str, table: &amp;str) -&gt; bool;
@@ -137,13 +140,18 @@ pub trait AuthHook: Send + Sync {
     fn can_delete_table(&amp;self, database: &amp;str, table: &amp;str) -&gt; bool;
     fn can_read_attribute(&amp;self, database: &amp;str, table: &amp;str, attr: &amp;str) -&gt; bool;
     fn can_write_attribute(&amp;self, database: &amp;str, table: &amp;str, attr: &amp;str) -&gt; bool;
+    fn has_unrestricted_attributes(&amp;self, database: &amp;str, table: &amp;str) -&gt; bool;
 }</code></pre>
 <h2 id="registering-hooks"><a class="header" href="#registering-hooks">Registering Hooks</a></h2>
-<pre><code class="language-rust ignore">impl Extension for MyExtension {
-    fn name(&amp;self) -&gt; &amp;str { "my-auth-hook" }
+<pre><code class="language-rust ignore">impl Service for MyService {
+    fn id(&amp;self) -&gt; &amp;'static str { "my-auth-hook" }
+    fn name(&amp;self) -&gt; &amp;'static str { "My Auth Hook" }
 
-    fn auth_hooks(&amp;self) -&gt; Vec&lt;Arc&lt;dyn AuthHook&gt;&gt; {
-        vec![Arc::new(TenantHook::new())]
+    fn is_required(&amp;self, _ctx: &amp;StartupContext) -&gt; bool { true }
+
+    fn register(&amp;self, ctx: &amp;mut RegistrationContext) -&gt; Result&lt;()&gt; {
+        ctx.add_auth_hook(Arc::new(TenantHook::new()));
+        Ok(())
     }
 }</code></pre>
 <h2 id="example-tenant-based-roles"><a class="header" href="#example-tenant-based-roles">Example: Tenant-Based Roles</a></h2>
@@ -151,37 +159,36 @@ pub trait AuthHook: Send + Sync {
     tenant_roles: HashMap&lt;String, Arc&lt;dyn AccessControl&gt;&gt;,
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl AuthHook for TenantHook {
     async fn on_resolve_role(
         &amp;self,
         identity: &amp;AuthIdentity,
-        params: &amp;ResourceParams,
+        ctx: &amp;Context,
     ) -&gt; Option&lt;Arc&lt;dyn AccessControl&gt;&gt; {
-        let tenant_id = params.header("x-tenant-id")?;
+        let tenant_id = ctx.header("x-tenant-id")?;
         self.tenant_roles.get(tenant_id).cloned()
     }
 }</code></pre>
 <h2 id="execution-order"><a class="header" href="#execution-order">Execution Order</a></h2>
 <ol>
 <li>Request arrives with credentials</li>
-<li><code>AuthPipeline</code> produces <code>AuthIdentity</code></li>
-<li>Each <code>AuthHook</code> called in order</li>
+<li><code>AuthPipeline</code> produces an <code>AuthIdentity</code></li>
+<li>Each <code>AuthHook</code> is called in registration order</li>
 <li>First <code>Some(access)</code> wins</li>
-<li>All <code>None</code> falls through to default role resolution</li>
+<li>All <code>None</code> falls through to default resolution (AppMembership lookup)</li>
 </ol>
 <h2 id="best-practices"><a class="header" href="#best-practices">Best Practices</a></h2>
 <ul>
 <li>Return <code>None</code> to fall through when you have no opinion</li>
-<li>Keep hooks fast - avoid database queries, or cache results</li>
+<li>Keep hooks fast -- avoid database queries, or cache results</li>
 <li>Use hooks for cross-cutting concerns (tenancy, subdomain routing)</li>
 <li><code>super_user</code> role cannot have privileges removed through hooks</li>
 </ul>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
 <li><a href="auth-rbac.html">Roles &amp; Permissions</a> - Default RBAC system</li>
-<li><a href="building-extensions.html">Building Extensions</a> - Extension development</li>
-<li><a href="auth-basic.html">Basic Authentication</a> - Basic auth details</li>
+<li><a href="auth-overview.html">Authentication Overview</a> - Auth providers</li>
 </ul>
 
                     </main>

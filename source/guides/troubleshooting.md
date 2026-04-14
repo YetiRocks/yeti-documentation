@@ -38,7 +38,7 @@ These issues only affect custom resources and extensions (code compiled as dynam
 
 **`tracing::info!()` produces no output**
 
-Tracing macros use thread-local storage, which is duplicated in the dylib. Messages go to the dylib's subscriber, not the host's. Use `eprintln!()` for debug output from plugins.
+Tracing macros use thread-local storage, which is duplicated in the dylib. Messages go to the dylib's subscriber, not the host's. Use `tracing::warn!()` anyway for consistency -- it remains the standard API even though output may not reach the host subscriber.
 
 **Host statics have wrong values**
 
@@ -50,12 +50,10 @@ Methods defined on host-compiled structs (like `ExtensionContext`) run in dylib 
 
 **`reqwest::blocking::Client` crashes**
 
-Reqwest's blocking client creates an internal tokio runtime that conflicts with the dylib boundary. This crashes in async handlers AND in `std::thread::spawn` threads. For table access, use `ctx.get_table("Name")?.get_all().await?`. For external HTTP, use `fetch()` from `yeti_sdk::prelude` -- a Node.js-compatible API wrapping curl:
+Reqwest's blocking client creates an internal tokio runtime that conflicts with the dylib boundary. This crashes in async handlers AND in `std::thread::spawn` threads. For table access, use `ctx.get_table("Name")?.get_all().await?`. For external HTTP, use the `fetch!` macro from `yeti_sdk::prelude` -- wraps curl subprocess for dylib safety:
 
 ```rust,ignore
-let res = fetch("https://api.example.com/data", None)
-    .map_err(|e| YetiError::Validation(e))?;
-let data = res.json()?;
+let data = fetch!("https://api.example.com/data").json()?;
 ```
 
 ## Networking & TLS
@@ -73,7 +71,7 @@ curl -sk https://localhost:9996/health
 Check that the server is running and the port matches `yeti-config.yaml`:
 
 ```yaml
-http:
+interfaces:
   port: 9996
 ```
 
@@ -117,7 +115,7 @@ Yeti scans `~/yeti/applications/*/config.yaml`. Check that:
 
 **`@export` table has no REST endpoints**
 
-Tables need `@export(rest: true)` in schema.graphql AND `rest: true` in `config.yaml`. Both are required.
+Tables need `@export` in schema.graphql. Without `@export`, the table exists in storage but has no HTTP endpoints.
 
 **Database lock errors in tests**
 

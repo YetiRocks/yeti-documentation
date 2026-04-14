@@ -118,10 +118,10 @@
 <pre><code>https://localhost:9996/studio/
 </code></pre>
 <p>See <a href="../guides/studio.html">Studio</a> for details.</p>
-<h2 id="telemetry-extension"><a class="header" href="#telemetry-extension">Telemetry Extension</a></h2>
+<h2 id="telemetry-service"><a class="header" href="#telemetry-service">Telemetry Service</a></h2>
 <h3 id="rest-queries"><a class="header" href="#rest-queries">REST Queries</a></h3>
 <pre><code class="language-bash">curl -sk "https://localhost:9996/yeti-telemetry/Log?limit=50&amp;sort=-timestamp"
-curl -sk "https://localhost:9996/yeti-telemetry/Log?filter=level==ERROR"
+curl -sk "https://localhost:9996/yeti-telemetry/Log?level==ERROR"
 curl -sk "https://localhost:9996/yeti-telemetry/Span?sort=-durationMs&amp;limit=20"
 </code></pre>
 <h3 id="real-time-sse"><a class="header" href="#real-time-sse">Real-Time SSE</a></h3>
@@ -138,7 +138,7 @@ curl -sk -N "https://localhost:9996/yeti-telemetry/Metric?stream=sse"
   serviceName: "yeti-production"
   otlpEndpoint: "http://otel-collector:4317"
 </code></pre>
-<p>OTLP export is owned entirely by the <code>yeti-telemetry</code> extension (core has zero OpenTelemetry code). Exports via OpenTelemetry Protocol to Grafana, Datadog, Jaeger, Prometheus, etc.</p>
+<p>OTLP export is owned entirely by the <code>yeti-telemetry</code> service (core has zero OpenTelemetry code). Exports via OpenTelemetry Protocol to Grafana, Datadog, Jaeger, Prometheus, etc.</p>
 <p>Also configurable via <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> environment variable.</p>
 <h2 id="mcp-audit-logging"><a class="header" href="#mcp-audit-logging">MCP Audit Logging</a></h2>
 <p>The MCP interface (Model Context Protocol) has audit logging enabled by default. All MCP tool invocations are recorded with request/response details:</p>

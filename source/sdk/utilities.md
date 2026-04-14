@@ -1,55 +1,63 @@
 # Utilities
 
-Helper functions and types available via `use yeti_sdk::prelude::*`.
+Available via `use yeti_sdk::prelude::*`.
 
 ## HTTP Fetch
 
-Plugin-safe HTTP client that uses a curl subprocess. Required because `reqwest::blocking::Client` crashes in dylib plugins.
+Plugin-safe HTTP client. Uses the host's reqwest client via an internal bridge, falling back to curl subprocess. `reqwest::blocking::Client` crashes in dylib plugins -- use this instead.
 
-### fetch()
+### fetch! macro
 
-```rust,ignore
-pub fn fetch(url: &str, options: Option<FetchOptions>) -> Result<FetchResponse, String>
-```
+`fetch!` creates a `FetchBuilder`. Terminal methods (`.json()`, `.text()`, `.send()`) execute the request.
 
 ```rust,ignore
-// Simple GET
-let res = fetch("https://api.example.com/data", None)?;
-if res.ok() {
-    let data = res.json()?;
-}
+// Simple GET -> JSON
+let data: Value = fetch!("https://api.example.com/data").json()?;
 
 // POST with JSON body
-let res = fetch("https://api.example.com/users", Some(FetchOptions {
-    method: "POST".into(),
-    body: Some(json!({"name": "Alice"}).to_string()),
-    headers: vec![("Content-Type".into(), "application/json".into())],
-    ..Default::default()
-}))?;
+let data: Value = fetch!("POST", "https://api.example.com/users")
+    .header("Authorization", &format!("Bearer {token}"))
+    .json_body(&json!({"name": "Alice"}))?
+    .json()?;
 
-// With timeout
-let res = fetch("https://slow.example.com", Some(FetchOptions {
-    signal_timeout: 5,
-    ..Default::default()
-}))?;
+// POST with form body
+let resp = fetch!("POST", "https://oauth.example.com/token")
+    .header("Content-Type", "application/x-www-form-urlencoded")
+    .body("grant_type=authorization_code&code=abc")
+    .send()?;
+
+// GET -> text
+let html: String = fetch!("https://example.com").text()?;
+
+// Raw response (when you need status/headers)
+let resp = fetch!("https://api.example.com/data").send()?;
+if resp.ok() { /* ... */ }
 
 // No redirects
-let res = fetch("https://example.com/old", Some(FetchOptions {
-    redirect: false,
-    ..Default::default()
-}))?;
+let resp = fetch!("https://example.com/old").no_redirect().send()?;
+
+// Custom timeout
+let resp = fetch!("https://slow.example.com").timeout(5).send()?;
 ```
 
-### FetchOptions
+### FetchBuilder
 
 ```rust,ignore
-pub struct FetchOptions {
-    pub method: String,                      // Default: "GET"
-    pub headers: Vec<(String, String)>,      // Request headers
-    pub body: Option<String>,                // Request body
-    pub redirect: bool,                      // Follow redirects. Default: true
-    pub timeout: u64,                        // Timeout in seconds. Default: 30
-    pub signal_timeout: u64,                 // Abort timeout (0 = no abort). Default: 0
+pub struct FetchBuilder {
+    // Created by fetch! macro -- use builder methods to configure
+}
+
+impl FetchBuilder {
+    fn header(self, key: &str, value: &str) -> Self  // Add request header
+    fn body(self, body: &str) -> Self                 // Set raw string body
+    fn json_body(self, value: &Value) -> Result<Self> // Set JSON body + Content-Type
+    fn no_redirect(self) -> Self                      // Disable following redirects
+    fn timeout(self, seconds: u64) -> Self            // Set timeout (default: 30s)
+
+    // Terminal methods (execute the request):
+    fn json(self) -> Result<Value>                    // Send, ensure 2xx, parse JSON
+    fn text(self) -> Result<String>                   // Send, ensure 2xx, return body
+    fn send(self) -> Result<FetchResponse>            // Send, return raw response
 }
 ```
 
@@ -66,6 +74,7 @@ pub struct FetchResponse {
 
 impl FetchResponse {
     fn ok(&self) -> bool                     // true if 200-299
+    fn ensure_ok(self) -> Result<Self>       // return self if 2xx, else error
     fn json(&self) -> Result<Value, String>  // parse body as JSON
     fn text(&self) -> &str                   // body as string
     fn bytes(&self) -> &[u8]                 // body as bytes
@@ -78,7 +87,7 @@ impl FetchResponse {
 
 ### CookieBuilder
 
-Build `Set-Cookie` header strings with secure defaults (HttpOnly, Secure, SameSite=Lax, Path=/).
+Builds `Set-Cookie` header strings. Defaults: HttpOnly, Secure, SameSite=Lax, Path=/.
 
 ```rust,ignore
 pub fn new(name: impl Into<String>, value: impl Into<String>) -> Self
@@ -101,16 +110,21 @@ let cookie = CookieBuilder::new("session_id", &token)
     .same_site(SameSite::Lax)
     .build();
 
-ctx.response_headers().append("set-cookie", &cookie);
+// Return response with cookie header
+reply()
+    .header("set-cookie", &cookie)
+    .json(json!({"status": "logged in"}))
 
 // Delete a cookie
 let delete_cookie = CookieBuilder::delete("session_id");
-ctx.response_headers().append("set-cookie", &delete_cookie);
+reply()
+    .header("set-cookie", &delete_cookie)
+    .json(json!({"status": "logged out"}))
 ```
 
 ### CookieParser
 
-Read cookies from HTTP requests. Handles HTTP/2 split cookie headers (RFC 7540).
+Reads cookies from HTTP requests. Handles HTTP/2 split cookie headers (RFC 7540).
 
 ```rust,ignore
 pub fn get_cookie<B>(req: &Request<B>, name: &str) -> Option<String>
@@ -129,7 +143,7 @@ let all_cookies = CookieParser::parse_all(&request);
 
 ## Token Generation
 
-Cryptographically secure random tokens using `rand`.
+Cryptographically secure random tokens via `rand`.
 
 ```rust,ignore
 pub struct TokenGenerator;
@@ -152,7 +166,7 @@ pub fn generate_id() -> String       // UUID v7 (time-sortable)
 pub fn generate_id_v7() -> String    // alias for generate_id()
 ```
 
-Both return UUID v7 strings. UUID v7 is time-ordered, which provides better database locality and natural chronological sorting.
+Both return UUID v7 strings (time-ordered for database locality and chronological sorting).
 
 ```rust,ignore
 let id = generate_id();
@@ -175,7 +189,7 @@ let ts = now_secs();  // no ? needed
 
 ## Composite Keys
 
-Build deterministic keys from multiple parts, joined with `::`:
+Deterministic keys from multiple parts, joined with `::`:
 
 ```rust,ignore
 pub fn composite_key(parts: &[&str]) -> String
@@ -189,14 +203,14 @@ let key = composite_key(&["user-123", "2024-01-15", "metrics"]);
 
 ## CSV Parsing
 
-Parse CSV bytes into JSON objects. Column headers become field names:
+Parses CSV bytes into JSON objects. Column headers become field names:
 
 ```rust,ignore
 pub fn parse_csv(data: &[u8]) -> Vec<Value>
 ```
 
 ```rust,ignore
-let items = parse_csv(request.body_bytes());
+let items = parse_csv(&ctx.body);
 ```
 
 Input:
@@ -218,7 +232,7 @@ Output:
 
 ## Bulk Import
 
-Upsert multiple records with key extraction and validation:
+Upserts multiple records with key extraction and validation:
 
 ```rust,ignore
 pub async fn bulk_upsert(
@@ -248,12 +262,13 @@ reply().json(result.to_json("Imported"))
 
 ```rust,ignore
 resource!(Import {
-    post(request, ctx) => {
+    post(ctx) => {
         let table = ctx.get_table("Product")?;
-        let items = if request.is_csv() {
-            parse_csv(request.body_bytes())
+        let body = ctx.require_json_body()?;
+        let items = if let Some(arr) = body.as_array() {
+            arr.clone()
         } else {
-            request.json_array()?
+            parse_csv(&ctx.body)
         };
         let result = bulk_upsert(&table, items,
             |item| item["id"].as_str().map(|s| s.to_string()),
@@ -273,7 +288,7 @@ resource!(Import {
 pub fn validate_identifier(id: &str, field_name: &str) -> Result<()>
 ```
 
-Validates that an identifier contains only allowed characters. Returns `Err(YetiError::Validation)` if invalid.
+Validates identifier characters. Returns `Err(YetiError::Validation)` if invalid.
 
 ```rust,ignore
 validate_identifier("my-resource-id", "resourceId")?;
@@ -281,7 +296,7 @@ validate_identifier("my-resource-id", "resourceId")?;
 
 ## Logging
 
-Use `yeti_log!` in plugins instead of `tracing::info!`. Tracing macros do not reach the host log from dylib context due to TLS isolation.
+Use `yeti_log!` in plugins. `tracing::info!` does not reach the host log from dylib context (TLS isolation).
 
 ```rust,ignore
 yeti_log!(info, "Processing {} items", items.len());
@@ -297,7 +312,7 @@ Supported levels: `trace`, `debug`, `info`, `warn`, `error`.
 
 | Function | Returns | Description |
 |----------|---------|-------------|
-| `fetch(url, options?)` | `Result<FetchResponse, String>` | HTTP request via curl |
+| `fetch!(url)` / `fetch!(method, url)` | `FetchBuilder` | HTTP request builder (use `.json()`, `.text()`, or `.send()` to execute) |
 | `generate_id()` | `String` | UUID v7 (time-sortable) |
 | `generate_id_v7()` | `String` | Alias for `generate_id()` |
 | `unix_timestamp()` | `Result<u64>` | Current unix timestamp (fallible) |
@@ -313,3 +328,6 @@ Supported levels: `trace`, `debug`, `info`, `warn`, `error`.
 | `CookieBuilder::delete(name)` | `String` | Delete-cookie header string |
 | `CookieParser::get_cookie(req, name)` | `Option<String>` | Read cookie from request |
 | `CookieParser::parse_all(req)` | `HashMap<String, String>` | All cookies from request |
+| `delay(ms)` | `async` | Async sleep for N milliseconds |
+| `delay_sync(ms)` | `()` | Blocking sleep for N milliseconds |
+| `now_ms()` | `u64` | Current time in milliseconds since epoch |

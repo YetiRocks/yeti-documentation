@@ -108,7 +108,14 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="defining-schemas"><a class="header" href="#defining-schemas">Defining Schemas</a></h1>
-<p>Yeti uses GraphQL schema definitions with custom directives to define your data model. Types with <code>@table</code> become storage tables; <code>@export</code> makes them API endpoints.</p>
+<p>Yeti uses GraphQL schema definitions with custom directives to define your data model. Four type-level directives control different concerns:</p>
+<div class="table-wrapper"><table><thead><tr><th>Directive</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>@table</code></td><td>Declares a storage table with database namespace</td></tr>
+<tr><td><code>@export</code></td><td>Exposes HTTP/MCP/MQTT endpoints and transport flags</td></tr>
+<tr><td><code>@distribute</code></td><td>Topology: sharding, residency, replication, consistency</td></tr>
+<tr><td><code>@audit</code></td><td>Compliance: which operations to log, retention, state capture</td></tr>
+</tbody></table>
+</div>
 <h2 id="schema-design"><a class="header" href="#schema-design">Schema Design</a></h2>
 <p>Each entity becomes a type with <code>@table</code>:</p>
 <pre><code class="language-graphql">type Product @table {
@@ -123,6 +130,19 @@
     id: ID! @primaryKey
     name: String!
     price: Float
+}
+</code></pre>
+<h3 id="transport-flags"><a class="header" href="#transport-flags">Transport Flags</a></h3>
+<p><code>@export</code> accepts flags to control which transports are enabled. All default to <code>true</code> when <code>@export</code> is present:</p>
+<pre><code class="language-graphql">type Event @table @export(rest: true, graphql: true, sse: true, mqtt: true, mcp: true) {
+    id: ID! @primaryKey
+    payload: String!
+}
+
+# Disable MCP for an internal cache table
+type InternalCache @table @export(mcp: false) {
+    id: ID! @primaryKey
+    data: String!
 }
 </code></pre>
 <h3 id="indexes-for-filtering"><a class="header" href="#indexes-for-filtering">Indexes for Filtering</a></h3>
@@ -158,6 +178,32 @@ type Session @table @export {
     expiresAt: Int @expiresAt         # Per-record TTL (Unix timestamp)
 }
 </code></pre>
+<h3 id="default-values"><a class="header" href="#default-values">Default Values</a></h3>
+<p>The <code>@default</code> directive sets a value when a field is omitted on create:</p>
+<pre><code class="language-graphql">type Task @table @export {
+    id: ID! @primaryKey
+    title: String!
+    status: String @default(value: "pending")
+    priority: Int @default(value: 0)
+    visible: Boolean @default(value: true)
+}
+</code></pre>
+<p>The value is type-checked against the field type at schema load time.</p>
+<h3 id="crdt-fields"><a class="header" href="#crdt-fields">CRDT Fields</a></h3>
+<p>The <code>@crdt</code> directive declares conflict-free replicated data types for fields that may be updated concurrently across replicas:</p>
+<pre><code class="language-graphql">type Counter @table @export @distribute {
+    id: ID! @primaryKey
+    views: Int @crdt(type: "counter")
+    score: Int @crdt(type: "pn-counter")
+    tags: String @crdt(type: "or-set")
+}
+</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>counter</code></td><td>Increment-only counter</td></tr>
+<tr><td><code>pn-counter</code></td><td>Positive-negative counter (increment and decrement)</td></tr>
+<tr><td><code>or-set</code></td><td>Observed-remove set (add/remove elements without conflicts)</td></tr>
+</tbody></table>
+</div>
 <h3 id="public-access"><a class="header" href="#public-access">Public Access</a></h3>
 <p>Tables can declare which operations bypass authentication using <code>@export(public: [...])</code>:</p>
 <pre><code class="language-graphql">type Chat @table @export(public: [read, create, subscribe]) {
@@ -168,6 +214,59 @@ type Session @table @export {
 }
 </code></pre>
 <p>Values: <code>read</code>, <code>create</code>, <code>update</code>, <code>delete</code>, <code>subscribe</code>, <code>connect</code>, <code>publish</code>. Operations not listed still require authentication.</p>
+<h3 id="distribution-topology"><a class="header" href="#distribution-topology">Distribution Topology</a></h3>
+<p>The <code>@distribute</code> directive controls how a table behaves in a cluster. It is separate from <code>@table</code> to keep storage concerns and topology concerns independent:</p>
+<pre><code class="language-graphql">type UserProfile @table @export @distribute(
+    sharding: "hash",
+    residency: "full",
+    replicationFactor: 3,
+    consistency: "strong"
+) {
+    id: ID! @primaryKey
+    name: String!
+    email: String @indexed
+}
+
+# Bare @distribute inherits cluster defaults
+type Event @table @export @distribute {
+    id: ID! @primaryKey
+    payload: String!
+}
+</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Values</th><th>Default</th></tr></thead><tbody>
+<tr><td><code>sharding</code></td><td><code>"hash"</code>, <code>"range"</code>, custom</td><td>none</td></tr>
+<tr><td><code>residency</code></td><td><code>"sharded"</code>, <code>"full"</code>, <code>"mirrored"</code>, <code>"adaptive"</code></td><td><code>"full"</code></td></tr>
+<tr><td><code>replicationFactor</code></td><td>1-255</td><td>cluster default</td></tr>
+<tr><td><code>consistency</code></td><td><code>"strong"</code>, <code>"eventual"</code></td><td><code>"eventual"</code></td></tr>
+<tr><td><code>replication</code></td><td><code>"false"</code>, <code>"global"</code></td><td>cluster default</td></tr>
+</tbody></table>
+</div>
+<h3 id="audit-trail"><a class="header" href="#audit-trail">Audit Trail</a></h3>
+<p>The <code>@audit</code> directive enables per-table audit logging. Audit entries are emitted fire-and-forget after successful writes:</p>
+<pre><code class="language-graphql"># Default: audit all mutations, 90-day retention, no state capture
+type Payment @table @export @audit {
+    id: ID! @primaryKey
+    amount: Float!
+    userId: String! @indexed
+}
+
+# Custom: audit reads too, keep forever, capture before/after state
+type MedicalRecord @table @export @audit(
+    operations: [read, create, update, delete],
+    retention: 0,
+    state: true
+) {
+    id: ID! @primaryKey
+    patientId: String! @indexed
+    content: String!
+}
+</code></pre>
+<div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>operations</code></td><td><code>[create, update, delete]</code></td><td>Which operations to audit. Add <code>read</code> to opt in.</td></tr>
+<tr><td><code>retention</code></td><td><code>90</code></td><td>Retention in days. <code>0</code> means keep forever.</td></tr>
+<tr><td><code>state</code></td><td><code>false</code></td><td>Capture before/after record state on mutations.</td></tr>
+</tbody></table>
+</div>
 <h3 id="vector-search"><a class="header" href="#vector-search">Vector Search</a></h3>
 <p>The <code>Vector</code> type with <code>@indexed(source: ...)</code> enables automatic embedding:</p>
 <pre><code class="language-graphql">type Document @table @export {
@@ -178,8 +277,8 @@ type Session @table @export {
 </code></pre>
 <p>See <a href="vector-search.html">Vector Search</a> for tuning parameters and model selection.</p>
 <h2 id="complete-example"><a class="header" href="#complete-example">Complete Example</a></h2>
-<p>A multi-table schema with relationships:</p>
-<pre><code class="language-graphql">type Author @table(database: "graphql-explorer") @export(rest: true, graphql: true) {
+<p>A multi-table schema using all four directives:</p>
+<pre><code class="language-graphql">type Author @table(database: "bookstore") @export(rest: true, graphql: true) {
     id: ID! @primaryKey
     name: String!
     email: String @indexed
@@ -187,18 +286,18 @@ type Session @table @export {
     books: [Book] @relationship(to: "authorId")
 }
 
-type Book @table(database: "graphql-explorer") @export(rest: true, graphql: true) {
+type Book @table(database: "bookstore") @export(rest: true, graphql: true) @audit {
     id: ID! @primaryKey
     title: String!
     isbn: String! @indexed
     genre: String @indexed
-    price: Float
+    price: Float @default(value: 0.0)
     authorId: ID! @indexed
     author: Author @relationship(from: "authorId")
     reviews: [Review] @relationship(to: "bookId")
 }
 
-type Review @table(database: "graphql-explorer") @export(rest: true, graphql: true) {
+type Review @table(database: "bookstore") @export(rest: true, graphql: true) {
     id: ID! @primaryKey
     bookId: ID! @indexed
     rating: Int!

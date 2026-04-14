@@ -1,6 +1,6 @@
 # Storage Engine
 
-RocksDB key-value store. Each application gets its own database namespace with automatic sharding. Data always lives in `data/` under the root directory.
+RocksDB key-value store. Each application gets its own database namespace with automatic sharding. Data lives in `data/` under the root directory.
 
 ```yaml
 storage:          # RocksDB storage (default, no config needed)
@@ -8,7 +8,7 @@ storage:          # RocksDB storage (default, no config needed)
 
 ## Replication
 
-Replication is configured via a top-level `replication:` section (not under `storage:`). It requires a valid license key (Ed25519-signed, offline verification).
+Configured via a top-level `replication:` section (not under `storage:`). Requires a valid license key (Ed25519-signed, offline verification).
 
 ```yaml
 replication:
@@ -20,7 +20,7 @@ replication:
     - "peer2:9997"
 ```
 
-When enabled, the cluster coordinator starts, gossip discovers peers, and replication begins automatically. With no peers, the coordinator idles and the node runs standalone. There is no separate "embedded" vs "distributed" mode -- only one storage engine (RocksDB) exists.
+When enabled, the cluster coordinator starts, gossip discovers peers, and replication begins. With no peers, the coordinator idles and the node runs standalone. There is no separate "embedded" vs "distributed" mode.
 
 ## Sharding
 
@@ -46,7 +46,7 @@ Enables efficient point lookups, prefix scans, and range queries. UUID v7 keys s
 
 ## BackendManager
 
-Maps table names to backend instances. One sharded RocksDB per database. Extension tables are merged via `with_merged_tables()` for extensions declared in the app's config.
+Maps table names to backend instances. One sharded RocksDB per database. Service tables merge via `with_merged_tables()` for services declared in the app's config.
 
 ## KvBackend Trait
 
@@ -68,7 +68,7 @@ Maps table names to backend instances. One sharded RocksDB per database. Extensi
 | `storage.cacheSizeMb` | 2048 | Block cache size per database |
 | `storage.writeBufferSizeMb` | 512 | Memtable size before flush |
 | `storage.shardCount` | num_cpus / 2 | Number of RocksDB shards per database |
-| `storage.compression` | false | LZ4 compression for SSTables |
+| `storage.compression` | true | LZ4 compression for SSTables |
 | `storage.path` | `data/` | Data directory path |
 
 `StorageConfig::high_performance()` enables async writes for 5-10x throughput.
@@ -79,4 +79,4 @@ Maps table names to backend instances. One sharded RocksDB per database. Extensi
 type PageCache @table(expiration: 3600) { ... }
 ```
 
-Records older than the specified seconds are automatically cleaned up. Per-record TTL is also available via the `@expiresAt` field directive.
+Records older than the specified seconds are cleaned up automatically. Per-record TTL is available via `@expiresAt`.

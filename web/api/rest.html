@@ -113,7 +113,7 @@
 <pre><code>https://localhost:9996/{app-id}/{TableName}
 </code></pre>
 <h2 id="endpoints"><a class="header" href="#endpoints">Endpoints</a></h2>
-<h3 id="list-records"><a class="header" href="#list-records">List Records</a></h3>
+<h3 id="list--query-records"><a class="header" href="#list--query-records">List / Query Records</a></h3>
 <pre><code>GET /{app-id}/{TableName}
 </code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead><tbody>
@@ -127,6 +127,10 @@
 </div>
 <pre><code class="language-bash">curl -sk "https://localhost:9996/my-app/Product?limit=10&amp;sort=-createdAt&amp;select=id,name,price"
 </code></pre>
+<h3 id="get-record"><a class="header" href="#get-record">Get Record</a></h3>
+<pre><code>GET /{app-id}/{TableName}/{id}
+</code></pre>
+<p>Returns 200 with the record, or 404 if not found.</p>
 <h3 id="create-record"><a class="header" href="#create-record">Create Record</a></h3>
 <pre><code>POST /{app-id}/{TableName}
 </code></pre>
@@ -135,10 +139,6 @@
   -d '{"id": "prod-3", "name": "Doohickey", "price": 29.99}'
 </code></pre>
 <p>Returns <code>201 Created</code> with <code>{"message": "Record created", "id": "prod-3"}</code>.</p>
-<h3 id="read-record"><a class="header" href="#read-record">Read Record</a></h3>
-<pre><code>GET /{app-id}/{TableName}/{id}
-</code></pre>
-<p>Returns 200 with the record, or 404 if not found.</p>
 <h3 id="replace-record"><a class="header" href="#replace-record">Replace Record</a></h3>
 <pre><code>PUT /{app-id}/{TableName}/{id}
 </code></pre>
@@ -151,6 +151,7 @@
 <pre><code>DELETE /{app-id}/{TableName}/{id}
 </code></pre>
 <h2 id="fiql-filtering"><a class="header" href="#fiql-filtering">FIQL Filtering</a></h2>
+<p>Pass a FIQL expression via the <code>filter</code> query parameter.</p>
 <div class="table-wrapper"><table><thead><tr><th>Operator</th><th>Syntax</th><th>Description</th></tr></thead><tbody>
 <tr><td>Equal</td><td><code>field==value</code></td><td>Exact match</td></tr>
 <tr><td>Not equal</td><td><code>field!=value</code></td><td>Exclude matches</td></tr>
@@ -165,18 +166,22 @@
 </div>
 <pre><code class="language-bash">curl -sk "https://localhost:9996/my-app/Product?filter=price=gt=10;price=lt=50&amp;sort=-price&amp;limit=5"
 </code></pre>
+<h2 id="server-sent-events"><a class="header" href="#server-sent-events">Server-Sent Events</a></h2>
+<p>Append <code>?stream=sse</code> to any list endpoint to receive a real-time event stream. The connection stays open and pushes events as records are created, updated, or deleted.</p>
+<pre><code class="language-bash">curl -sk "https://localhost:9996/my-app/Product?stream=sse"
+</code></pre>
 <h2 id="authentication"><a class="header" href="#authentication">Authentication</a></h2>
-<p>When yeti-auth is loaded, endpoints require authentication:</p>
+<p>When yeti-auth is configured for the application, endpoints require authentication:</p>
 <pre><code class="language-bash">curl -sk -u admin:admin https://localhost:9996/my-app/Product
 curl -sk -H "Authorization: Bearer eyJ..." https://localhost:9996/my-app/Product
 </code></pre>
 <p>Without yeti-auth, all endpoints are open.</p>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
-<li><a href="../guides/fiql.html">FIQL Queries</a> - Complete FIQL guide</li>
-<li><a href="../guides/pagination.html">Pagination &amp; Sorting</a> - Pagination patterns</li>
-<li><a href="graphql.html">GraphQL API</a> - Alternative query interface</li>
-<li><a href="errors.html">Error Codes</a> - Error response format</li>
+<li><a href="../guides/fiql.html">FIQL Queries</a> -- Complete FIQL guide</li>
+<li><a href="../guides/pagination.html">Pagination &amp; Sorting</a> -- Pagination patterns</li>
+<li><a href="graphql.html">GraphQL API</a> -- Alternative query interface</li>
+<li><a href="errors.html">Error Responses</a> -- Error response format</li>
 </ul>
 
                     </main>

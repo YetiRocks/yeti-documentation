@@ -1,6 +1,6 @@
 # Studio
 
-Studio is Yeti's built-in administration UI. Access it at `https://localhost:9996/admin`.
+Built-in administration UI at `https://localhost:9996/admin`.
 
 ## Applications
 
@@ -28,7 +28,7 @@ After installation, the app compiles (~2 minutes first time) and starts serving.
 
 ### Deleting Applications
 
-Click **Delete** on any application in the list. A confirmation dialog prevents accidental removal. Built-in extensions (yeti-auth, yeti-telemetry, yeti-vectors) cannot be deleted.
+Click **Delete** on any application in the list. A confirmation dialog prevents accidental removal. Built-in services (yeti-auth, yeti-telemetry, yeti-ai) cannot be deleted.
 
 ## Telemetry
 
@@ -40,7 +40,7 @@ The Telemetry tab provides real-time observability:
 
 **Metrics** - Counter and gauge values grouped by category, with per-app filtering.
 
-All data streams via SSE from the yeti-telemetry extension.
+All data streams via SSE from the yeti-telemetry service.
 
 ## Auth
 
@@ -52,7 +52,7 @@ The Auth tab manages users and roles when yeti-auth is enabled:
 
 ## Vectors
 
-The Vectors tab manages embedding models when yeti-vectors is enabled:
+The Vectors tab manages embedding models when yeti-ai is enabled:
 
 **Text Models** / **Image Models** - View available models, install/uninstall from disk, set the default model per type.
 

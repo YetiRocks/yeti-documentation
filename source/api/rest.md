@@ -1,6 +1,6 @@
 # REST API
 
-Yeti generates REST endpoints for every table with `@export(rest: true)`.
+REST endpoints generate for every table with `@export(rest: true)`.
 
 ## Base URL
 
@@ -10,7 +10,7 @@ https://localhost:9996/{app-id}/{TableName}
 
 ## Endpoints
 
-### List Records
+### List / Query Records
 
 ```
 GET /{app-id}/{TableName}
@@ -29,6 +29,14 @@ GET /{app-id}/{TableName}
 curl -sk "https://localhost:9996/my-app/Product?limit=10&sort=-createdAt&select=id,name,price"
 ```
 
+### Get Record
+
+```
+GET /{app-id}/{TableName}/{id}
+```
+
+Returns 200 with the record, or 404 if not found.
+
 ### Create Record
 
 ```
@@ -42,14 +50,6 @@ curl -sk -X POST https://localhost:9996/my-app/Product \
 ```
 
 Returns `201 Created` with `{"message": "Record created", "id": "prod-3"}`.
-
-### Read Record
-
-```
-GET /{app-id}/{TableName}/{id}
-```
-
-Returns 200 with the record, or 404 if not found.
 
 ### Replace Record
 
@@ -75,6 +75,8 @@ DELETE /{app-id}/{TableName}/{id}
 
 ## FIQL Filtering
 
+FIQL expression via the `filter` query parameter:
+
 | Operator | Syntax | Description |
 |----------|--------|-------------|
 | Equal | `field==value` | Exact match |
@@ -91,9 +93,17 @@ DELETE /{app-id}/{TableName}/{id}
 curl -sk "https://localhost:9996/my-app/Product?filter=price=gt=10;price=lt=50&sort=-price&limit=5"
 ```
 
+## Server-Sent Events
+
+Append `?stream=sse` to any list endpoint for a real-time event stream. Events push as records are created, updated, or deleted.
+
+```bash
+curl -sk "https://localhost:9996/my-app/Product?stream=sse"
+```
+
 ## Authentication
 
-When yeti-auth is loaded, endpoints require authentication:
+When yeti-auth is configured, endpoints require authentication:
 
 ```bash
 curl -sk -u admin:admin https://localhost:9996/my-app/Product
@@ -104,7 +114,7 @@ Without yeti-auth, all endpoints are open.
 
 ## See Also
 
-- [FIQL Queries](../guides/fiql.md) - Complete FIQL guide
-- [Pagination & Sorting](../guides/pagination.md) - Pagination patterns
-- [GraphQL API](graphql.md) - Alternative query interface
-- [Error Codes](errors.md) - Error response format
+- [FIQL Queries](../guides/fiql.md) -- Complete FIQL guide
+- [Pagination & Sorting](../guides/pagination.md) -- Pagination patterns
+- [GraphQL API](graphql.md) -- Alternative query interface
+- [Error Responses](errors.md) -- Error response format

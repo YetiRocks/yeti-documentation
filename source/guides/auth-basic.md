@@ -7,14 +7,22 @@ HTTP Basic authentication sends credentials with every request using `Authorizat
 1. Client sends `Authorization: Basic base64(username:password)`
 2. `BasicAuthProvider` looks up the user in the User table
 3. Password verified against stored Argon2id hash
-4. User's `roleId` resolves to a Role with permissions
+4. Returns an `AuthIdentity::Basic { username }` to the auth pipeline
+5. AppMembership lookup resolves the user's role for the target app
 
 ## Configuration
 
-Add `auth:` to your app's config.yaml. Basic auth is always available when enabled:
+Add `auth:` to your app's config.yaml. Basic auth is always available when auth is enabled:
 
 ```yaml
 auth: {}
+```
+
+Or explicitly list methods:
+
+```yaml
+auth:
+  methods: [basic]
 ```
 
 ## User Creation
@@ -57,8 +65,7 @@ curl -sk -u admin:admin -X DELETE https://localhost:9996/yeti-auth/users/alice
 
 ## Security Notes
 
-- Always use HTTPS - Basic auth credentials are base64-encoded, not encrypted
-- Yeti runs HTTPS on port 443 by default
+- Always use HTTPS -- Basic auth credentials are base64-encoded, not encrypted
 - For browser apps, prefer [JWT](auth-jwt.md) or [OAuth](auth-oauth.md)
 - Basic auth is ideal for server-to-server, CLI tools, and scripts
 

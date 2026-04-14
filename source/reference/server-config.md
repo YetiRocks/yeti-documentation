@@ -2,17 +2,22 @@
 
 Reference for `yeti-config.yaml` at the root directory (default: `~/yeti/yeti-config.yaml`).
 
-Only override what you need — missing fields use sensible defaults. The root directory itself is set in `~/.yeti/settings.toml`, not in this file.
+Override only what you need -- missing fields use defaults. The root directory is set in `~/.yeti/settings.toml`, not here.
+
+A `.env` file in the root directory is loaded if present. Real environment variables take precedence.
 
 ---
 
 ## Complete Default Configuration
 
-This is every field with its default value. Your config file only needs the fields you want to change.
+Every field with its default value. Only include fields you want to change.
 
 ```yaml
 # ─── Environment ────────────────────────────────────────────────────────────
 environment: development          # development | production
+
+# ─── Root App ───────────────────────────────────────────────────────────────
+# rootApp: null                   # App ID that serves at "/" instead of "/{appId}/"
 
 # ─── Interfaces ─────────────────────────────────────────────────────────────
 # All protocols share the main port except MQTT (separate TLS port).
@@ -36,8 +41,8 @@ interfaces:
     enabled: true
     audit: false
     port: 8883                    # MQTTS native TLS port (separate from main port)
-    maxClients: 10000             # Maximum simultaneous MQTT connections
-    qos: 2                       # Default QoS for bridge-published messages (0, 1, or 2)
+    max_clients: 10000            # Maximum simultaneous MQTT connections
+    qos: 2                        # Default QoS for bridge-published messages (0, 1, or 2)
   grpc:
     enabled: true
     audit: false
@@ -56,7 +61,7 @@ http:
   disconnectTimeout: 5000         # Client disconnect timeout (ms)
   maxConnectionRate: 256          # Maximum new connections per second
   maxInFlightRequests: 10000      # Maximum concurrent requests (503 when exceeded)
-  compressionThreshold: 1024     # Compress responses larger than this (bytes)
+  compressionThreshold: 1024      # Compress responses larger than this (bytes)
   maxQueryDepth: 50               # Maximum FIQL query nesting depth
   maxQueryConditions: 200         # Maximum conditions in a single FIQL query
   maxResultSetSize: 10000         # Maximum records returned by scan operations
@@ -86,49 +91,87 @@ replication:
   replicationFactor: 3            # Number of replicas per shard
 
 # ─── Logging ────────────────────────────────────────────────────────────────
-# Core writes to stdout only. File logging is handled by the yeti-telemetry extension.
+# Core writes to stdout only. File logging is handled by the yeti-telemetry service.
 logging:
   level: info                     # trace | debug | info | warn | error
-  # path: null                   # Log directory override (default: {rootDirectory}/logs/)
+  # path: null                    # Log directory override (default: {rootDirectory}/logs/)
 
 # ─── Applications ───────────────────────────────────────────────────────────
 applications:
-  # path: null                   # Applications directory override (default: {rootDirectory}/applications/)
+  # path: null                    # Applications directory override (default: {rootDirectory}/applications/)
   autoLoad: []                    # Git repos to clone on startup
 
 # ─── Threads ────────────────────────────────────────────────────────────────
 threads:
-  # count: null                  # Tokio worker threads (default: CPU count)
+  # count: null                   # Tokio worker threads (default: CPU count)
   debug: false                    # Thread pool debugging
 
 # ─── TLS ────────────────────────────────────────────────────────────────────
 tls:
   autoGenerate: true              # Auto-generate self-signed certs if missing
   domain: localhost               # Domain for cert generation (certs/{domain}-cert.pem)
-  # privateKey: null             # Path to PEM private key
-  # certificate: null            # Path to PEM certificate
+  # privateKey: null              # Path to PEM private key
+  # certificate: null             # Path to PEM certificate
 
 # ─── Rate Limiting ──────────────────────────────────────────────────────────
 rateLimiting:
   maxRequestsPerSecond: 1000      # Server-wide rate limit
 
 # ─── Telemetry ──────────────────────────────────────────────────────────────
-# Metrics and OTLP export. The yeti-telemetry extension handles log/span/metric persistence.
+# Metrics and OTLP export. The yeti-telemetry service handles log/span/metric persistence.
 telemetry:
   metrics: true                   # Enable metrics collection
   serviceName: yeti               # Service name for OTLP export
-  # otlpEndpoint: null           # OpenTelemetry collector endpoint (e.g. http://otel:4317)
-  metricsIntervalSecs: 10        # System metrics emission interval (seconds)
+  # otlpEndpoint: null            # OpenTelemetry collector endpoint (e.g. http://otel:4317)
+  metricsIntervalSecs: 10         # System metrics emission interval (seconds)
+
+# ─── RustFS / S3-Compatible Object Store ────────────────────────────────────
+# When disabled (default), uses filesystem fallback at {rootDirectory}/object-store/.
+rustfs:
+  enabled: false                  # Enable S3 transport
+  endpoint: "http://localhost:9000"  # S3-compatible endpoint URL
+  accessKey: minioadmin           # Access key (matches MinIO/RustFS defaults)
+  secretKey: minioadmin           # Secret key
 
 # ─── Environment Variables ──────────────────────────────────────────────────
 # Injected at startup. Real env vars take precedence.
 env: {}
 
-# ─── Auth ───────────────────────────────────────────────────────────────────
-# Top-level shorthand for extensions.yeti_auth configuration.
+# ─── Extensions ─────────────────────────────────────────────────────────────
+# Per-extension runtime configuration. Each extension has an enabled flag.
+extensions:
+  yeti-auth:
+    enabled: true
+    jwt:
+      secret: "development-secret-change-in-production"
+      algorithm: HS256
+      accessTtl: 900              # Access token TTL in seconds (15 minutes)
+      refreshTtl: 604800          # Refresh token TTL in seconds (7 days)
+    oauth:
+      github:
+        clientId: ""
+        clientSecret: ""
+      google:
+        clientId: ""
+        clientSecret: ""
+      microsoft:
+        clientId: ""
+        clientSecret: ""
+  yeti-telemetry:
+    enabled: true
+  yeti-ai:
+    enabled: true
+
+# ─── Auth (shorthand) ──────────────────────────────────────────────────────
+# Top-level shorthand parsed into extensions.yeti-auth configuration.
 # auth:
-#   methods: [basic, jwt, oauth]
-#   providers: { ... }
+#   enabled: true
+#   jwt:
+#     secret: "my-secret"
+#   oauth:
+#     github:
+#       clientId: "..."
+#       clientSecret: "..."
 ```
 
 ---
@@ -142,122 +185,126 @@ env: {}
 | `development` | Bypasses auth for user-defined apps | `info` default | Self-signed OK |
 | `production` | Enforces auth on all routes | `warn` default | Real certs expected |
 
-### interfaces
-
-Controls which protocols are available and whether they generate audit logs.
+### rootApp
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `interfaces.port` | integer | `9996` | Main HTTPS port shared by REST, GraphQL, WebSocket, SSE, gRPC, and MCP |
-| `interfaces.rest.enabled` | boolean | `true` | Enable REST API endpoints |
-| `interfaces.rest.audit` | boolean | `false` | Log REST operations to audit trail |
-| `interfaces.graphql.enabled` | boolean | `true` | Enable GraphQL API |
-| `interfaces.graphql.audit` | boolean | `false` | Log GraphQL operations |
-| `interfaces.ws.enabled` | boolean | `true` | Enable WebSocket subscriptions |
-| `interfaces.ws.audit` | boolean | `false` | Log WebSocket operations |
-| `interfaces.sse.enabled` | boolean | `true` | Enable Server-Sent Events |
-| `interfaces.sse.audit` | boolean | `false` | Log SSE subscriptions |
-| `interfaces.mqtt.enabled` | boolean | `true` | Enable MQTT broker |
-| `interfaces.mqtt.audit` | boolean | `false` | Log MQTT publish/subscribe |
-| `interfaces.mqtt.port` | integer | `8883` | MQTTS native TLS port (separate from main port) |
-| `interfaces.mqtt.maxClients` | integer | `10000` | Maximum simultaneous MQTT connections |
-| `interfaces.mqtt.qos` | integer | `2` | Default QoS for bridge messages (0=at most once, 1=at least once, 2=exactly once) |
-| `interfaces.grpc.enabled` | boolean | `true` | Enable gRPC tables service (same port as HTTP) |
-| `interfaces.grpc.audit` | boolean | `false` | Log gRPC operations |
-| `interfaces.mcp.enabled` | boolean | `true` | Enable Model Context Protocol (JSON-RPC 2.0 over HTTP) |
-| `interfaces.mcp.audit` | boolean | `true` | Log MCP tool calls (on by default for AI agent observability) |
+| `rootApp` | string | `null` | App ID that serves at `"/"` instead of `"/{appId}/"`. All other apps continue to serve at their app ID path. Also accepts the alias `root_app`. |
 
-**Optimization**: Disable unused interfaces to reduce memory and CPU overhead. For example, if you only serve REST clients, disable `graphql`, `ws`, `sse`, `mqtt`, `grpc`, and `mcp`.
+### interfaces
+
+Protocol availability and audit logging.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `interfaces.port` | integer | `9996` | Main HTTPS port (REST, GraphQL, WS, SSE, gRPC, MCP) |
+| `interfaces.rest.enabled` | boolean | `true` | REST API endpoints |
+| `interfaces.rest.audit` | boolean | `false` | Audit REST operations |
+| `interfaces.graphql.enabled` | boolean | `true` | GraphQL API |
+| `interfaces.graphql.audit` | boolean | `false` | Audit GraphQL operations |
+| `interfaces.ws.enabled` | boolean | `true` | WebSocket subscriptions |
+| `interfaces.ws.audit` | boolean | `false` | Audit WebSocket operations |
+| `interfaces.sse.enabled` | boolean | `true` | Server-Sent Events |
+| `interfaces.sse.audit` | boolean | `false` | Audit SSE subscriptions |
+| `interfaces.mqtt.enabled` | boolean | `true` | MQTT broker |
+| `interfaces.mqtt.audit` | boolean | `false` | Audit MQTT publish/subscribe |
+| `interfaces.mqtt.port` | integer | `8883` | MQTTS native TLS port (separate from main) |
+| `interfaces.mqtt.max_clients` | integer | `10000` | Max simultaneous MQTT connections |
+| `interfaces.mqtt.qos` | integer | `2` | Default QoS for bridge messages (0/1/2) |
+| `interfaces.grpc.enabled` | boolean | `true` | gRPC tables service (same port as HTTP) |
+| `interfaces.grpc.audit` | boolean | `false` | Audit gRPC operations |
+| `interfaces.mcp.enabled` | boolean | `true` | Model Context Protocol (JSON-RPC 2.0 over HTTP) |
+| `interfaces.mcp.audit` | boolean | `true` | Audit MCP tool calls (on by default) |
+
+Disable unused interfaces to reduce memory and CPU overhead.
 
 ### http
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `http.cors` | boolean | `true` | Enable CORS headers |
-| `http.corsAccessList` | string[] | `["*"]` | Allowed CORS origins. Use specific domains in production. |
-| `http.timeout` | integer | `60000` | Request timeout in ms. Requests exceeding this are terminated. |
-| `http.keepAliveTimeout` | integer | `75000` | TCP keep-alive timeout in ms. Set slightly above your load balancer's timeout. |
-| `http.disconnectTimeout` | integer | `5000` | Graceful shutdown wait time in ms for in-flight requests. |
-| `http.maxConnectionRate` | integer | `256` | Maximum new TCP connections accepted per second. Protects against connection storms. |
-| `http.maxInFlightRequests` | integer | `10000` | Maximum concurrent requests. Returns 503 when exceeded. |
-| `http.compressionThreshold` | integer | `1024` | Minimum response size (bytes) to trigger gzip compression. |
-| `http.maxQueryDepth` | integer | `50` | Maximum FIQL query nesting depth. Prevents stack overflow from deeply nested queries. |
-| `http.maxQueryConditions` | integer | `200` | Maximum conditions per FIQL query. Prevents combinatorial explosion. |
-| `http.maxResultSetSize` | integer | `10000` | Maximum records returned by scan/list operations. Use pagination for larger datasets. |
-| `http.maxRequestBodyBytes` | integer | `10485760` | Maximum request body size (default 10 MB). Increase for bulk imports. |
-
-**Optimization**: For high-throughput APIs, increase `maxInFlightRequests` and `maxConnectionRate`. For large dataset imports, increase `maxRequestBodyBytes` and `maxResultSetSize`. Lower `compressionThreshold` to reduce bandwidth at the cost of CPU.
+| `http.cors` | boolean | `true` | CORS headers |
+| `http.corsAccessList` | string[] | `["*"]` | Allowed CORS origins |
+| `http.timeout` | integer | `60000` | Request timeout (ms) |
+| `http.keepAliveTimeout` | integer | `75000` | TCP keep-alive timeout (ms) |
+| `http.disconnectTimeout` | integer | `5000` | Graceful shutdown wait (ms) for in-flight requests |
+| `http.maxConnectionRate` | integer | `256` | Max new TCP connections per second |
+| `http.maxInFlightRequests` | integer | `10000` | Max concurrent requests (503 when exceeded) |
+| `http.compressionThreshold` | integer | `1024` | Min response size (bytes) for gzip |
+| `http.maxQueryDepth` | integer | `50` | Max FIQL query nesting depth |
+| `http.maxQueryConditions` | integer | `200` | Max conditions per FIQL query |
+| `http.maxResultSetSize` | integer | `10000` | Max records per scan/list |
+| `http.maxRequestBodyBytes` | integer | `10485760` | Max request body (10 MB default) |
 
 ### storage
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `storage.caching` | boolean | `true` | In-memory block cache for frequently read data. Disable only if memory-constrained. |
-| `storage.compression` | boolean | `true` | LZ4 compression for on-disk data. Reduces I/O at minimal CPU cost. |
-| `storage.path` | string | `null` | Data directory override. Default: `{rootDirectory}/data/` |
-| `storage.cacheSizeMb` | integer | `null` | Block cache size in MB. Default auto-tunes to 2048 (2 GB). |
-| `storage.writeBufferSizeMb` | integer | `null` | Write buffer (memtable) size in MB. Default: 512 MB. |
-| `storage.shardCount` | integer | `null` | Number of parallel RocksDB shards. Default: `num_cpus / 2` (min 2). |
-| `storage.inMemory` | boolean | `false` | Volatile in-memory mode. Fast but all data lost on restart. |
+| `storage.caching` | boolean | `true` | In-memory block cache |
+| `storage.compression` | boolean | `true` | LZ4 on-disk compression |
+| `storage.path` | string | `null` | Data directory override (default: `{rootDirectory}/data/`) |
+| `storage.cacheSizeMb` | integer | `null` | Block cache size in MB (default: 2048) |
+| `storage.writeBufferSizeMb` | integer | `null` | Write buffer size in MB (default: 512) |
+| `storage.shardCount` | integer | `null` | Parallel RocksDB shards (default: `num_cpus / 2`, min 2) |
+| `storage.inMemory` | boolean | `false` | Volatile in-memory mode (data lost on restart) |
 
-**Optimization**: For read-heavy workloads, increase `cacheSizeMb` (allocate 50-75% of available RAM). For write-heavy workloads, increase `writeBufferSizeMb` and `shardCount`. More shards improve write parallelism but increase file descriptor usage. For ephemeral data (caches, sessions), consider `inMemory: true`.
+Read-heavy: increase `cacheSizeMb`. Write-heavy: increase `writeBufferSizeMb` and `shardCount`. Ephemeral data: consider `inMemory: true`.
 
 ### replication
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `replication.enabled` | boolean | `false` | Enable cluster replication (requires valid license) |
-| `replication.licenseKey` | string | `null` | Ed25519-signed license key for replication feature |
-| `replication.port` | integer | `9997` | Single port for both gRPC replication (TCP) and gossip membership (UDP) |
-| `replication.seedNodes` | string[] | `[]` | Peer addresses for cluster discovery (e.g. `["peer1:9997"]`) |
-| `replication.advertiseAddr` | string | `""` | Address peers use to reach this node. Auto-detected if empty. |
-| `replication.nodeId` | string | `null` | Unique node identifier. Auto-generated UUID if null. |
-| `replication.region` | string | `""` | Region name for region-aware replication. Empty = flat cluster. |
-| `replication.replicationFactor` | integer | `3` | Number of replicas per shard. Higher = more durable, more storage. |
+| `replication.enabled` | boolean | `false` | Cluster replication (requires valid license) |
+| `replication.licenseKey` | string | `null` | Ed25519-signed license key |
+| `replication.port` | integer | `9997` | gRPC replication (TCP) + gossip membership (UDP) |
+| `replication.seedNodes` | string[] | `[]` | Peer addresses for discovery (e.g. `["peer1:9997"]`) |
+| `replication.advertiseAddr` | string | `""` | Address peers use to reach this node (auto-detected if empty) |
+| `replication.nodeId` | string | `null` | Unique node ID (auto-generated UUID if null) |
+| `replication.region` | string | `""` | Region name (empty = flat cluster) |
+| `replication.replicationFactor` | integer | `3` | Replicas per shard |
 
 ### logging
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `logging.level` | string | `"info"` | Minimum log level: `trace`, `debug`, `info`, `warn`, `error` |
-| `logging.path` | string | `null` | Log directory override. Default: `{rootDirectory}/logs/` |
+| `logging.path` | string | `null` | Log directory override (default: `{rootDirectory}/logs/`) |
 
-Core writes to stdout only. The yeti-telemetry extension handles file logging, log rotation, and persistence to RocksDB.
+Core writes to stdout only. The yeti-telemetry service handles file logging, rotation, and persistence.
 
-**Optimization**: Use `warn` in production to reduce log volume. Use `debug` only when diagnosing specific issues — `trace` generates massive output.
+Use `warn` in production. Use `debug` only when diagnosing specific issues -- `trace` generates massive output.
 
 ### applications
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `applications.path` | string | `null` | Applications directory override. Default: `{rootDirectory}/applications/` |
-| `applications.autoLoad` | string[] | `[]` | Git repository URLs to clone on startup |
+| `applications.path` | string | `null` | Applications directory override (default: `{rootDirectory}/applications/`) |
+| `applications.autoLoad` | string[] | `[]` | Git repos to clone on startup |
 
 ### threads
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `threads.count` | integer | `null` | Tokio worker thread count. Default: CPU count. |
-| `threads.debug` | boolean | `false` | Enable thread pool debug logging |
+| `threads.count` | integer | `null` | Tokio worker threads (default: CPU count) |
+| `threads.debug` | boolean | `false` | Thread pool debug logging |
 
-**Optimization**: Leave at default (CPU count) for most workloads. For I/O-bound applications, increase to 2x CPU count. For CPU-bound workloads with vector embeddings, reduce to leave cores available for ONNX inference.
+I/O-bound: increase to 2x CPU count. CPU-bound with vector embeddings: reduce to leave cores for inference.
 
 ### tls
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `tls.autoGenerate` | boolean | `true` | Auto-generate self-signed certificates if none exist |
-| `tls.domain` | string | `"localhost"` | Domain for certificate generation and file naming |
-| `tls.privateKey` | string | `null` | Path to PEM private key file (relative to rootDirectory) |
-| `tls.certificate` | string | `null` | Path to PEM certificate file (relative to rootDirectory) |
+| `tls.autoGenerate` | boolean | `true` | Auto-generate self-signed certs if none exist |
+| `tls.domain` | string | `"localhost"` | Domain for cert generation and file naming |
+| `tls.privateKey` | string | `null` | PEM private key path (relative to rootDirectory) |
+| `tls.certificate` | string | `null` | PEM certificate path (relative to rootDirectory) |
 
-For production, provide real certificates and set `autoGenerate: false`. For local development, `mkcert` is auto-detected for browser-trusted certificates.
+Production: provide real certificates and set `autoGenerate: false`. Development: `mkcert` is auto-detected for browser-trusted certs.
 
 ### rateLimiting
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `rateLimiting.maxRequestsPerSecond` | integer | `1000` | Server-wide rate limit. Requests beyond this are rejected with 429. |
+| `rateLimiting.maxRequestsPerSecond` | integer | `1000` | Server-wide rate limit (429 when exceeded) |
 
 ### telemetry
 
@@ -270,9 +317,22 @@ For production, provide real certificates and set `autoGenerate: false`. For loc
 
 **Optimization**: Increase `metricsIntervalSecs` to 30-60 in production to reduce telemetry overhead. Set `otlpEndpoint` to export to Grafana, Datadog, or other observability platforms.
 
+### rustfs
+
+S3-compatible object store configuration. When disabled (the default), the server uses a local filesystem fallback at `{rootDirectory}/object-store/`.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `rustfs.enabled` | boolean | `false` | Enable S3 transport. When false, uses filesystem fallback. |
+| `rustfs.endpoint` | string | `"http://localhost:9000"` | S3-compatible endpoint URL |
+| `rustfs.accessKey` | string | `"minioadmin"` | Access key (matches MinIO/RustFS defaults) |
+| `rustfs.secretKey` | string | `"minioadmin"` | Secret key |
+
 ### env
 
 Key-value map of environment variables injected at startup. Real environment variables take precedence. Useful for secrets that extensions read via `std::env::var()`.
+
+Additionally, a `.env` file in the root directory is loaded automatically if present. Variables defined in `.env` are also overridden by real environment variables. Lines starting with `#` are treated as comments.
 
 ```yaml
 env:
@@ -281,9 +341,29 @@ env:
   GOOGLE_CLIENT_SECRET: "secret-value"
 ```
 
-### auth
+### extensions
 
-Top-level shorthand parsed into `extensions.yeti_auth` configuration. See the [Authentication](../guides/authentication.md) guide for full details.
+Per-extension runtime configuration. Each built-in extension has an `enabled` flag and extension-specific settings.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `extensions.yeti-auth.enabled` | boolean | `true` | Enable the authentication extension |
+| `extensions.yeti-auth.jwt.secret` | string | `"development-secret-change-in-production"` | JWT signing secret. Change in production. |
+| `extensions.yeti-auth.jwt.algorithm` | string | `"HS256"` | JWT signing algorithm |
+| `extensions.yeti-auth.jwt.accessTtl` | integer | `900` | Access token TTL in seconds (15 minutes) |
+| `extensions.yeti-auth.jwt.refreshTtl` | integer | `604800` | Refresh token TTL in seconds (7 days) |
+| `extensions.yeti-auth.oauth.github.clientId` | string | `""` | GitHub OAuth client ID |
+| `extensions.yeti-auth.oauth.github.clientSecret` | string | `""` | GitHub OAuth client secret |
+| `extensions.yeti-auth.oauth.google.clientId` | string | `""` | Google OAuth client ID |
+| `extensions.yeti-auth.oauth.google.clientSecret` | string | `""` | Google OAuth client secret |
+| `extensions.yeti-auth.oauth.microsoft.clientId` | string | `""` | Microsoft OAuth client ID |
+| `extensions.yeti-auth.oauth.microsoft.clientSecret` | string | `""` | Microsoft OAuth client secret |
+| `extensions.yeti-telemetry.enabled` | boolean | `true` | Enable the telemetry extension |
+| `extensions.yeti-ai.enabled` | boolean | `true` | Enable the yeti-ai service (embeddings, inference, model management) |
+
+### auth (shorthand)
+
+Top-level `auth:` key is a shorthand that is parsed into `extensions.yeti-auth` configuration. The two forms are equivalent -- use whichever you prefer. See the [Authentication](../guides/auth-overview.md) guide for full details.
 
 ---
 
@@ -306,6 +386,8 @@ These environment variables override config file values at startup:
 
 ```yaml
 environment: production
+
+rootApp: www
 
 interfaces:
   port: 443
@@ -337,8 +419,18 @@ telemetry:
   otlpEndpoint: "http://otel-collector:4317"
   metricsIntervalSecs: 30
 
+extensions:
+  yeti-auth:
+    jwt:
+      secret: "${JWT_SECRET}"
+      accessTtl: 300
+    oauth:
+      github:
+        clientId: "${GITHUB_CLIENT_ID}"
+        clientSecret: "${GITHUB_CLIENT_SECRET}"
+
 env:
-  JWT_SECRET_KEY: "${JWT_SECRET}"
+  JWT_SECRET: "loaded-from-env-or-dotenv"
 ```
 
 ---

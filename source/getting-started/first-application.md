@@ -1,6 +1,6 @@
 # Your First Application
 
-Build a task tracker with two related tables, seed data, a custom resource, and real-time streaming. Requires [installation](installation.md) and [Quickstart](quickstart.md).
+Build a task tracker with two related tables, seed data, a custom resource, and real-time streaming. Assumes you have completed [installation](installation.md) and the [Quickstart](quickstart.md).
 
 ## Step 1: Create the Application
 
@@ -21,11 +21,10 @@ version: "1.0.0"
 enabled: true
 rest: true
 graphql: true
-sse: true
 schemas:
-  - schema.graphql
+  path: schema.graphql
 resources:
-  - resources/*.rs
+  path: "resources/*.rs"
 dataLoader: data/*.json
 ```
 
@@ -48,8 +47,8 @@ type Task @table(database: "task-tracker") @export(
     dueDate: String
     tagId: ID @indexed
     tag: Tag @relationship(from: "tagId")
-    __createdAt__: String
-    __updatedAt__: String
+    createdAt: String @createdTime
+    updatedAt: String @updatedTime
 }
 
 type Tag @table(database: "task-tracker") @export(
@@ -72,6 +71,8 @@ type Tag @table(database: "task-tracker") @export(
 | `@relationship(from: "field")` | Foreign-key join (belongs-to) |
 | `@relationship(to: "field")` | Reverse join (has-many) |
 
+Full directive reference: [Schemas & Tables](../concepts/schemas.md).
+
 ## Step 4: Create a Custom Resource
 
 Create `~/yeti/applications/task-tracker/resources/summary.rs`:
@@ -80,7 +81,8 @@ Create `~/yeti/applications/task-tracker/resources/summary.rs`:
 use yeti_sdk::prelude::*;
 
 resource!(Summary {
-    get(_request, ctx) => {
+    name = "summary",
+    get(ctx) => {
         let tasks = ctx.get_table("Task")?;
         let total = tasks.count().await?;
         let by_status = tasks.count_by("status").await?;
@@ -148,7 +150,7 @@ Create `~/yeti/applications/task-tracker/data/tasks.json`:
 }
 ```
 
-Seed data requires `database`, `table`, and `records`. Records load once on first startup when the table is empty.
+Seed data files require `database`, `table`, and `records`. Records load once on first startup when the table is empty.
 
 ## Step 6: Start the Server
 
@@ -162,25 +164,25 @@ First startup compiles the plugin (~2 minutes). Cached restarts take ~10 seconds
 
 ```bash
 # List all tasks
-curl -sk https://localhost/task-tracker/Task
+curl -sk https://localhost:9996/task-tracker/Task
 
 # Filter: high priority tasks
-curl -sk "https://localhost/task-tracker/Task?priority==high"
+curl -sk "https://localhost:9996/task-tracker/Task?priority==high"
 
 # Filter: tasks not done, sorted by due date
-curl -sk "https://localhost/task-tracker/Task?status!=done&sort=-dueDate"
+curl -sk "https://localhost:9996/task-tracker/Task?status!=done&sort=-dueDate"
 
 # Pagination
-curl -sk "https://localhost/task-tracker/Task?limit=2&offset=0"
+curl -sk "https://localhost:9996/task-tracker/Task?limit=2&offset=0"
 
 # Include related tag data
-curl -sk "https://localhost/task-tracker/Task/task-001?select=id,title,tag%7Bname,color%7D"
+curl -sk "https://localhost:9996/task-tracker/Task/task-001?select=id,title,tag%7Bname,color%7D"
 
 # Custom resource
-curl -sk https://localhost/task-tracker/summary
+curl -sk https://localhost:9996/task-tracker/summary
 
 # SSE stream
-curl -sk --max-time 30 "https://localhost/task-tracker/Task?stream=sse"
+curl -sk --max-time 30 "https://localhost:9996/task-tracker/Task?stream=sse"
 ```
 
 ## Final Structure
@@ -196,11 +198,13 @@ curl -sk --max-time 30 "https://localhost/task-tracker/Task?stream=sse"
     tasks.json         # Task seed data
 ```
 
-Tables with `@export` also support gRPC and MCP (Model Context Protocol) access when those interfaces are enabled in `yeti-config.yaml`. Add `mcp: true` to an app's `config.yaml` to expose a JSON-RPC 2.0 endpoint at `/{app-id}/mcp`.
+`@export`ed tables also support gRPC and MCP when those interfaces are enabled in `yeti-config.yaml`.
 
 ## Next Steps
 
 - [Authentication](../guides/auth-overview.md) - Add Basic, JWT, or OAuth auth
 - [Real-Time Features](../guides/realtime-overview.md) - SSE, WebSocket, PubSub
-- [Building Extensions](../guides/building-extensions.md) - Shared services across apps
+- [Building Services](../guides/building-extensions.md) - Shared services across apps
+- [FIQL Queries](../guides/fiql.md) - Advanced filtering
+Services](../guides/building-extensions.md) - Shared services across apps
 - [FIQL Queries](../guides/fiql.md) - Advanced filtering

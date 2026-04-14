@@ -108,11 +108,11 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="graphql"><a class="header" href="#graphql">GraphQL</a></h1>
-<p>Yeti auto-generates a GraphQL API from your schema. Tables with <code>graphql: true</code> get query, mutation, and subscription support at <code>POST /{app-id}/graphql</code>.</p>
+<p>Yeti auto-generates a GraphQL API from your schema. Tables with <code>graphql: true</code> on <code>@export</code> (the default) get query, mutation, and subscription support at <code>POST /{app-id}/graphql</code>.</p>
 <h2 id="setup"><a class="header" href="#setup">Setup</a></h2>
 <pre><code class="language-yaml">graphql: true
 schemas:
-  - schema.graphql
+  path: "schema.graphql"
 </code></pre>
 <h2 id="queries"><a class="header" href="#queries">Queries</a></h2>
 <pre><code class="language-bash"># List all books

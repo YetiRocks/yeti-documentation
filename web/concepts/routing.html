@@ -112,21 +112,31 @@
 <h2 id="url-structure"><a class="header" href="#url-structure">URL Structure</a></h2>
 <pre><code>https://localhost/{app-id}/{resource-or-table}/{id}
 </code></pre>
-<p>Every application's routes live under its <code>app_id</code> prefix. The <code>route_prefix</code> config option can override this:</p>
-<pre><code class="language-yaml">app_id: "my-admin"
-route_prefix: /admin
+<p>Every application's routes live under its <code>app_id</code> prefix. Resources are served under the configured <code>resources.route</code> prefix (default: <code>/api</code>), and static files under the <code>static.route</code> prefix (default: <code>/</code>).</p>
+<h2 id="root-app"><a class="header" href="#root-app">Root App</a></h2>
+<p>A single application can be designated as the root app in <code>yeti-config.yaml</code>, serving at <code>/</code> instead of <code>/{app-id}/</code>:</p>
+<pre><code class="language-yaml"># yeti-config.yaml
+root_app: www
 </code></pre>
+<p>The root app's routes occupy the domain root. All other apps remain under their <code>/{app-id}/</code> prefix. Only one app can be the root app.</p>
 <h2 id="resolution-order"><a class="header" href="#resolution-order">Resolution Order</a></h2>
 <p>When multiple handlers could match a request, they resolve in this order:</p>
 <ol>
-<li><strong>Custom resources</strong> (exact name match)</li>
+<li><strong>Custom resources</strong> (exact name match under <code>resources.route</code>)</li>
 <li><strong>Table endpoints</strong> (auto-generated from <code>@export</code>)</li>
 <li><strong>Default resource</strong> (catch-all, one per app)</li>
-<li><strong>Static files</strong> (from <code>web/</code> directory)</li>
+<li><strong>Static files</strong> (from <code>static.path</code> directory under <code>static.route</code>)</li>
 <li><strong>404 Not Found</strong></li>
 </ol>
 <p>A custom resource with the same name as a table takes precedence. Unoverridden methods fall through to the default table handler.</p>
-<h2 id="generated-endpoints"><a class="header" href="#generated-endpoints">Generated Endpoints</a></h2>
+<h2 id="route-defaults"><a class="header" href="#route-defaults">Route Defaults</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Config Section</th><th>Default Route</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>resources.route</code></td><td><code>/api</code></td><td>URL prefix for custom resource handlers</td></tr>
+<tr><td><code>static.route</code></td><td><code>/</code></td><td>URL prefix for static file serving</td></tr>
+</tbody></table>
+</div>
+<p>Apps without a <code>resources:</code> section serve tables at the root path (typical for services and static-only apps).</p>
+<h2 id="generated-table-endpoints"><a class="header" href="#generated-table-endpoints">Generated Table Endpoints</a></h2>
 <p>Every <code>@export</code>ed table produces:</p>
 <pre><code>GET    /{app-id}/{Table}        # List/search
 POST   /{app-id}/{Table}        # Create
@@ -135,22 +145,36 @@ PUT    /{app-id}/{Table}/{id}   # Replace
 PATCH  /{app-id}/{Table}/{id}   # Partial update
 DELETE /{app-id}/{Table}/{id}   # Delete
 </code></pre>
-<p>With <code>sse: true</code>, the table supports <code>GET /{app-id}/{Table}?stream=sse</code> for real-time change streams.</p>
+<p>With <code>@export(sse: true)</code>, the table supports <code>GET /{app-id}/{Table}?stream=sse</code> for real-time change streams.</p>
+<h3 id="custom-endpoint-paths"><a class="header" href="#custom-endpoint-paths">Custom Endpoint Paths</a></h3>
+<p>Use <code>@export(name: "custom-path")</code> to override the default endpoint path (lowercase type name):</p>
+<pre><code class="language-graphql">type Product @table @export(name: "api/v1/products") { ... }
+</code></pre>
+<p>This serves the table at <code>/{app-id}/api/v1/products</code> instead of <code>/{app-id}/product</code>.</p>
+<p>An empty name (<code>@export(name: "")</code>) mounts the table at the app root.</p>
 <h2 id="protocol-specific-endpoints"><a class="header" href="#protocol-specific-endpoints">Protocol-Specific Endpoints</a></h2>
-<p>With <code>graphql: true</code>, the table is queryable via <code>POST /{app-id}/graphql</code>.</p>
-<p>With <code>mcp: true</code> in the app's config.yaml, a JSON-RPC 2.0 endpoint is available at <code>POST /{app-id}/mcp</code> for Model Context Protocol clients.</p>
-<p>With <code>interfaces.grpc.enabled</code> in yeti-config.yaml, all <code>@export</code>ed tables are accessible via gRPC on the same port. HTTP/2 requests with <code>content-type: application/grpc</code> are routed to the gRPC tables service (Get, Put, Delete, Scan, Query, ListTables, Subscribe).</p>
+<p>With <code>graphql: true</code> in the app config, all GraphQL-enabled tables are queryable via <code>POST /{app-id}/graphql</code>.</p>
+<p>With <code>mcp: true</code> in the app config, a JSON-RPC 2.0 endpoint is available at <code>POST /{app-id}/mcp</code> for Model Context Protocol clients. MCP also auto-enables when any table has <code>@export(mcp: true)</code>.</p>
+<p>With <code>interfaces.grpc.enabled</code> in <code>yeti-config.yaml</code>, all <code>@export</code>ed tables are accessible via gRPC on the same port. HTTP/2 requests with <code>content-type: application/grpc</code> are routed to the gRPC tables service (Get, Put, Delete, Scan, Query, ListTables, Subscribe).</p>
 <h2 id="special-routes"><a class="header" href="#special-routes">Special Routes</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Route</th><th>Purpose</th></tr></thead><tbody>
 <tr><td><code>/health</code></td><td>Server health check (always available)</td></tr>
-<tr><td><code>/studio/</code></td><td>Studio admin UI</td></tr>
+<tr><td><code>/admin/</code></td><td>Admin UI (yeti-admin service)</td></tr>
 <tr><td><code>/mqtt</code></td><td>MQTT WebSocket proxy (if MQTT enabled)</td></tr>
 <tr><td><code>/{app-id}/graphql</code></td><td>GraphQL endpoint (if <code>graphql: true</code>)</td></tr>
 <tr><td><code>/{app-id}/mcp</code></td><td>MCP JSON-RPC 2.0 endpoint (if <code>mcp: true</code>)</td></tr>
 <tr><td><code>/yeti.tables.Tables/*</code></td><td>gRPC tables service (if <code>interfaces.grpc.enabled</code>)</td></tr>
 </tbody></table>
 </div>
-<p>See also: <a href="resources.html">Resources</a>, <a href="../guides/custom-resources.html">Custom Resources</a>, <a href="../guides/static-files.html">Static File Serving</a>.</p>
+<h2 id="static-file-routing"><a class="header" href="#static-file-routing">Static File Routing</a></h2>
+<p>Static files are served from the directory specified in <code>static.path</code>. When <code>spa: true</code>, unmatched paths serve <code>index.html</code> with status 200, letting the client-side router handle navigation.</p>
+<pre><code class="language-yaml">static:
+  path: web
+  route: /
+  spa: true
+</code></pre>
+<p>Without <code>spa</code>, unmatched paths return 404. The <code>route</code> field controls the URL prefix (default: <code>/</code>).</p>
+<p>See also: <a href="resources.html">Resources</a>, <a href="schemas.html">Schemas</a>.</p>
 
                     </main>
 

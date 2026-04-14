@@ -114,19 +114,103 @@
 resource!(Greeting {
     get =&gt; json!({"greeting": "Hello, World!"})
 });</code></pre>
-<p>Creates <code>GET /{app-id}/greeting</code>. The <code>resource!</code> macro handles struct definition, trait implementation, and plugin registration.</p>
+<p>Creates <code>GET /{app-id}/api/greeting</code>. The <code>resource!</code> macro handles struct definition, trait implementation, and plugin registration.</p>
 <p>Place <code>.rs</code> files in <code>resources/</code> and reference them in <code>config.yaml</code>:</p>
 <pre><code class="language-yaml">resources:
-  - resources/*.rs
+  path: "resources/*.rs"
+  route: "/api"
 </code></pre>
-<p>Resources compile to dynamic libraries and load at runtime. Initial compilation takes ~2 minutes; cached rebuilds are fast.</p>
-<p>For HTTP calls, use <code>fetch()</code> from <code>yeti_sdk::prelude</code>. Do not use <code>reqwest::blocking::Client</code> -- crashes in dylib context.</p>
-<p>For logging, use <code>tracing::warn!()</code> or other <code>tracing</code> macros. Never use <code>eprintln!()</code> -- it bypasses the structured logging pipeline.</p>
-<p>For the full API - request parsing, response helpers, table access, <code>fetch()</code> usage, manual trait implementation - see <a href="../guides/custom-resources.html">Custom Resources</a>.</p>
+<p>The <code>route</code> field sets the URL prefix for all resources (default: <code>/api</code>). Resources compile to dynamic libraries and load at runtime. Initial compilation takes ~2 minutes; cached rebuilds are fast.</p>
+<h2 id="context-access"><a class="header" href="#context-access">Context Access</a></h2>
+<p>When you need request data, use a single <code>ctx</code> parameter. Context flows through the request pipeline, accumulating fields from each layer (protocol, router, auth, dispatch):</p>
+<pre><code class="language-rust ignore">resource!(Items {
+    get(ctx) =&gt; {
+        let items = ctx.get_table("Items")?.get_all().await?;
+        reply().json(&amp;items)
+    },
+    post(ctx) =&gt; {
+        let item = ctx.require_json_body()?.clone();
+        let id = item["id"].as_str().unwrap();
+        ctx.get_table("Items")?.put(id, item).await?;
+        created(json!({"id": id}))
+    },
+    get(ctx) =&gt; {
+        let id = ctx.require_id()?;
+        let item = ctx.get_table("Items")?.get(id).await?;
+        match item {
+            Some(val) =&gt; reply().json(&amp;val),
+            None =&gt; not_found()
+        }
+    },
+    delete(ctx) =&gt; {
+        let id = ctx.require_id()?;
+        ctx.get_table("Items")?.delete(id).await?;
+        no_content()
+    }
+});</code></pre>
+<h3 id="context-fields"><a class="header" href="#context-fields">Context Fields</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Field / Method</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>ctx.method</code></td><td>HTTP method</td></tr>
+<tr><td><code>ctx.path</code></td><td>Full request path</td></tr>
+<tr><td><code>ctx.path_id</code></td><td>Record ID from path (e.g., <code>"123"</code> from <code>/Table/123</code>)</td></tr>
+<tr><td><code>ctx.headers</code></td><td>HTTP headers</td></tr>
+<tr><td><code>ctx.body</code></td><td>Raw request body bytes</td></tr>
+<tr><td><code>ctx.query_params</code></td><td>Parsed query parameters</td></tr>
+<tr><td><code>ctx.is_collection</code></td><td>Whether this is a collection request (no ID)</td></tr>
+<tr><td><code>ctx.app_id</code></td><td>Application ID</td></tr>
+<tr><td><code>ctx.auth_identity</code></td><td>Authentication identity (if present)</td></tr>
+</tbody></table>
+</div>
+<h3 id="context-extension-methods"><a class="header" href="#context-extension-methods">Context Extension Methods</a></h3>
+<p>Import <code>ContextExt</code> (included in <code>prelude::*</code>) for convenience methods:</p>
+<div class="table-wrapper"><table><thead><tr><th>Method</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>ctx.require_id()</code></td><td>Get path ID or return 400</td></tr>
+<tr><td><code>ctx.require_json_body()</code></td><td>Get parsed JSON body or return 400</td></tr>
+<tr><td><code>ctx.get_table("Name")</code></td><td>Get a <code>Table</code> accessor by name</td></tr>
+<tr><td><code>ctx.tables()</code></td><td>Get a <code>Tables</code> accessor for all backends</td></tr>
+<tr><td><code>ctx.auth_identity()</code></td><td>Get the auth identity (if present)</td></tr>
+<tr><td><code>ctx.cookie("name")</code></td><td>Get a cookie value from request headers</td></tr>
+<tr><td><code>ctx.query("key")</code></td><td>Get a query parameter by name</td></tr>
+<tr><td><code>ctx.query_int("key", default)</code></td><td>Get a query parameter as i64</td></tr>
+<tr><td><code>ctx.table("name")</code></td><td>Get a raw KvBackend by table name</td></tr>
+</tbody></table>
+</div>
+<h2 id="resource-options"><a class="header" href="#resource-options">Resource Options</a></h2>
+<pre><code class="language-rust ignore">// Custom endpoint name (URL path differs from struct name)
+resource!(MyResource {
+    name = "custom-path",
+    get =&gt; json!({ "data": "value" })
+});
+
+// Default/catch-all resource (handles all unmatched paths within the app)
+resource!(PageCache {
+    default = true,
+    get(ctx) =&gt; {
+        let path = ctx.path_id.as_deref().unwrap_or("/");
+        // ... fetch and cache logic
+    }
+});
+
+// Both options
+resource!(CatchAll {
+    name = "fallback",
+    default = true,
+    get =&gt; reply().text("Not found")
+});</code></pre>
+<h2 id="table-extenders"><a class="header" href="#table-extenders">Table Extenders</a></h2>
+<p>Override permissions or behavior for auto-generated table endpoints:</p>
+<pre><code class="language-rust ignore">resource!(TableExtender for Employee {
+    get =&gt; allow_read(),
+    put =&gt; allow_update(),
+    delete =&gt; deny()
+});</code></pre>
+<h2 id="important-notes"><a class="header" href="#important-notes">Important Notes</a></h2>
+<ul>
+<li>For HTTP calls, use <code>fetch()</code> from <code>yeti_sdk::prelude</code>. Do not use <code>reqwest::blocking::Client</code> -- it crashes in dylib context.</li>
+<li>For logging, use <code>tracing::warn!()</code> or other <code>tracing</code> macros. Never use <code>eprintln!()</code>.</li>
+<li>Do not use <code>tokio::spawn</code> in resources -- it corrupts the host runtime. Use <code>futures::stream::unfold</code> for streaming patterns.</li>
+</ul>
 <h2 id="routing-priority"><a class="header" href="#routing-priority">Routing Priority</a></h2>
-<p>Yeti generates routes automatically from schemas and resources. Every <code>@export</code>ed table and every resource file produces HTTP endpoints under the app's URL prefix:</p>
-<pre><code>https://localhost/{app-id}/{resource-or-table}
-</code></pre>
 <p>When multiple handlers could match a request, they resolve in this order:</p>
 <ol>
 <li><strong>Custom resources</strong> (exact name match)</li>
@@ -136,12 +220,7 @@ resource!(Greeting {
 <li><strong>404 Not Found</strong></li>
 </ol>
 <p>A custom resource with the same name as a table takes precedence. Unoverridden methods fall through to the default table handler.</p>
-<p>A default resource catches all unmatched paths within an app:</p>
-<pre><code class="language-rust ignore">resource!(SpaFallback {
-    default = true,
-    get =&gt; ok_html(include_str!("../web/index.html"))
-});</code></pre>
-<p>See also: <a href="../api/rest.html">REST API</a>, <a href="../guides/custom-resources.html">Custom Resources</a>, <a href="../guides/static-files.html">Static File Serving</a>.</p>
+<p>See also: <a href="../api/rest.html">REST API</a>, <a href="routing.html">Routing</a>, <a href="../guides/static-files.html">Static File Serving</a>.</p>
 
                     </main>
 
