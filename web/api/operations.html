@@ -108,18 +108,18 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="mcp-api"><a class="header" href="#mcp-api">MCP API</a></h1>
-<p>Yeti exposes a <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> (MCP) endpoint for AI agents and tool-calling LLMs to interact with application tables using a standardized JSON-RPC 2.0 interface.</p>
+<p><a href="https://modelcontextprotocol.io/">Model Context Protocol</a> (MCP) endpoint for AI agents and tool-calling LLMs. Standardized JSON-RPC 2.0 interface over application tables.</p>
 <h2 id="enabling-mcp"><a class="header" href="#enabling-mcp">Enabling MCP</a></h2>
-<p>MCP is auto-enabled for any table with <code>@export(mcp: true)</code> in its schema. When <code>@export</code> is present without arguments, <code>mcp</code> defaults to <code>true</code>.</p>
+<p>Auto-enabled for any table with <code>@export(mcp: true)</code>. When <code>@export</code> is present without arguments, <code>mcp</code> defaults to <code>true</code>.</p>
 <pre><code class="language-graphql">type Product @table @export(mcp: true) {
     id: ID!
     name: String!
     price: Float!
 }
 </code></pre>
-<p>The MCP endpoint is available at <code>POST /{app-id}/mcp</code>.</p>
+<p>Endpoint: <code>POST /{app-id}/mcp</code>.</p>
 <h2 id="transport"><a class="header" href="#transport">Transport</a></h2>
-<p>Streamable HTTP. All requests use <strong>JSON-RPC 2.0</strong> over HTTP POST:</p>
+<p>Streamable HTTP, JSON-RPC 2.0 over POST:</p>
 <pre><code class="language-bash">curl -sk -X POST https://localhost:9996/my-app/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"my-agent","version":"1.0"}}}'
@@ -149,7 +149,7 @@
 </code></pre>
 <p>Response includes <code>tools</code>, <code>resources</code>, and <code>prompts</code> capability declarations.</p>
 <h3 id="toolslist"><a class="header" href="#toolslist"><code>tools/list</code></a></h3>
-<p>Returns tool definitions for all MCP-enabled tables. Each table generates six tools:</p>
+<p>Returns tool definitions. Each MCP-enabled table generates six tools:</p>
 <div class="table-wrapper"><table><thead><tr><th>Tool</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>{table}_get</code></td><td>Get a record by ID</td></tr>
 <tr><td><code>{table}_list</code></td><td>List records with optional limit, offset, order_by</td></tr>
@@ -167,7 +167,7 @@
 }
 </code></pre>
 <h3 id="toolscall"><a class="header" href="#toolscall"><code>tools/call</code></a></h3>
-<p>Invokes a tool to perform an operation.</p>
+<p>Invoke a tool:</p>
 <pre><code class="language-json">{
   "jsonrpc": "2.0",
   "id": 3,
@@ -240,7 +240,7 @@
 </tbody></table>
 </div>
 <h2 id="authentication"><a class="header" href="#authentication">Authentication</a></h2>
-<p>MCP endpoints use the same authentication as the rest of the application (Basic, JWT, or OAuth). Include credentials in the request headers.</p>
+<p>MCP endpoints use the same authentication as the rest of the application. Include credentials in request headers.</p>
 <h2 id="get-endpoint"><a class="header" href="#get-endpoint">GET Endpoint</a></h2>
 <p><code>GET /{app-id}/mcp</code> returns a JSON description of the endpoint including available tables, tool counts, and instructions.</p>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>

@@ -118,7 +118,7 @@
 </tbody></table>
 </div>
 <h2 id="backup-procedure"><a class="header" href="#backup-procedure">Backup Procedure</a></h2>
-<p>RocksDB supports hot backup - safe to copy while server is running:</p>
+<p>RocksDB supports hot backup -- safe to copy while the server is running:</p>
 <pre><code class="language-bash">BACKUP_DIR="/backups/yeti-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$BACKUP_DIR"
 cp -r /var/lib/yeti/data "$BACKUP_DIR/data"
@@ -154,7 +154,7 @@ rm -rf /var/lib/yeti/cache/builds/*/src/
 yeti start --dir /var/lib/yeti
 </code></pre>
 <h2 id="replication-as-durability-strategy"><a class="header" href="#replication-as-durability-strategy">Replication as Durability Strategy</a></h2>
-<p>Yeti uses RocksDB as its sole storage engine (no TiKV or other external databases). For additional durability beyond backups, enable replication to maintain copies across multiple nodes:</p>
+<p>For durability beyond backups, enable replication across multiple nodes:</p>
 <pre><code class="language-yaml">replication:
   enabled: true
   port: 9997

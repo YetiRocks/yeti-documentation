@@ -108,11 +108,11 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="storage-engine"><a class="header" href="#storage-engine">Storage Engine</a></h1>
-<p>RocksDB key-value store. Each application gets its own database namespace with automatic sharding. Data always lives in <code>data/</code> under the root directory.</p>
+<p>RocksDB key-value store. Each application gets its own database namespace with automatic sharding. Data lives in <code>data/</code> under the root directory.</p>
 <pre><code class="language-yaml">storage:          # RocksDB storage (default, no config needed)
 </code></pre>
 <h2 id="replication"><a class="header" href="#replication">Replication</a></h2>
-<p>Replication is configured via a top-level <code>replication:</code> section (not under <code>storage:</code>). It requires a valid license key (Ed25519-signed, offline verification).</p>
+<p>Configured via a top-level <code>replication:</code> section (not under <code>storage:</code>). Requires a valid license key (Ed25519-signed, offline verification).</p>
 <pre><code class="language-yaml">replication:
   enabled: true
   licenseKey: "your-license-key"
@@ -121,7 +121,7 @@
     - "peer1:9997"
     - "peer2:9997"
 </code></pre>
-<p>When enabled, the cluster coordinator starts, gossip discovers peers, and replication begins automatically. With no peers, the coordinator idles and the node runs standalone. There is no separate "embedded" vs "distributed" mode -- only one storage engine (RocksDB) exists.</p>
+<p>When enabled, the cluster coordinator starts, gossip discovers peers, and replication begins. With no peers, the coordinator idles and the node runs standalone. There is no separate "embedded" vs "distributed" mode.</p>
 <h2 id="sharding"><a class="header" href="#sharding">Sharding</a></h2>
 <p>Each database splits across <code>max(num_cpus / 2, 2)</code> RocksDB instances. Keys are distributed via consistent hash of the primary key.</p>
 <pre><code>data/my-app/
@@ -136,7 +136,7 @@
 <h2 id="value-encoding"><a class="header" href="#value-encoding">Value Encoding</a></h2>
 <p><strong>MessagePack</strong> - 30-50% smaller than JSON, faster serialization.</p>
 <h2 id="backendmanager"><a class="header" href="#backendmanager">BackendManager</a></h2>
-<p>Maps table names to backend instances. One sharded RocksDB per database. Service tables are merged via <code>with_merged_tables()</code> for services declared in the app's config.</p>
+<p>Maps table names to backend instances. One sharded RocksDB per database. Service tables merge via <code>with_merged_tables()</code> for services declared in the app's config.</p>
 <h2 id="kvbackend-trait"><a class="header" href="#kvbackend-trait">KvBackend Trait</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>put(key, value)</code></td><td>Single write</td></tr>
@@ -162,7 +162,7 @@
 <h2 id="table-expiration"><a class="header" href="#table-expiration">Table Expiration</a></h2>
 <pre><code class="language-graphql">type PageCache @table(expiration: 3600) { ... }
 </code></pre>
-<p>Records older than the specified seconds are automatically cleaned up. Per-record TTL is also available via the <code>@expiresAt</code> field directive.</p>
+<p>Records older than the specified seconds are cleaned up automatically. Per-record TTL is available via <code>@expiresAt</code>.</p>
 
                     </main>
 

@@ -143,7 +143,7 @@
 </code></pre>
 <p>Strategies: <code>provider</code> (match by provider name) or <code>email</code> (wildcard pattern). Rules evaluate in order; first match wins.</p>
 <h3 id="role-resolution-on-no-match"><a class="header" href="#role-resolution-on-no-match">Role Resolution on No Match</a></h3>
-<p>If no rule matches the user's provider or email, the user is <strong>denied access</strong> (401). There is no implicit default role for OAuth users. To allow all OAuth users, add a catch-all rule:</p>
+<p>If no rule matches the user's provider or email, the user is <strong>denied access</strong> (401). No implicit default role exists for OAuth users. To allow all OAuth users, add a catch-all rule:</p>
 <pre><code class="language-yaml">rules:
   - strategy: provider
     pattern: "*"
@@ -190,7 +190,7 @@ curl -sk https://localhost:9996/yeti-auth/oauth_providers
 <ul>
 <li><strong>Wrong callback URL</strong>: The callback registered with your OAuth provider must exactly match <code>https://your-host:port/yeti-auth/oauth_callback</code>. A mismatch (trailing slash, wrong port, HTTP vs HTTPS) causes a silent redirect failure.</li>
 <li><strong>Missing HTTPS in production</strong>: OAuth providers reject non-HTTPS callback URLs in production. Yeti also validates this at startup.</li>
-<li><strong>Credentials in config instead of env vars</strong>: Use <code>${ENV_VAR}</code> syntax in config.yaml. The values are resolved from environment variables at startup.</li>
+<li><strong>Credentials in config instead of env vars</strong>: Use <code>${ENV_VAR}</code> syntax in config.yaml. Values resolve from environment variables at startup.</li>
 <li><strong>No matching rule and no catch-all</strong>: Without a matching rule, the user is denied after successful provider login. Add a fallback rule if you want all OAuth users to have access.</li>
 </ul>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>

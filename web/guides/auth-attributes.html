@@ -161,7 +161,7 @@
 </code></pre>
 <p>The <code>id</code> field (primary key) is always allowed in write payloads regardless of attribute permissions.</p>
 <h2 id="fast-path"><a class="header" href="#fast-path">Fast Path</a></h2>
-<p>The <code>has_unrestricted_attributes()</code> method provides a fast path: if no <code>attribute_permissions</code> are configured for a table, the system skips all per-field checks and uses <code>FullAccess</code> mode. This means attribute-level enforcement has zero cost for roles that do not use it.</p>
+<p>The <code>has_unrestricted_attributes()</code> method provides a fast path: if no <code>attribute_permissions</code> are configured for a table, the system skips all per-field checks and uses <code>FullAccess</code> mode. Attribute-level enforcement has zero cost for roles that do not use it.</p>
 <p>The dispatch layer pre-computes a <code>TablePermission</code> enum per request:</p>
 <ul>
 <li><code>Public</code> -- no auth required (from <code>@export(public: [...])</code>)</li>

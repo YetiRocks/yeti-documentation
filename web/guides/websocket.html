@@ -150,7 +150,7 @@ ws.send(JSON.stringify({
 <pre><code class="language-javascript">const ws = new WebSocket('wss://localhost:9996/my-app/Message/msg-1');
 </code></pre>
 <h2 id="pubsub-integration"><a class="header" href="#pubsub-integration">PubSub Integration</a></h2>
-<p>WebSocket connections are subscribers to PubSub topics. When a record is written via any path (REST, GraphQL, SDK), PubSub broadcasts the change to all WebSocket connections subscribed to the matching table or record topic. This means a REST write in one client is instantly visible to all WebSocket subscribers.</p>
+<p>WebSocket connections subscribe to PubSub topics. When a record is written via any path (REST, GraphQL, SDK), PubSub broadcasts the change to all subscribed WebSocket connections. A REST write from one client is instantly visible to all WebSocket subscribers.</p>
 <h2 id="heartbeat"><a class="header" href="#heartbeat">Heartbeat</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
 <tr><td>Ping interval</td><td>5 seconds</td></tr>

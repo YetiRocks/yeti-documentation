@@ -140,8 +140,8 @@
   }
 }
 </code></pre>
-<p>Each login adds the target app's entry to the <code>apps</code> map. Logging out of an app removes its entry. This allows a single token to carry permissions for multiple apps without re-authenticating.</p>
-<p>When a request arrives, the <code>JwtAuthProvider</code> extracts the entry for the target app from the <code>apps</code> map. If the app is present, permissions are used directly from the token with no database lookup. If the app is not in the token, the system falls through to AppMembership lookup.</p>
+<p>Each login adds the target app's entry to the <code>apps</code> map. Logging out removes it. A single token carries permissions for multiple apps without re-authenticating.</p>
+<p>On each request, <code>JwtAuthProvider</code> extracts the target app's entry from the <code>apps</code> map. If present, permissions are used directly with no database lookup. If absent, the system falls through to AppMembership lookup.</p>
 <h2 id="making-requests"><a class="header" href="#making-requests">Making Requests</a></h2>
 <pre><code class="language-bash">TOKEN=$(curl -sk -X POST https://localhost:9996/yeti-auth/login \
   -H "Content-Type: application/json" \
@@ -166,7 +166,7 @@ curl -sk -H "Authorization: Bearer $TOKEN" https://localhost:9996/my-app/MyTable
     accessTtl: 1800     # 30 minutes
     refreshTtl: 86400   # 24 hours
 </code></pre>
-<p>Environment variable interpolation (<code>${VAR}</code>) is supported for secrets.</p>
+<p>Secrets support environment variable interpolation (<code>${VAR}</code>).</p>
 <h2 id="javascript-example"><a class="header" href="#javascript-example">JavaScript Example</a></h2>
 <pre><code class="language-javascript">async function login(username, password, appId) {
   const res = await fetch('https://localhost:9996/yeti-auth/login', {
@@ -194,6 +194,8 @@ async function fetchData(token) {
 <ul>
 <li><a href="auth-overview.html">Authentication Overview</a></li>
 <li><a href="auth-basic.html">Basic Authentication</a> - Credential-per-request auth</li>
+<li><a href="auth-oauth.html">OAuth Integration</a> - Third-party provider auth
+Credential-per-request auth</li>
 <li><a href="auth-oauth.html">OAuth Integration</a> - Third-party provider auth</li>
 </ul>
 

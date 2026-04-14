@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="system-overview"><a class="header" href="#system-overview">System Overview</a></h1>
-<p>Yeti is a schema-driven application platform built in Rust. It hosts multiple applications within one runtime, each with isolated databases, routes, and authentication.</p>
+<p>Schema-driven application platform in Rust. Hosts multiple applications within one runtime, each with isolated databases, routes, and authentication.</p>
 <h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
 <pre><code>HTTPS/gRPC/MCP :9996 ──&gt; DynamicRouter ──&gt; /{app-id}/ prefix match
   MQTTS :8883 ───────┘                           │
@@ -151,7 +151,7 @@
 <li><strong>Health Endpoint</strong> - <code>/health</code> for liveness checks and app count</li>
 </ul>
 <h2 id="yeti-cloud"><a class="header" href="#yeti-cloud">Yeti Cloud</a></h2>
-<p>Yeti Cloud is the managed hosting option, providing automated deployment, replication, cgroup isolation, and built-in backups. See <a href="../deployment/cloud.html">Yeti Cloud</a> for details.</p>
+<p>Managed hosting with automated deployment, replication, cgroup isolation, and built-in backups. See <a href="../deployment/cloud.html">Yeti Cloud</a>.</p>
 <h2 id="directory-layout"><a class="header" href="#directory-layout">Directory Layout</a></h2>
 <pre><code>~/yeti/
 ├── yeti-config.yaml

@@ -1,10 +1,10 @@
 # Example Applications
 
-All demo applications are open source on GitHub. Browse the source, then install them directly from the Studio.
+All demos are open source on GitHub. Browse the source, then install from Studio.
 
 ## Browse Source Code
 
-Visit [github.com/yetiRocks](https://github.com/yetiRocks) to view all available applications:
+Source at [github.com/yetiRocks](https://github.com/yetiRocks):
 
 | Repository | What You'll Learn |
 |-----------|-------------------|
@@ -25,14 +25,14 @@ Visit [github.com/yetiRocks](https://github.com/yetiRocks) to view all available
 4. Select a demo from the list or paste a GitHub repository URL
 5. The app installs, compiles, and starts automatically
 
-See [Studio](../guides/studio.md) for more on managing applications.
+See [Studio](../guides/studio.md) for details.
 
 ## Create a New Application
 
-Start from scratch or copy an existing app:
+Start from scratch:
 
 ```bash
 mkdir ~/yeti/applications/my-app
 ```
 
-Add `config.yaml` and `schema.graphql`, then restart the server. See [Quickstart](../getting-started/quickstart.md) for a step-by-step walkthrough.
+Add `config.yaml` and `schema.graphql`, then restart. See [Quickstart](../getting-started/quickstart.md).

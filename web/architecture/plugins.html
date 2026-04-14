@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="plugin-system--hot-reload"><a class="header" href="#plugin-system--hot-reload">Plugin System &amp; Hot Reload</a></h1>
-<p>Yeti compiles custom resources into dynamic libraries (dylibs) loaded at runtime.</p>
+<p>Custom resources compile into dynamic libraries (dylibs) loaded at runtime.</p>
 <h2 id="compilation-pipeline"><a class="header" href="#compilation-pipeline">Compilation Pipeline</a></h2>
 <pre><code>config.yaml + schema.graphql + resources/*.rs
         │
@@ -122,7 +122,7 @@ cache/builds/target/release/lib{app}.dylib
 </code></pre>
 <p>Fresh builds take ~2 minutes per plugin. Cached rebuilds take ~10 seconds.</p>
 <h2 id="hot-reload"><a class="header" href="#hot-reload">Hot Reload</a></h2>
-<p>Yeti monitors dylib files with filesystem watchers:</p>
+<p>Filesystem watchers monitor dylib files:</p>
 <ol>
 <li>Watcher detects change in <code>cache/builds/target/</code></li>
 <li>New dylib copied to temp file (forces OS to load fresh copy)</li>
@@ -133,21 +133,21 @@ cache/builds/target/release/lib{app}.dylib
 <h2 id="plugin-source-cache"><a class="header" href="#plugin-source-cache">Plugin Source Cache</a></h2>
 <p>The compiler copies source to <code>cache/builds/{app}/src/</code> before building. See <a href="../guides/troubleshooting.html">Troubleshooting</a> for cache-clearing instructions when changes are not taking effect.</p>
 <h2 id="dylib-boundary-rules"><a class="header" href="#dylib-boundary-rules">Dylib Boundary Rules</a></h2>
-<p>Dynamic libraries get separate copies of all static data, creating critical constraints:</p>
+<p>Dynamic libraries get separate copies of all static data, creating hard constraints:</p>
 <p><strong>Do not:</strong></p>
 <ul>
-<li>Call <code>tokio::spawn()</code> from dylib code (crashes with "cannot catch foreign exceptions")</li>
-<li>Use <code>eprintln!()</code> for logging (never reaches structured output)</li>
+<li>Call <code>tokio::spawn()</code> (crashes with "cannot catch foreign exceptions")</li>
+<li>Use <code>eprintln!()</code> (never reaches structured output)</li>
 <li>Create tokio channels/futures in methods called from dylib context</li>
 </ul>
 <p><strong>Instead:</strong></p>
 <ul>
-<li>Use <code>futures::stream::unfold</code> instead of spawn+channel patterns</li>
-<li>Use tracing macros (<code>tracing::info!</code>, <code>tracing::warn!</code>, etc.) for consistent API. Output may not reach the host subscriber due to TLS isolation, but tracing remains the correct logging interface.</li>
-<li>Use flag-based patterns: dylib sets flags, host checks after <code>on_ready()</code> returns</li>
+<li><code>futures::stream::unfold</code> instead of spawn+channel patterns</li>
+<li><code>tracing</code> macros for logging (output may not reach the host subscriber due to TLS isolation, but tracing is the correct interface)</li>
+<li>Flag-based patterns: dylib sets flags, host checks after <code>on_ready()</code> returns</li>
 </ul>
 <h2 id="service-plugins"><a class="header" href="#service-plugins">Service Plugins</a></h2>
-<p>User-defined services follow the same pipeline but provide shared capabilities. The compiler auto-detects service types by scanning source for <code>struct {Type}Extension</code>.</p>
+<p>User-defined services follow the same pipeline. The compiler auto-detects service types by scanning for <code>struct {Type}Extension</code>.</p>
 <pre><code class="language-yaml">extension: true
 </code></pre>
 

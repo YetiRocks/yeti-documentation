@@ -108,9 +108,9 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="response-helpers"><a class="header" href="#response-helpers">Response Helpers</a></h1>
-<p>Three layers of response building, from simplest to most flexible. All error responses use the RFC 9457 Problem Details format.</p>
+<p>Three layers of response building, from simplest to most flexible. All errors use RFC 9457 Problem Details.</p>
 <h2 id="rfc-9457-problem-details"><a class="header" href="#rfc-9457-problem-details">RFC 9457 Problem Details</a></h2>
-<p>All error helpers produce <code>application/problem+json</code> responses with a standard structure:</p>
+<p>Error helpers produce <code>application/problem+json</code> responses:</p>
 <pre><code class="language-json">{
   "type": "urn:yeti:error:404",
   "title": "Not Found",
@@ -118,17 +118,17 @@
   "detail": "Record not found: user-123"
 }
 </code></pre>
-<p>The <code>ProblemDetails</code> struct (defined in <code>yeti_types::error</code>) carries:</p>
+<p><code>ProblemDetails</code> (from <code>yeti_types::error</code>):</p>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td>URI reference identifying the problem (e.g., <code>urn:yeti:error:not_found</code>)</td></tr>
-<tr><td><code>title</code></td><td>Short human-readable summary (e.g., "Not Found")</td></tr>
+<tr><td><code>type</code></td><td>URI reference identifying the problem (e.g. <code>urn:yeti:error:not_found</code>)</td></tr>
+<tr><td><code>title</code></td><td>Short human-readable summary (e.g. "Not Found")</td></tr>
 <tr><td><code>status</code></td><td>HTTP status code</td></tr>
-<tr><td><code>detail</code></td><td>Human-readable explanation of this specific occurrence (optional)</td></tr>
+<tr><td><code>detail</code></td><td>Explanation of this occurrence (optional)</td></tr>
 </tbody></table>
 </div>
-<p>Any <code>YetiError</code> can be converted to a <code>ProblemDetails</code> via <code>.to_problem_details()</code>, which maps the error variant to the correct status code, type URI, and title automatically.</p>
+<p>Any <code>YetiError</code> converts to <code>ProblemDetails</code> via <code>.to_problem_details()</code>, mapping variant to status code, type URI, and title.</p>
 <h2 id="layer-1-free-functions"><a class="header" href="#layer-1-free-functions">Layer 1: Free Functions</a></h2>
-<p>Return a response in one call. All return <code>Result&lt;Response&lt;ResponseBody&gt;&gt;</code>.</p>
+<p>Single-call responses. All return <code>Result&lt;Response&lt;ResponseBody&gt;&gt;</code>.</p>
 <h3 id="success-responses"><a class="header" href="#success-responses">Success responses</a></h3>
 <pre><code class="language-rust ignore">fn ok&lt;T: Serialize&gt;(data: T) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
 fn created&lt;T: Serialize&gt;(data: T) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
@@ -148,7 +148,7 @@ fn internal_error(message: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt
 fn error&lt;T: Serialize&gt;(data: T) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
 fn error_response(status: u16, message: &amp;str) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
 fn structured_error_response(err: &amp;YetiError) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;</code></pre>
-<p>The named helpers (<code>bad_request</code>, <code>not_found</code>, <code>unauthorized</code>, <code>internal_error</code>) all delegate to <code>error_response()</code>, which produces RFC 9457 Problem Details:</p>
+<p>Named helpers delegate to <code>error_response()</code>, producing RFC 9457 Problem Details:</p>
 <pre><code class="language-rust ignore">bad_request("Invalid email format")          // 400 application/problem+json
 not_found("User not found")                  // 404 application/problem+json
 unauthorized("Token expired")                // 401 application/problem+json
@@ -171,7 +171,7 @@ ok_with_content_type("image/png", png_bytes)       // 200 + custom MIME
 html_response(404, "&lt;h1&gt;Not Found&lt;/h1&gt;")           // custom status + HTML
 text_response(503, "Service unavailable")          // custom status + text</code></pre>
 <h3 id="domain-specific-helpers"><a class="header" href="#domain-specific-helpers">Domain-specific helpers</a></h3>
-<p>These reduce repeated <code>format!</code> patterns in resource handlers:</p>
+<p>Reduce repeated <code>format!</code> patterns in handlers:</p>
 <pre><code class="language-rust ignore">fn storage_error&lt;E: Display&gt;(err: E) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
 fn serialization_error&lt;E: Display&gt;(err: E) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
 fn invalid_json&lt;E: Display&gt;(err: E) -&gt; Result&lt;Response&lt;ResponseBody&gt;&gt;
@@ -183,7 +183,7 @@ invalid_json(err)                            // 400: "Invalid JSON: {err}"
 record_not_found("user-123")                 // 404: "Record not found: user-123"
 missing_param("email")                       // 400: "Missing 'email' parameter"</code></pre>
 <h3 id="get_or_not_found-pattern"><a class="header" href="#get_or_not_found-pattern">get_or_not_found pattern</a></h3>
-<p>Eliminates the common match-on-Option boilerplate for raw storage lookups:</p>
+<p>Eliminates match-on-Option boilerplate for raw storage lookups:</p>
 <pre><code class="language-rust ignore">fn get_or_not_found(
     result: Result&lt;Option&lt;Vec&lt;u8&gt;&gt;&gt;,
     id: &amp;str,
@@ -194,7 +194,7 @@ missing_param("email")                       // 400: "Missing 'email' parameter"
 };</code></pre>
 <p>Returns the raw bytes on <code>Ok(Some(...))</code>, a 404 Problem Details on <code>Ok(None)</code>, or a 500 Problem Details on <code>Err(...)</code>.</p>
 <h3 id="future-helpers"><a class="header" href="#future-helpers">Future helpers</a></h3>
-<p>For <code>Resource</code> trait default implementations and early returns in async contexts:</p>
+<p>For <code>Resource</code> trait defaults and early returns in async contexts:</p>
 <pre><code class="language-rust ignore">fn method_not_allowed_future() -&gt; ResourceFuture
 fn not_implemented_future(method_name: &amp;'static str) -&gt; ResourceFuture
 fn error_future(status: u16, message: impl Into&lt;String&gt;) -&gt; ResourceFuture
@@ -216,7 +216,7 @@ if id.is_empty() {
 // Wrap a synchronous result as a future
 return ready(ok(json!({"cached": true})));</code></pre>
 <h2 id="layer-2-reply-builder"><a class="header" href="#layer-2-reply-builder">Layer 2: Reply Builder</a></h2>
-<p>Chain methods for custom status codes, headers, and content types. Start with <code>reply()</code>.</p>
+<p>Chain methods for custom status codes, headers, and content types.</p>
 <pre><code class="language-rust ignore">fn reply() -&gt; ReplyBuilder</code></pre>
 <h3 id="replybuilder-methods"><a class="header" href="#replybuilder-methods">ReplyBuilder methods</a></h3>
 <pre><code class="language-rust ignore">impl ReplyBuilder {
@@ -255,7 +255,7 @@ reply().type_header("application/xml").send(xml_bytes)  // custom content type</
     .header("set-cookie", "b=2; Path=/")
     .json(json!({"ok": true}))</code></pre>
 <h2 id="layer-3-macros-deprecated"><a class="header" href="#layer-3-macros-deprecated">Layer 3: Macros (Deprecated)</a></h2>
-<p>These macros are kept for backwards compatibility but are deprecated. Prefer <code>reply()</code> builder or the free functions (<code>ok()</code>, <code>created()</code>, etc.) instead.</p>
+<p>Deprecated. Prefer <code>reply()</code> or the free functions (<code>ok()</code>, <code>created()</code>, etc.).</p>
 <h3 id="ok_json"><a class="header" href="#ok_json">ok_json!</a></h3>
 <pre><code class="language-rust ignore">ok_json!({"key": "value", "count": 42})   // inline JSON object -- prefer ok(json!({...}))</code></pre>
 <h3 id="created_json"><a class="header" href="#created_json">created_json!</a></h3>
@@ -265,9 +265,9 @@ reply().type_header("application/xml").send(xml_bytes)  // custom content type</
 <h3 id="html--text"><a class="header" href="#html--text">html! / text!</a></h3>
 <pre><code class="language-rust ignore">html!("&lt;h1&gt;Title&lt;/h1&gt;")                    // prefer reply().html("...") or ok_html("...")
 text!("plain response")                    // prefer reply().text("...") or ok_text("...")</code></pre>
-<p>The JSON macros accept inline <code>json!</code>-style object syntax (they wrap <code>json!</code> internally).</p>
+<p>JSON macros accept inline <code>json!</code>-style object syntax (they wrap <code>json!</code> internally).</p>
 <h2 id="responseext-trait"><a class="header" href="#responseext-trait">ResponseExt trait</a></h2>
-<p>Add headers to any response or result:</p>
+<p>Adds headers to any response or result:</p>
 <pre><code class="language-rust ignore">pub trait ResponseExt {
     fn add_header(self, name: &amp;str, value: &amp;str) -&gt; Self;
 }</code></pre>
@@ -275,7 +275,6 @@ text!("plain response")                    // prefer reply().text("...") or ok_t
 <pre><code class="language-rust ignore">ok_html(html).add_header("x-cache", "HIT")
 ok(data).add_header("x-request-id", &amp;id)</code></pre>
 <h2 id="response-headers-via-reply-builder"><a class="header" href="#response-headers-via-reply-builder">Response headers via reply builder</a></h2>
-<p>Use <code>reply()</code> with <code>.header()</code> to add custom headers to responses:</p>
 <pre><code class="language-rust ignore">resource!(Cached {
     get(ctx) =&gt; {
         reply()
@@ -284,7 +283,7 @@ ok(data).add_header("x-request-id", &amp;id)</code></pre>
             .json(json!({"data": "cached"}))
     }
 });</code></pre>
-<p>Or use the <code>ResponseExt</code> trait to add headers to any response:</p>
+<p>Or via <code>ResponseExt</code>:</p>
 <pre><code class="language-rust ignore">resource!(Cached {
     get(ctx) =&gt; {
         ok(json!({"data": "cached"}))

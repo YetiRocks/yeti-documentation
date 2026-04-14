@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="your-first-application"><a class="header" href="#your-first-application">Your First Application</a></h1>
-<p>Build a task tracker with two related tables, seed data, a custom resource, and real-time streaming. Requires <a href="installation.html">installation</a> and <a href="quickstart.html">Quickstart</a>.</p>
+<p>Build a task tracker with two related tables, seed data, a custom resource, and real-time streaming. Assumes you have completed <a href="installation.html">installation</a> and the <a href="quickstart.html">Quickstart</a>.</p>
 <h2 id="step-1-create-the-application"><a class="header" href="#step-1-create-the-application">Step 1: Create the Application</a></h2>
 <pre><code class="language-bash">mkdir ~/yeti/applications/task-tracker
 mkdir ~/yeti/applications/task-tracker/resources
@@ -167,6 +167,7 @@ type Tag @table(database: "task-tracker") @export(
 <tr><td><code>@relationship(to: "field")</code></td><td>Reverse join (has-many)</td></tr>
 </tbody></table>
 </div>
+<p>Full directive reference: <a href="../concepts/schemas.html">Schemas &amp; Tables</a>.</p>
 <h2 id="step-4-create-a-custom-resource"><a class="header" href="#step-4-create-a-custom-resource">Step 4: Create a Custom Resource</a></h2>
 <p>Create <code>~/yeti/applications/task-tracker/resources/summary.rs</code>:</p>
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
@@ -231,7 +232,7 @@ resource!(Summary {
   ]
 }
 </code></pre>
-<p>Seed data requires <code>database</code>, <code>table</code>, and <code>records</code>. Records load once on first startup when the table is empty.</p>
+<p>Seed data files require <code>database</code>, <code>table</code>, and <code>records</code>. Records load once on first startup when the table is empty.</p>
 <h2 id="step-6-start-the-server"><a class="header" href="#step-6-start-the-server">Step 6: Start the Server</a></h2>
 <pre><code class="language-bash">yeti restart
 </code></pre>
@@ -268,12 +269,14 @@ curl -sk --max-time 30 "https://localhost:9996/task-tracker/Task?stream=sse"
     tags.json          # Tag seed data
     tasks.json         # Task seed data
 </code></pre>
-<p>Tables with <code>@export</code> also support gRPC and MCP (Model Context Protocol) access when those interfaces are enabled in <code>yeti-config.yaml</code>. Add <code>mcp: true</code> to an app's <code>config.yaml</code> to expose a JSON-RPC 2.0 endpoint at <code>/{app-id}/mcp</code>.</p>
+<p><code>@export</code>ed tables also support gRPC and MCP when those interfaces are enabled in <code>yeti-config.yaml</code>.</p>
 <h2 id="next-steps"><a class="header" href="#next-steps">Next Steps</a></h2>
 <ul>
 <li><a href="../guides/auth-overview.html">Authentication</a> - Add Basic, JWT, or OAuth auth</li>
 <li><a href="../guides/realtime-overview.html">Real-Time Features</a> - SSE, WebSocket, PubSub</li>
 <li><a href="../guides/building-extensions.html">Building Services</a> - Shared services across apps</li>
+<li><a href="../guides/fiql.html">FIQL Queries</a> - Advanced filtering
+Services](../guides/building-extensions.md) - Shared services across apps</li>
 <li><a href="../guides/fiql.html">FIQL Queries</a> - Advanced filtering</li>
 </ul>
 

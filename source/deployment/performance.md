@@ -13,7 +13,7 @@ Start with defaults and adjust based on workload.
 
 ## Protocol Interfaces
 
-Yeti serves REST, GraphQL, WebSocket, SSE, gRPC, MQTT, and MCP through the `interfaces` config. Disable unused protocols to reduce overhead:
+Disable unused protocols to reduce overhead:
 
 ```yaml
 interfaces:

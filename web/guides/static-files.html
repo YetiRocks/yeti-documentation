@@ -111,7 +111,7 @@
 <blockquote>
 <p><strong>Warning:</strong> Do not use <code>default = true</code> in a custom resource when the app also has static file serving configured. The SPA fallback and the default resource conflict over routes. Use explicit named resources instead.</p>
 </blockquote>
-<p>Yeti serves frontend applications alongside your API.</p>
+<p>Serve frontend applications alongside your API.</p>
 <h2 id="spa-mode"><a class="header" href="#spa-mode">SPA Mode</a></h2>
 <p>For single-page applications (React, Vue, etc.), set <code>spa: true</code>. Unmatched paths serve <code>index.html</code> with status 200, letting the client-side router handle navigation. Route defaults to <code>/</code>.</p>
 <pre><code class="language-yaml">static:
@@ -154,7 +154,7 @@
 </ul>
 <p>Subfolders work in both SPA and plain modes. The only difference is what happens when a path doesn't match any file.</p>
 <h2 id="build-pipelines"><a class="header" href="#build-pipelines">Build Pipelines</a></h2>
-<p>Yeti can build your frontend before serving. The build configuration lives inside the <code>static</code> block:</p>
+<p>Build configuration lives inside the <code>static</code> block:</p>
 <pre><code class="language-yaml">static:
   path: web
   spa: true
@@ -162,7 +162,7 @@
     sourceDir: source          # Frontend project directory (default: "source")
     command: npm run build     # Build command (default: "npm run build")
 </code></pre>
-<p>The <code>sourceDir</code> is the directory containing your frontend project (package.json, vite.config.ts, etc.). The build output should land in the directory specified by <code>path</code>.</p>
+<p><code>sourceDir</code> contains the frontend project (package.json, vite.config.ts, etc.). Build output must land in the directory specified by <code>path</code>.</p>
 <h2 id="vite-integration"><a class="header" href="#vite-integration">Vite Integration</a></h2>
 <pre><code class="language-typescript">// vite.config.ts
 import { defineConfig } from 'vite'

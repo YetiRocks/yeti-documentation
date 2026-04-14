@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="table-expiration"><a class="header" href="#table-expiration">Table Expiration</a></h1>
-<p>Yeti supports automatic record expiration (TTL) using RocksDB's built-in TTL compaction.</p>
+<p>Automatic record expiration (TTL) using RocksDB's built-in TTL compaction.</p>
 <h2 id="expiration-configuration"><a class="header" href="#expiration-configuration">Expiration Configuration</a></h2>
 <p>Set <code>expiration</code> (in seconds) on the <code>@table</code> directive:</p>
 <pre><code class="language-graphql">type Session @table(expiration: 3600) @export {

@@ -109,12 +109,12 @@
                     <main>
                         <h1 id="monitoring"><a class="header" href="#monitoring">Monitoring</a></h1>
 <h2 id="health-check"><a class="header" href="#health-check">Health Check</a></h2>
-<p>Liveness probe available on the main HTTPS port:</p>
+<p>Liveness probe on the main HTTPS port:</p>
 <pre><code class="language-bash">curl -sk https://localhost:9996/health
 </code></pre>
 <p>Returns server status and loaded application count.</p>
 <h2 id="admin-dashboard"><a class="header" href="#admin-dashboard">Admin Dashboard</a></h2>
-<p>Full application management and monitoring via Studio:</p>
+<p>Application management and monitoring via Studio:</p>
 <pre><code>https://localhost:9996/studio/
 </code></pre>
 <p>See <a href="../guides/studio.html">Studio</a> for details.</p>
@@ -138,16 +138,16 @@ curl -sk -N "https://localhost:9996/yeti-telemetry/Metric?stream=sse"
   serviceName: "yeti-production"
   otlpEndpoint: "http://otel-collector:4317"
 </code></pre>
-<p>OTLP export is owned entirely by the <code>yeti-telemetry</code> service (core has zero OpenTelemetry code). Exports via OpenTelemetry Protocol to Grafana, Datadog, Jaeger, Prometheus, etc.</p>
+<p>OTLP export lives in <code>yeti-telemetry</code> (core has zero OpenTelemetry code). Exports to Grafana, Datadog, Jaeger, Prometheus, etc.</p>
 <p>Also configurable via <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> environment variable.</p>
 <h2 id="mcp-audit-logging"><a class="header" href="#mcp-audit-logging">MCP Audit Logging</a></h2>
-<p>The MCP interface (Model Context Protocol) has audit logging enabled by default. All MCP tool invocations are recorded with request/response details:</p>
+<p>MCP tool invocations are audit-logged by default:</p>
 <pre><code class="language-yaml">interfaces:
   mcp:
     enabled: true
     audit: true
 </code></pre>
-<p>Audit events flow through the telemetry pipeline and appear in the Log table.</p>
+<p>Events flow through telemetry and appear in the Log table.</p>
 <h2 id="monitoring-tiers"><a class="header" href="#monitoring-tiers">Monitoring Tiers</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Tier</th><th>Approach</th><th>Latency</th></tr></thead><tbody>
 <tr><td>Real-time</td><td>SSE streams or Dashboard</td><td>Instant</td></tr>

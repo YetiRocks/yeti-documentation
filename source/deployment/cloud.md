@@ -190,7 +190,7 @@ https://{app}.{customer}.cloud.yetirocks.com/otel/v1/logs
 
 ### Log Access
 
-Logs are stored per-instance. Use Studio to drill into a specific instance's logs (region, app, then instance). For centralized cross-instance log aggregation, configure OTLP export to a third-party log service.
+Logs are per-instance. Drill into specific instances via Studio (region, app, instance). For cross-instance aggregation, configure OTLP export.
 
 ### Data Retention
 
@@ -215,22 +215,20 @@ Logs are stored per-instance. Use Studio to drill into a specific instance's log
 | **Monitoring** | yeti-telemetry (self-managed) | Built-in dashboard + OTLP export |
 | **Cost** | Your infrastructure costs | Usage-based pricing |
 
-The key principle: Yeti Cloud runs the exact same platform you run locally. Your app code, configuration, and schemas are identical. The cloud adds managed infrastructure, automatic scaling, and multi-region distribution.
+Same platform locally and in the cloud. App code, configuration, and schemas are identical. The cloud adds managed infrastructure, automatic scaling, and multi-region distribution.
 
 ## Version Management
 
-Yeti Cloud supports multiple binary versions simultaneously. Your deployment manifest pins a major version:
+Multiple binary versions run simultaneously. Pin a major version in the manifest:
 
 ```yaml
 build:
   yeti_version: "0.4"
 ```
 
-- **Patch updates** (0.4.2 to 0.4.3) — applied automatically, no action needed
-- **Minor updates** (0.4.x to 0.4.y) — applied automatically, new features available
-- **Major updates** (0.4.x to 0.5.0) — opt-in; test locally first, then update your manifest
-
-When a new major version is available, Studio shows a notification. Update your local Yeti binary, test your apps, then update `yeti_version` in your manifest and deploy.
+- **Patch updates** (0.4.2 to 0.4.3) -- applied automatically
+- **Minor updates** (0.4.x to 0.4.y) -- applied automatically
+- **Major updates** (0.4.x to 0.5.0) -- opt-in; test locally first, then update your manifest
 
 ## Getting Started
 

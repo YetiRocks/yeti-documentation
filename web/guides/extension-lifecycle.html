@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="service-lifecycle"><a class="header" href="#service-lifecycle">Service Lifecycle</a></h1>
-<p>Services start in a well-defined sequence. The runtime calls each <code>Service</code> trait method in order, providing context objects that expose progressively more capability.</p>
+<p>The runtime calls each <code>Service</code> trait method in order, with context objects that expose progressively more capability.</p>
 <h2 id="startup-sequence"><a class="header" href="#startup-sequence">Startup Sequence</a></h2>
 <h3 id="1-discovery"><a class="header" href="#1-discovery">1. Discovery</a></h3>
 <p>All services are registered in the <code>ServiceRegistry</code> (a <code>Vec&lt;Box&lt;dyn Service&gt;&gt;</code>). Built-in services are compiled into the binary.</p>

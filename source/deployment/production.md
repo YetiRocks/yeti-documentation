@@ -2,7 +2,7 @@
 
 ## TLS Certificates (Required)
 
-Replace self-signed certificates with production certificates:
+Replace self-signed certificates:
 
 ```yaml
 tls:
@@ -40,7 +40,7 @@ logging:
 
 ## Interfaces
 
-The `interfaces` section controls the listening port and protocol toggles:
+Control the listening port and protocol toggles:
 
 ```yaml
 interfaces:
@@ -54,7 +54,7 @@ interfaces:
     audit: true
 ```
 
-Disable unused protocols to reduce attack surface. See [Performance Tuning](performance.md) for details.
+Disable unused protocols to reduce attack surface. See [Performance Tuning](performance.md).
 
 ## CORS
 
@@ -91,4 +91,4 @@ curl -v https://your-server:9996/documentation/ 2>&1 | grep "SSL certificate"
 
 ## Yeti Cloud
 
-As an alternative to self-hosting, [Yeti Cloud](cloud.md) provides managed hosting with built-in replication, cgroup isolation, and automated backups.
+[Yeti Cloud](cloud.md) provides managed hosting with replication, cgroup isolation, and automated backups.

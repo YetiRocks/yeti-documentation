@@ -114,15 +114,15 @@
 resource!(Greeting {
     get =&gt; json!({"greeting": "Hello, World!"})
 });</code></pre>
-<p>Creates <code>GET /{app-id}/api/greeting</code>. The <code>resource!</code> macro handles struct definition, trait implementation, and plugin registration.</p>
+<p>Creates <code>GET /{app-id}/api/greeting</code>. The <code>resource!</code> macro handles struct definition, trait implementation, and registration.</p>
 <p>Place <code>.rs</code> files in <code>resources/</code> and reference them in <code>config.yaml</code>:</p>
 <pre><code class="language-yaml">resources:
   path: "resources/*.rs"
   route: "/api"
 </code></pre>
-<p>The <code>route</code> field sets the URL prefix for all resources (default: <code>/api</code>). Resources compile to dynamic libraries and load at runtime. Initial compilation takes ~2 minutes; cached rebuilds are fast.</p>
+<p>The <code>route</code> field sets the URL prefix for all resources (default: <code>/api</code>). Resources compile to dynamic libraries at runtime. Initial compilation takes ~2 minutes; cached rebuilds are fast.</p>
 <h2 id="context-access"><a class="header" href="#context-access">Context Access</a></h2>
-<p>When you need request data, use a single <code>ctx</code> parameter. Context flows through the request pipeline, accumulating fields from each layer (protocol, router, auth, dispatch):</p>
+<p>Add a <code>ctx</code> parameter to access request data. Context accumulates fields from each pipeline layer (protocol, router, auth, dispatch):</p>
 <pre><code class="language-rust ignore">resource!(Items {
     get(ctx) =&gt; {
         let items = ctx.get_table("Items")?.get_all().await?;
@@ -162,7 +162,7 @@ resource!(Greeting {
 </tbody></table>
 </div>
 <h3 id="context-extension-methods"><a class="header" href="#context-extension-methods">Context Extension Methods</a></h3>
-<p>Import <code>ContextExt</code> (included in <code>prelude::*</code>) for convenience methods:</p>
+<p><code>ContextExt</code> (included in <code>prelude::*</code>) provides convenience methods:</p>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Purpose</th></tr></thead><tbody>
 <tr><td><code>ctx.require_id()</code></td><td>Get path ID or return 400</td></tr>
 <tr><td><code>ctx.require_json_body()</code></td><td>Get parsed JSON body or return 400</td></tr>
@@ -204,14 +204,14 @@ resource!(CatchAll {
     put =&gt; allow_update(),
     delete =&gt; deny()
 });</code></pre>
-<h2 id="important-notes"><a class="header" href="#important-notes">Important Notes</a></h2>
+<h2 id="constraints"><a class="header" href="#constraints">Constraints</a></h2>
 <ul>
-<li>For HTTP calls, use <code>fetch()</code> from <code>yeti_sdk::prelude</code>. Do not use <code>reqwest::blocking::Client</code> -- it crashes in dylib context.</li>
-<li>For logging, use <code>tracing::warn!()</code> or other <code>tracing</code> macros. Never use <code>eprintln!()</code>.</li>
-<li>Do not use <code>tokio::spawn</code> in resources -- it corrupts the host runtime. Use <code>futures::stream::unfold</code> for streaming patterns.</li>
+<li><strong>HTTP calls</strong>: Use <code>fetch()</code> from <code>yeti_sdk::prelude</code>. <code>reqwest::blocking::Client</code> crashes in dylib context.</li>
+<li><strong>Logging</strong>: Use <code>tracing</code> macros. Never <code>eprintln!()</code>.</li>
+<li><strong>No <code>tokio::spawn</code></strong>: Corrupts the host runtime. Use <code>futures::stream::unfold</code> for streaming.</li>
 </ul>
 <h2 id="routing-priority"><a class="header" href="#routing-priority">Routing Priority</a></h2>
-<p>When multiple handlers could match a request, they resolve in this order:</p>
+<p>When multiple handlers match a request:</p>
 <ol>
 <li><strong>Custom resources</strong> (exact name match)</li>
 <li><strong>Table endpoints</strong> (auto-generated from <code>@export</code>)</li>

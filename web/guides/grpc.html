@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="grpc-api"><a class="header" href="#grpc-api">gRPC API</a></h1>
-<p>Yeti exposes a gRPC Tables service alongside the REST, GraphQL, and other interfaces. gRPC clients connect to the same port as HTTP — Yeti routes HTTP/2 requests with <code>content-type: application/grpc</code> to the gRPC handler, while all other requests go to the normal HTTP router.</p>
+<p>gRPC Tables service on the same port as HTTP. Yeti routes HTTP/2 requests with <code>content-type: application/grpc</code> to the gRPC handler; all other requests go to the normal HTTP router.</p>
 <h2 id="enabling-grpc"><a class="header" href="#enabling-grpc">Enabling gRPC</a></h2>
 <p>gRPC is enabled by default in <code>yeti-config.yaml</code>:</p>
 <pre><code class="language-yaml">interfaces:
@@ -275,7 +275,7 @@ message ListTablesResponse {
   -d '{"app_id": "my-api", "table": "Product", "prefix": ""}' \
   localhost:9996 yeti.tables.Tables/Subscribe
 </code></pre>
-<p>This opens a server-streaming connection. Records are pushed as they change in real-time via the PubSub system.</p>
+<p>Server-streaming connection. Records push in real-time via PubSub.</p>
 <h3 id="delete-a-record"><a class="header" href="#delete-a-record">Delete a Record</a></h3>
 <pre><code class="language-bash">grpcurl -plaintext \
   -d '{"app_id": "my-api", "table": "Product", "key": "prod-001"}' \
@@ -293,11 +293,11 @@ message ListTablesResponse {
 <tr><td>IoT devices</td><td>MQTT</td></tr>
 </tbody></table>
 </div>
-<p>gRPC is best suited for backend service-to-service communication where you benefit from:</p>
+<p>gRPC advantages for service-to-service:</p>
 <ul>
 <li><strong>Strong typing</strong> via protobuf schemas</li>
 <li><strong>Streaming</strong> via <code>Subscribe</code> for real-time change feeds</li>
-<li><strong>Lower overhead</strong> compared to JSON over HTTP for high-throughput scenarios</li>
+<li><strong>Lower overhead</strong> than JSON over HTTP for high-throughput scenarios</li>
 <li><strong>Code generation</strong> for type-safe clients in any language</li>
 </ul>
 <h2 id="tls"><a class="header" href="#tls">TLS</a></h2>

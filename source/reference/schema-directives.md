@@ -1,6 +1,6 @@
 # Schema Directives
 
-Reference for all GraphQL schema directives supported in `schema.graphql` files. Directives control how types and fields are stored, indexed, exposed, distributed, and audited.
+All GraphQL schema directives for `schema.graphql` files. Directives control storage, indexing, exposure, distribution, and auditing.
 
 ---
 
@@ -8,14 +8,14 @@ Reference for all GraphQL schema directives supported in `schema.graphql` files.
 
 ### @table
 
-Marks a GraphQL type as a persistent table.
+Marks a type as a persistent table.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `database` | String | `"data"` | Database namespace for storage isolation |
+| `database` | String | `"data"` | Database namespace |
 | `table` | String | type name | Physical table name (if different from type name) |
 | `storage` | String | `"rocksdb"` | Storage backend |
-| `expiration` | Int | none | Table-wide TTL in seconds |
+| `expiration` | Int | none | Table-wide TTL (seconds) |
 
 ```graphql
 # Minimal — uses defaults
@@ -43,21 +43,21 @@ Without `@table`, a type is ignored by the schema loader.
 
 ### @export
 
-Controls which interfaces expose the table and which operations are public. Without `@export`, the table exists internally but has no HTTP, WebSocket, MQTT, or other endpoints.
+Controls which interfaces expose the table and which operations are public. Without `@export`, the table exists internally but has no endpoints.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `name` | String | type name | Custom endpoint path |
-| `rest` | Boolean | `true` | Expose REST CRUD endpoints |
-| `graphql` | Boolean | `true` | Include in GraphQL schema |
-| `ws` | Boolean | `true` | Enable WebSocket subscriptions |
-| `sse` | Boolean | `true` | Enable Server-Sent Events |
-| `mqtt` | Boolean | `true` | Enable MQTT publish/subscribe |
-| `mcp` | Boolean | `true` | Enable Model Context Protocol tools |
-| `grpc` | Boolean | `true` | Enable gRPC service |
-| `public` | List | `[]` | Operations accessible without authentication |
+| `rest` | Boolean | `true` | REST CRUD endpoints |
+| `graphql` | Boolean | `true` | GraphQL schema |
+| `ws` | Boolean | `true` | WebSocket subscriptions |
+| `sse` | Boolean | `true` | Server-Sent Events |
+| `mqtt` | Boolean | `true` | MQTT publish/subscribe |
+| `mcp` | Boolean | `true` | Model Context Protocol tools |
+| `grpc` | Boolean | `true` | gRPC service |
+| `public` | List | `[]` | Unauthenticated operations |
 
-All interface flags default to `true` when `@export` is present. Set individual flags to `false` to disable specific interfaces.
+All flags default to `true` when `@export` is present. Set `false` to disable.
 
 ```graphql
 # All interfaces enabled (defaults)
@@ -82,19 +82,19 @@ type LogEntry @table @export(rest: false, graphql: false, ws: false, sse: true, 
 
 #### Public Access
 
-The `public` parameter declares operations that bypass authentication entirely -- no login, no token, no session required.
+The `public` parameter declares operations that bypass authentication entirely.
 
 | Value | Maps To | Description |
 |-------|---------|-------------|
-| `read` | GET | Read records and list queries |
-| `create` | POST | Create new records |
-| `update` | PUT | Update existing records |
+| `read` | GET | Read and list |
+| `create` | POST | Create records |
+| `update` | PUT | Update records |
 | `delete` | DELETE | Delete records |
-| `subscribe` | SSE | Subscribe to change streams |
-| `connect` | WebSocket | Establish WebSocket connections |
-| `publish` | MQTT | Publish MQTT messages |
+| `subscribe` | SSE | Change streams |
+| `connect` | WebSocket | WebSocket connections |
+| `publish` | MQTT | MQTT messages |
 
-Operations not listed still require authentication.
+Unlisted operations still require authentication.
 
 ```graphql
 # Anonymous reads and subscriptions, authenticated writes
@@ -116,7 +116,7 @@ type Announcement @table @export(public: [read, create, update, delete]) {
 
 ### @distribute
 
-Declares distribution topology for clustered deployments. Bare `@distribute` with no arguments inherits cluster defaults.
+Distribution topology for clustered deployments. Bare `@distribute` inherits cluster defaults.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -150,15 +150,15 @@ type Cache @table @export @distribute(replication: "false") {
 
 ### @audit
 
-Enables compliance audit logging for a table. Bare `@audit` enables auditing with defaults: all mutations logged, 90-day retention, no state capture.
+Compliance audit logging. Bare `@audit` logs all mutations, 90-day retention, no state capture.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `operations` | List | `[create, update, delete]` | Which operations to audit |
-| `retention` | Int | `90` | Retention period in days (0 = forever) |
-| `state` | Boolean | `false` | Capture before/after record state on mutations |
+| `operations` | List | `[create, update, delete]` | Operations to audit |
+| `retention` | Int | `90` | Retention in days (0 = forever) |
+| `state` | Boolean | `false` | Capture before/after record state |
 
-Available operations: `read`, `create`, `update`, `delete`. Read auditing is excluded from the default set and must be opted in explicitly.
+Available: `read`, `create`, `update`, `delete`. Read auditing excluded from defaults; opt in explicitly.
 
 ```graphql
 # Default audit — log all mutations, 90-day retention
@@ -185,19 +185,17 @@ type Document @table @export @audit(operations: [delete], retention: 0) {
 }
 ```
 
-Audit entries are emitted asynchronously after successful operations. They include timestamp, app ID, table, record ID, operation, and user identity. When `state: true`, the before and after record snapshots are included.
+Audit entries are emitted asynchronously after successful operations (timestamp, app ID, table, record ID, operation, identity). With `state: true`, before/after record snapshots are included.
 
 ---
 
 ### @compositeIndex
 
-Creates a multi-field index. This directive is repeatable -- apply it multiple times for multiple composite indexes.
+Multi-field index. Repeatable for multiple indexes. Index name auto-generated from field names.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `fields` | String | yes | Comma-separated field names |
-
-The index name is auto-generated by joining the field names with underscores.
 
 ```graphql
 type Product @table @export
@@ -218,7 +216,7 @@ type Product @table @export
 
 ### @primaryKey
 
-Designates the primary key field. Every table needs exactly one. If omitted, defaults to a field named `id`.
+Primary key field. Every table needs exactly one. Defaults to `id` if omitted.
 
 ```graphql
 type User @table @export {
@@ -229,7 +227,7 @@ type User @table @export {
 
 ### @indexed
 
-Creates a secondary index on the field. Three index types are available.
+Secondary index. Three types available.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -264,11 +262,11 @@ embedding: Vector @indexed(source: "content")
 embedding: Vector @indexed(source: "description", model: "BAAI/bge-small-en-v1.5")
 ```
 
-Each additional index slows writes. Only index fields used in filters or searches.
+Each index slows writes. Only index fields used in filters or searches.
 
 ### @relationship
 
-Defines foreign key relationships between tables for GraphQL joins and REST `?select` expansion.
+Foreign key relationships for GraphQL joins and REST `?select` expansion.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -293,7 +291,7 @@ type Role @table @export {
 
 ### @createdTime
 
-Auto-populated with the Unix epoch timestamp when the record is first created.
+Auto-populated with Unix epoch timestamp on record creation.
 
 ```graphql
 createdAt: String @createdTime
@@ -301,7 +299,7 @@ createdAt: String @createdTime
 
 ### @updatedTime
 
-Auto-populated with the Unix epoch timestamp on every update.
+Auto-populated with Unix epoch timestamp on every update.
 
 ```graphql
 updatedAt: String @updatedTime
@@ -309,7 +307,7 @@ updatedAt: String @updatedTime
 
 ### @expiresAt
 
-Marks a field as the per-record TTL expiration timestamp (Unix epoch). Overrides the table-level `expiration` setting on a per-record basis.
+Per-record TTL expiration timestamp (Unix epoch). Overrides table-level `expiration`.
 
 ```graphql
 expiresAt: Int @expiresAt
@@ -317,7 +315,7 @@ expiresAt: Int @expiresAt
 
 ### @computed
 
-Declares a computed/derived field. The value is calculated from an expression referencing other fields.
+Computed/derived field. Value calculated from an expression referencing other fields.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -329,7 +327,7 @@ fullName: String @computed(from: "firstName + ' ' + lastName")
 
 ### @default
 
-Sets a default value for the field when not provided on insert. The value is type-validated at schema parse time -- providing a non-numeric string for an `Int` field is a parse error.
+Default value when not provided on insert. Type-validated at schema parse time.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -344,11 +342,11 @@ score: Float @default(value: 1.0)
 active: Boolean @default(value: true)
 ```
 
-When a new field with `@default` is added to an existing schema, stored records are reconciled with the default value on next access.
+Adding a `@default` field to an existing schema reconciles stored records on next access.
 
 ### @crdt
 
-Declares a field as a Conflict-free Replicated Data Type for automatic merge resolution in distributed deployments.
+Conflict-free Replicated Data Type for automatic merge in distributed deployments.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|

@@ -197,7 +197,7 @@ curl -sk --cert client.pem --key client-key.pem \
 # → {"authenticated":true,"method":"mtls","username":"service-a"}
 </code></pre>
 <h2 id="combining-with-other-auth-methods"><a class="header" href="#combining-with-other-auth-methods">Combining with Other Auth Methods</a></h2>
-<p>mTLS can coexist with Basic, JWT, and OAuth. The auth pipeline tries each provider in priority order — mTLS is checked first (highest priority) because the identity is established at the transport layer:</p>
+<p>mTLS coexists with Basic, JWT, and OAuth. The auth pipeline tries each provider in priority order -- mTLS is checked first because identity is established at the transport layer:</p>
 <pre><code class="language-yaml">auth:
   methods: [mtls, jwt, basic]
   mtls:

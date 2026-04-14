@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="graphql-api"><a class="header" href="#graphql-api">GraphQL API</a></h1>
-<p>Yeti auto-generates a GraphQL schema from tables with <code>@export(graphql: true)</code>.</p>
+<p>Auto-generated GraphQL schema from tables with <code>@export(graphql: true)</code>.</p>
 <h2 id="endpoint"><a class="header" href="#endpoint">Endpoint</a></h2>
 <pre><code>POST /{app-id}/graphql
 </code></pre>
@@ -133,7 +133,7 @@
 </tbody></table>
 </div>
 <h2 id="nested-relationships"><a class="header" href="#nested-relationships">Nested Relationships</a></h2>
-<p>When tables have <code>@relationship</code> directives, queries can traverse them:</p>
+<p>Tables with <code>@relationship</code> directives support nested queries:</p>
 <pre><code class="language-graphql">{
   User(id: "alice") {
     username
@@ -163,7 +163,7 @@
   "errors": [{ "message": "Resource not found: Product with id 'prod-999'", "path": ["Product"] }]
 }
 </code></pre>
-<p>Partial success is possible -- <code>data</code> may contain results for some fields while <code>errors</code> lists failures for others.</p>
+<p>Partial success is possible -- <code>data</code> may contain some results while <code>errors</code> lists failures.</p>
 <h2 id="schema-introspection"><a class="header" href="#schema-introspection">Schema Introspection</a></h2>
 <pre><code class="language-graphql">{ __schema { types { name fields { name type { name } } } } }
 </code></pre>

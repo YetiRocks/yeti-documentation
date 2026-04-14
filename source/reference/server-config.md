@@ -310,29 +310,27 @@ Production: provide real certificates and set `autoGenerate: false`. Development
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `telemetry.metrics` | boolean | `true` | Enable system and per-app metrics collection |
-| `telemetry.serviceName` | string | `"yeti"` | Service name reported to OTLP collectors |
-| `telemetry.otlpEndpoint` | string | `null` | OpenTelemetry collector endpoint (e.g. `http://otel-collector:4317`) |
+| `telemetry.metrics` | boolean | `true` | System and per-app metrics |
+| `telemetry.serviceName` | string | `"yeti"` | Service name for OTLP export |
+| `telemetry.otlpEndpoint` | string | `null` | OpenTelemetry collector (e.g. `http://otel-collector:4317`) |
 | `telemetry.metricsIntervalSecs` | integer | `10` | Seconds between system metric emissions |
 
-**Optimization**: Increase `metricsIntervalSecs` to 30-60 in production to reduce telemetry overhead. Set `otlpEndpoint` to export to Grafana, Datadog, or other observability platforms.
+Increase `metricsIntervalSecs` to 30-60 in production to reduce overhead.
 
 ### rustfs
 
-S3-compatible object store configuration. When disabled (the default), the server uses a local filesystem fallback at `{rootDirectory}/object-store/`.
+S3-compatible object store. When disabled (default), falls back to `{rootDirectory}/object-store/`.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `rustfs.enabled` | boolean | `false` | Enable S3 transport. When false, uses filesystem fallback. |
+| `rustfs.enabled` | boolean | `false` | S3 transport (filesystem fallback when false) |
 | `rustfs.endpoint` | string | `"http://localhost:9000"` | S3-compatible endpoint URL |
-| `rustfs.accessKey` | string | `"minioadmin"` | Access key (matches MinIO/RustFS defaults) |
+| `rustfs.accessKey` | string | `"minioadmin"` | Access key |
 | `rustfs.secretKey` | string | `"minioadmin"` | Secret key |
 
 ### env
 
-Key-value map of environment variables injected at startup. Real environment variables take precedence. Useful for secrets that extensions read via `std::env::var()`.
-
-Additionally, a `.env` file in the root directory is loaded automatically if present. Variables defined in `.env` are also overridden by real environment variables. Lines starting with `#` are treated as comments.
+Environment variables injected at startup. Real env vars take precedence. A `.env` file in the root directory is also loaded if present (`#` lines are comments).
 
 ```yaml
 env:
@@ -343,33 +341,33 @@ env:
 
 ### extensions
 
-Per-extension runtime configuration. Each built-in extension has an `enabled` flag and extension-specific settings.
+Per-extension runtime configuration. Each extension has an `enabled` flag and extension-specific settings.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `extensions.yeti-auth.enabled` | boolean | `true` | Enable the authentication extension |
-| `extensions.yeti-auth.jwt.secret` | string | `"development-secret-change-in-production"` | JWT signing secret. Change in production. |
+| `extensions.yeti-auth.enabled` | boolean | `true` | Authentication extension |
+| `extensions.yeti-auth.jwt.secret` | string | `"development-secret-change-in-production"` | JWT signing secret |
 | `extensions.yeti-auth.jwt.algorithm` | string | `"HS256"` | JWT signing algorithm |
-| `extensions.yeti-auth.jwt.accessTtl` | integer | `900` | Access token TTL in seconds (15 minutes) |
-| `extensions.yeti-auth.jwt.refreshTtl` | integer | `604800` | Refresh token TTL in seconds (7 days) |
+| `extensions.yeti-auth.jwt.accessTtl` | integer | `900` | Access token TTL (seconds) |
+| `extensions.yeti-auth.jwt.refreshTtl` | integer | `604800` | Refresh token TTL (seconds) |
 | `extensions.yeti-auth.oauth.github.clientId` | string | `""` | GitHub OAuth client ID |
 | `extensions.yeti-auth.oauth.github.clientSecret` | string | `""` | GitHub OAuth client secret |
 | `extensions.yeti-auth.oauth.google.clientId` | string | `""` | Google OAuth client ID |
 | `extensions.yeti-auth.oauth.google.clientSecret` | string | `""` | Google OAuth client secret |
 | `extensions.yeti-auth.oauth.microsoft.clientId` | string | `""` | Microsoft OAuth client ID |
 | `extensions.yeti-auth.oauth.microsoft.clientSecret` | string | `""` | Microsoft OAuth client secret |
-| `extensions.yeti-telemetry.enabled` | boolean | `true` | Enable the telemetry extension |
-| `extensions.yeti-ai.enabled` | boolean | `true` | Enable the yeti-ai service (embeddings, inference, model management) |
+| `extensions.yeti-telemetry.enabled` | boolean | `true` | Telemetry extension |
+| `extensions.yeti-ai.enabled` | boolean | `true` | AI service (embeddings, inference, model management) |
 
 ### auth (shorthand)
 
-Top-level `auth:` key is a shorthand that is parsed into `extensions.yeti-auth` configuration. The two forms are equivalent -- use whichever you prefer. See the [Authentication](../guides/auth-overview.md) guide for full details.
+Top-level `auth:` key is shorthand parsed into `extensions.yeti-auth`. The two forms are equivalent. See [Authentication](../guides/auth-overview.md).
 
 ---
 
 ## Environment Variable Overrides
 
-These environment variables override config file values at startup:
+Override config file values at startup:
 
 | Variable | Overrides | Description |
 |----------|-----------|-------------|

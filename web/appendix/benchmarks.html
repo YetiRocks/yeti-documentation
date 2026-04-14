@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="performance-benchmarks"><a class="header" href="#performance-benchmarks">Performance Benchmarks</a></h1>
-<p>Live benchmark results from a single Yeti node running the app-benchmarks application.</p>
+<p>Benchmark results from a single Yeti node running the app-benchmarks application.</p>
 <h2 id="end-to-end-api-throughput"><a class="header" href="#end-to-end-api-throughput">End-to-End API Throughput</a></h2>
 <p>Results from 30-second tests with 100 concurrent clients (5s warmup excluded). All traffic over HTTPS/TLS 1.3.</p>
 <h3 id="transactional-api-rest"><a class="header" href="#transactional-api-rest">Transactional API (REST)</a></h3>
@@ -136,11 +136,11 @@
 </tbody></table>
 </div>
 <h2 id="running-benchmarks"><a class="header" href="#running-benchmarks">Running Benchmarks</a></h2>
-<p>Benchmarks run as a standalone Yeti application at <code>/app-benchmarks/</code>. The web UI provides one-click test execution with live progress tracking.</p>
+<p>Benchmarks run as a Yeti application at <code>/app-benchmarks/</code> with a web UI for one-click test execution.</p>
 <pre><code class="language-bash"># Access the benchmark dashboard
 open https://localhost:9996/app-benchmarks/
 </code></pre>
-<p>Individual load test binaries can also be run directly:</p>
+<p>Or run load test binaries directly:</p>
 <pre><code class="language-bash">load-rest --test rest-read --base-url https://localhost --duration 30 --vus 100
 load-graphql --test graphql-read --base-url https://localhost --duration 30 --vus 100
 load-realtime --test ws --base-url https://localhost --duration 30 --vus 15000

@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="vector-search"><a class="header" href="#vector-search">Vector Search</a></h1>
-<p>Yeti includes built-in HNSW vector indexing for approximate nearest-neighbor search, powered by the yeti-ai service with a Candle-based inference backend.</p>
+<p>Built-in HNSW vector indexing for approximate nearest-neighbor search, powered by the yeti-ai service with a Candle-based inference backend.</p>
 <h2 id="schema"><a class="header" href="#schema">Schema</a></h2>
 <p>Use the <code>Vector</code> type to define an embedding field:</p>
 <pre><code class="language-graphql">type Document @table @export {
@@ -118,7 +118,7 @@
     embedding: Vector @indexed(source: "content")
 }
 </code></pre>
-<p>The <code>Vector</code> type automatically creates an HNSW index. When <code>source</code> is specified, Yeti auto-generates embeddings from the source field on every write -- insert your text:</p>
+<p>The <code>Vector</code> type automatically creates an HNSW index. With <code>source</code> specified, embeddings auto-generate from the source field on every write:</p>
 <pre><code class="language-bash">curl -sk -X POST https://localhost:9996/my-app/Document \
   -H "Content-Type: application/json" \
   -d '{"id":"doc-1","title":"Intro to ML","content":"Machine learning is a branch of AI..."}'
@@ -131,11 +131,11 @@
 <li><strong>App config</strong> - <code>vectors: { model: "all-MiniLM-L6-v2" }</code></li>
 <li><strong>Default</strong> - <code>BAAI/bge-small-en-v1.5</code> (downloaded on first use)</li>
 </ol>
-<p>Most apps don't need to specify a model:</p>
+<p>Most apps omit the model:</p>
 <pre><code class="language-graphql">embedding: Vector @indexed(source: "content")
 </code></pre>
 <h3 id="hnsw-tuning-parameters"><a class="header" href="#hnsw-tuning-parameters">HNSW Tuning Parameters</a></h3>
-<p>All six HNSW algorithm parameters can be set on <code>@indexed</code>:</p>
+<p>Six HNSW parameters on <code>@indexed</code>:</p>
 <pre><code class="language-graphql">embedding: Vector @indexed(
     source: "content",
     distance: "cosine",
@@ -157,7 +157,7 @@
 </div>
 <p>If <code>M</code> is set without <code>mL</code>, the value is auto-computed as <code>1/ln(M)</code>.</p>
 <h3 id="configyaml-setup"><a class="header" href="#configyaml-setup">Config.yaml Setup</a></h3>
-<p>The yeti-ai service is auto-detected when your schema has <code>Vector</code> fields with <code>@indexed(source: ...)</code>. To set a default model:</p>
+<p>yeti-ai auto-detects from <code>Vector</code> fields with <code>@indexed(source: ...)</code>. To set a default model:</p>
 <pre><code class="language-yaml">vectors:
   model: all-MiniLM-L6-v2
 </code></pre>
@@ -175,7 +175,7 @@
 ]
 </code></pre>
 <h3 id="combined-filters"><a class="header" href="#combined-filters">Combined Filters</a></h3>
-<p>Vector search conditions can be mixed with FIQL conditions in the same query:</p>
+<p>Mix vector search with FIQL conditions in the same query:</p>
 <pre><code class="language-bash"># Find articles about ML in the "science" category
 curl -sk "https://localhost:9996/my-app/Document/?query=\
 {\"conditions\":[\
@@ -185,7 +185,7 @@ curl -sk "https://localhost:9996/my-app/Document/?query=\
 </code></pre>
 <p>Vector search runs first (returns top-K by similarity), then FIQL conditions filter the results.</p>
 <h2 id="yeti-ai-service"><a class="header" href="#yeti-ai-service">yeti-ai Service</a></h2>
-<p>The yeti-ai service provides both embedding generation and local inference, all backed by the Candle ML framework.</p>
+<p>Embedding generation and local inference, backed by the Candle ML framework.</p>
 <h3 id="capabilities"><a class="header" href="#capabilities">Capabilities</a></h3>
 <ul>
 <li><strong>Embeddings</strong> -- <code>CandleVectorHook</code> implements the <code>VectorHook</code> trait for text and image embedding</li>
@@ -273,7 +273,7 @@ hook.models() -&gt; Vec&lt;ModelInfo&gt;</code></pre>
 <tr><td><code>clip-ViT-B-32</code></td><td>Image</td><td>512</td><td>~300 MB</td></tr>
 </tbody></table>
 </div>
-<p>Models are downloaded to <code>{rootDirectory}/models/</code> on first use. Additional models can be downloaded via the model management API.</p>
+<p>Models download to <code>{rootDirectory}/models/</code> on first use. Additional models available via the model management API.</p>
 <h2 id="embedding-cache"><a class="header" href="#embedding-cache">Embedding Cache</a></h2>
 <p>yeti-ai caches embeddings keyed by <code>sha256(model + "\0" + text)</code>. Deterministic, no TTL.</p>
 <p>Disable per-app:</p>

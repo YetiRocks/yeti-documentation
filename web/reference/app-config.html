@@ -112,21 +112,21 @@
 <h2 id="metadata"><a class="header" href="#metadata">Metadata</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>name</code></td><td>string</td><td>yes</td><td>-</td><td>Human-readable application name</td></tr>
-<tr><td><code>app_id</code></td><td>string</td><td>yes</td><td>-</td><td>Application identifier (used as URL prefix: <code>/{app_id}</code>)</td></tr>
+<tr><td><code>app_id</code></td><td>string</td><td>yes</td><td>-</td><td>Application identifier (URL prefix: <code>/{app_id}</code>)</td></tr>
 <tr><td><code>customer_id</code></td><td>string</td><td>no</td><td>-</td><td>Owning tenant (injected by build server in cloud mode). Alias: <code>customerId</code></td></tr>
 </tbody></table>
 </div>
 <h2 id="application-state"><a class="header" href="#application-state">Application State</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>enabled</code></td><td>boolean</td><td><code>true</code></td><td>Whether the application loads at startup. Disabled apps are skipped during loading</td></tr>
-<tr><td><code>extension</code></td><td>boolean</td><td><code>false</code></td><td>Mark as global extension (shared service loaded before applications)</td></tr>
-<tr><td><code>required_roles</code></td><td>string[] or <code>false</code></td><td><code>[]</code></td><td>Roles required to access this app. Accepts a list of role name strings or <code>false</code> (same as empty). Users without a matching role get 403; unauthenticated users get 401</td></tr>
-<tr><td><code>request_timeout</code></td><td>integer</td><td><code>30</code></td><td>Handler timeout in seconds (504 on expiry). SSE and WebSocket connections are exempt</td></tr>
-<tr><td><code>route_prefix</code></td><td>string</td><td>-</td><td><strong>Deprecated and ignored.</strong> Use <code>root_app</code> in <code>yeti-config.yaml</code> instead. Kept only so old config files parse without error</td></tr>
+<tr><td><code>enabled</code></td><td>boolean</td><td><code>true</code></td><td>Load at startup; disabled apps are skipped</td></tr>
+<tr><td><code>extension</code></td><td>boolean</td><td><code>false</code></td><td>Global extension (shared service loaded before applications)</td></tr>
+<tr><td><code>required_roles</code></td><td>string[] or <code>false</code></td><td><code>[]</code></td><td>Roles required for access. Missing role = 403; unauthenticated = 401</td></tr>
+<tr><td><code>request_timeout</code></td><td>integer</td><td><code>30</code></td><td>Handler timeout in seconds (504 on expiry). SSE/WebSocket exempt</td></tr>
+<tr><td><code>route_prefix</code></td><td>string</td><td>-</td><td><strong>Deprecated and ignored.</strong> Use <code>root_app</code> in <code>yeti-config.yaml</code> instead</td></tr>
 </tbody></table>
 </div>
 <h2 id="schemas"><a class="header" href="#schemas">Schemas</a></h2>
-<p>Schema file locations. Applications without tables should omit this section entirely.</p>
+<p>Schema file locations. Omit entirely for apps without tables.</p>
 <pre><code class="language-yaml">schemas:
   path: schemas/*.graphql
 </code></pre>
@@ -137,11 +137,11 @@
     - schemas/extra.graphql
 </code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>schemas.path</code></td><td>string or string[]</td><td>-</td><td>Glob pattern(s) for <code>.graphql</code> schema files. Accepts a single string or an array of strings</td></tr>
+<tr><td><code>schemas.path</code></td><td>string or string[]</td><td>-</td><td>Glob pattern(s) for <code>.graphql</code> schema files</td></tr>
 </tbody></table>
 </div>
 <h2 id="resources"><a class="header" href="#resources">Resources</a></h2>
-<p>Custom resource files compiled as native dynamic library plugins.</p>
+<p>Custom resource files compiled as dynamic library plugins.</p>
 <pre><code class="language-yaml">resources:
   path: resources/*.rs
   route: /api
@@ -154,12 +154,12 @@
   route: /api
 </code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>resources.path</code></td><td>string or string[]</td><td>-</td><td>Glob pattern(s) for Rust source files. Accepts a single string or an array of strings</td></tr>
-<tr><td><code>resources.route</code></td><td>string</td><td><code>"/api"</code></td><td>URL route prefix for custom resources. Apps without a <code>resources:</code> section serve tables at <code>"/"</code></td></tr>
+<tr><td><code>resources.path</code></td><td>string or string[]</td><td>-</td><td>Glob pattern(s) for Rust source files</td></tr>
+<tr><td><code>resources.route</code></td><td>string</td><td><code>"/api"</code></td><td>URL route prefix. Apps without <code>resources:</code> serve tables at <code>"/"</code></td></tr>
 </tbody></table>
 </div>
 <h2 id="modules"><a class="header" href="#modules">Modules</a></h2>
-<p>Shared library code used by both resources and binaries. Compiled into the plugin lib as <code>pub mod</code> alongside resource modules.</p>
+<p>Shared library code compiled into the plugin as <code>pub mod</code> alongside resource modules.</p>
 <pre><code class="language-yaml">modules:
   - modules/*.rs
 </code></pre>
@@ -168,7 +168,7 @@
 </tbody></table>
 </div>
 <h2 id="binaries"><a class="header" href="#binaries">Binaries</a></h2>
-<p>Standalone executables compiled alongside the plugin dylib. Each <code>.rs</code> file becomes a <code>[[bin]]</code> target.</p>
+<p>Standalone executables compiled alongside the plugin. Each <code>.rs</code> file becomes a <code>[[bin]]</code> target.</p>
 <pre><code class="language-yaml">binaries:
   - bin/*.rs
 </code></pre>
@@ -189,18 +189,18 @@
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>static.path</code></td><td>string</td><td>-</td><td>Directory containing static files (relative to app directory)</td></tr>
 <tr><td><code>static.route</code></td><td>string</td><td><code>"/"</code></td><td>URL route prefix</td></tr>
-<tr><td><code>static.spa</code></td><td>boolean</td><td><code>false</code></td><td>SPA mode: serve index.html for unmatched paths (status 200) so the client-side router handles navigation</td></tr>
+<tr><td><code>static.spa</code></td><td>boolean</td><td><code>false</code></td><td>SPA mode: serve index.html for unmatched paths (200) so client-side router handles navigation</td></tr>
 <tr><td><code>static.index</code></td><td>string</td><td><code>"index.html"</code></td><td>Default file for directory requests</td></tr>
-<tr><td><code>static.not_found</code></td><td>string or object</td><td>-</td><td>Custom 404 page. Either a file path string (served with 404 status) or an object <code>{ file: "path", statusCode: 200 }</code>. When both <code>spa</code> and <code>not_found</code> are set, <code>not_found</code> overrides the default SPA fallback behavior</td></tr>
-<tr><td><code>static.build</code></td><td>object</td><td>-</td><td>Optional frontend build configuration. When present, yeti runs the build command before serving static files</td></tr>
+<tr><td><code>static.not_found</code></td><td>string or object</td><td>-</td><td>Custom 404 page: file path string (served as 404) or <code>{ file: "path", statusCode: 200 }</code>. Overrides SPA fallback when both set</td></tr>
+<tr><td><code>static.build</code></td><td>object</td><td>-</td><td>Frontend build configuration. Runs the build command before serving</td></tr>
 <tr><td><code>static.build.sourceDir</code></td><td>string</td><td><code>"source"</code></td><td>Frontend source directory (relative to app directory)</td></tr>
 <tr><td><code>static.build.command</code></td><td>string</td><td><code>"npm run build"</code></td><td>Build command to run</td></tr>
 </tbody></table>
 </div>
 <p>Config key aliases: <code>static_files</code>, <code>staticFiles</code>, <code>static_config</code>.</p>
-<p>Note: The <code>build</code> section uses <code>camelCase</code> field names (<code>sourceDir</code>, not <code>source_dir</code>).</p>
+<p>The <code>build</code> section uses <code>camelCase</code> field names (<code>sourceDir</code>, not <code>source_dir</code>).</p>
 <h2 id="hooks"><a class="header" href="#hooks">Hooks</a></h2>
-<p>Shell commands executed around resource dispatch. See <a href="../guides/resource-hooks.html">Resource Hooks</a>.</p>
+<p>Shell commands around resource dispatch. See <a href="../guides/resource-hooks.html">Resource Hooks</a>.</p>
 <pre><code class="language-yaml">hooks:
   pre_request:
     - "./hooks/validate.sh"
@@ -217,15 +217,15 @@
 </div>
 <p>Hooks receive JSON on stdin with method, path, app_id, resource_id, auth identity, status, and latency.</p>
 <h2 id="interface-flags"><a class="header" href="#interface-flags">Interface Flags</a></h2>
-<p>Control which protocols are enabled at the app level. Individual tables can override via <code>@export</code> directives.</p>
+<p>Protocol flags at the app level. Individual tables override via <code>@export</code> directives.</p>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>rest</code></td><td>boolean</td><td><code>true</code></td><td>Enable REST API endpoints</td></tr>
-<tr><td><code>graphql</code></td><td>boolean</td><td><code>true</code></td><td>Enable GraphQL endpoint</td></tr>
-<tr><td><code>mcp</code></td><td>boolean</td><td><code>false</code></td><td>Enable MCP endpoint (auto-enabled when any table has <code>@export(mcp: true)</code>)</td></tr>
+<tr><td><code>rest</code></td><td>boolean</td><td><code>true</code></td><td>REST API endpoints</td></tr>
+<tr><td><code>graphql</code></td><td>boolean</td><td><code>true</code></td><td>GraphQL endpoint</td></tr>
+<tr><td><code>mcp</code></td><td>boolean</td><td><code>false</code></td><td>MCP endpoint (auto-enabled when any table has <code>@export(mcp: true)</code>)</td></tr>
 </tbody></table>
 </div>
 <h2 id="extension-configuration"><a class="header" href="#extension-configuration">Extension Configuration</a></h2>
-<p>Per-app extension settings are declared as top-level keys using the extension's short name. These are captured via the <code>custom</code> config flatten and resolved by the corresponding extension at runtime.</p>
+<p>Per-app extension settings declared as top-level keys using the extension's short name. Captured via the <code>custom</code> config flatten and resolved by the extension at runtime.</p>
 <p>Built-in short names: <code>auth</code>, <code>vectors</code>, <code>telemetry</code>, <code>audit</code>, <code>applications</code>.</p>
 <h3 id="auth-configuration"><a class="header" href="#auth-configuration">Auth Configuration</a></h3>
 <p>Requires the yeti-auth service.</p>
@@ -254,7 +254,7 @@
 </div>
 <p>See <a href="../guides/auth-overview.html">Authentication &amp; Authorization</a>.</p>
 <h2 id="auth-loader"><a class="header" href="#auth-loader">Auth Loader</a></h2>
-<p>Simplified role/user JSON files for seeding yeti-auth on first startup. Files are bare arrays (no <code>database</code>/<code>table</code> wrapper). Permissions are real JSON objects (serialized to strings on load). Passwords are plaintext (Argon2id-hashed on load).</p>
+<p>Simplified role/user JSON for seeding yeti-auth on first startup. Files are bare arrays (no <code>database</code>/<code>table</code> wrapper). Permissions are JSON objects (serialized to strings on load). Passwords are plaintext (Argon2id-hashed on load).</p>
 <pre><code class="language-yaml">authLoader:
   roles: auth/roles.json
   users: auth/users.json
@@ -281,13 +281,13 @@ dataLoader:
 </div>
 <p>Config key alias: <code>data_loader</code>.</p>
 <h2 id="dependencies"><a class="header" href="#dependencies">Dependencies</a></h2>
-<p>Rust crate dependencies for the compiled plugin. Format matches Cargo.toml dependency syntax in YAML.</p>
+<p>Rust crate dependencies for the compiled plugin. Cargo.toml dependency syntax in YAML.</p>
 <pre><code class="language-yaml">dependencies:
   chrono: "0.4"
   jsonwebtoken: { version: "10.3", features: ["aws_lc_rs"] }
 </code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>dependencies</code></td><td>object</td><td><code>{}</code></td><td>Map of crate name to version string or dependency object. Added to the generated Cargo.toml for plugin compilation</td></tr>
+<tr><td><code>dependencies</code></td><td>object</td><td><code>{}</code></td><td>Crate name to version string or dependency object. Added to generated Cargo.toml</td></tr>
 </tbody></table>
 </div>
 <h2 id="storage"><a class="header" href="#storage">Storage</a></h2>
@@ -296,14 +296,14 @@ dataLoader:
 </tbody></table>
 </div>
 <h2 id="custom-configuration"><a class="header" href="#custom-configuration">Custom Configuration</a></h2>
-<p>Any top-level keys not recognized by Yeti are captured as custom configuration via <code>serde(flatten)</code>. Access at runtime via <code>params.config().get_str("key", "default")</code> and related typed accessors (<code>get_i64</code>, <code>get_u64</code>, <code>get_f64</code>, <code>get_bool</code>). Supports dot notation for nested access (e.g., <code>"origin.url"</code>).</p>
+<p>Unrecognized top-level keys are captured via <code>serde(flatten)</code>. Access at runtime via <code>params.config().get_str("key", "default")</code> and typed accessors (<code>get_i64</code>, <code>get_u64</code>, <code>get_f64</code>, <code>get_bool</code>). Supports dot notation (e.g. <code>"origin.url"</code>).</p>
 <pre><code class="language-yaml"># These are custom -- accessible at runtime
 origin:
   url: "https://www.example.com/"
 api_keys:
   stripe: "${STRIPE_KEY}"
 </code></pre>
-<p>Note: Extension short names (<code>auth</code>, <code>vectors</code>, <code>telemetry</code>, <code>audit</code>, <code>applications</code>) are also captured here and routed to the appropriate extension. See <a href="#extension-configuration">Extension Configuration</a>.</p>
+<p>Extension short names (<code>auth</code>, <code>vectors</code>, <code>telemetry</code>, <code>audit</code>, <code>applications</code>) are captured here and routed to the appropriate extension. See <a href="#extension-configuration">Extension Configuration</a>.</p>
 <h2 id="complete-example"><a class="header" href="#complete-example">Complete Example</a></h2>
 <pre><code class="language-yaml">name: "My Application"
 app_id: "my-app"

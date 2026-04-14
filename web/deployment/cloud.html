@@ -108,11 +108,11 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="yeti-cloud"><a class="header" href="#yeti-cloud">Yeti Cloud</a></h1>
-<p>Yeti Cloud is a managed hosting platform for Yeti applications. It runs the same Yeti binary and SDK you use locally — your apps deploy to the cloud without modification.</p>
+<p>Managed hosting for Yeti applications. Same binary and SDK as local development -- apps deploy without modification.</p>
 <h2 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h2>
-<p>Yeti Cloud is itself a Yeti deployment. Every server in the fleet runs one Yeti instance with four internal applications that handle routing, builds, process management, and administration. Your applications run as separate Yeti processes on the same infrastructure, each isolated with its own data directory and resource limits.</p>
+<p>Every server in the fleet runs one Yeti instance with four internal applications for routing, builds, process management, and administration. Your applications run as separate Yeti processes, each isolated with its own data directory and resource limits.</p>
 <h3 id="development-to-production"><a class="header" href="#development-to-production">Development to Production</a></h3>
-<p>The workflow from local development to cloud deployment:</p>
+<p>Workflow:</p>
 <ol>
 <li><strong>Develop locally</strong> — build your app with <code>yeti start</code> on your machine</li>
 <li><strong>Deploy</strong> — push source via <code>yeti deploy</code> or connect a GitHub repository</li>
@@ -130,17 +130,17 @@
 │       └── resources/*.rs            └── HTTPS endpoint
 └── data/
 </code></pre>
-<p>Your source code is compiled remotely. Only the resulting plugin binaries, configuration, schema, and static assets are deployed to production servers. Source files are never shipped to cloud servers.</p>
+<p>Source compiles remotely. Only plugin binaries, configuration, schema, and static assets reach production servers.</p>
 <h2 id="deployment"><a class="header" href="#deployment">Deployment</a></h2>
 <h3 id="connected-repository-recommended"><a class="header" href="#connected-repository-recommended">Connected Repository (Recommended)</a></h3>
-<p>Connect your GitHub repository for automatic deployments on push:</p>
+<p>Connect a GitHub repository for automatic deployments on push:</p>
 <ol>
 <li>Navigate to <strong>Deployments &gt; Connect Repository</strong> in Studio</li>
 <li>Authenticate with GitHub and select your repository</li>
 <li>Yeti Cloud installs a webhook and detects your <code>yeti-deploy.yaml</code> manifest</li>
 <li>Every push to <code>main</code> triggers a build and deploy automatically</li>
 </ol>
-<p>Branch deploys are also supported — push to a feature branch and get a preview deployment at <code>{app}--{branch}.{customer}.dev.cloud.yetirocks.com</code>.</p>
+<p>Branch deploys: push to a feature branch for a preview at <code>{app}--{branch}.{customer}.dev.cloud.yetirocks.com</code>.</p>
 <h3 id="cli-deploy"><a class="header" href="#cli-deploy">CLI Deploy</a></h3>
 <p>Deploy directly from your local machine:</p>
 <pre><code class="language-bash"># Deploy all apps in the manifest
@@ -158,9 +158,9 @@ yeti deploy rollback
 # Stream logs
 yeti deploy logs --app api --follow
 </code></pre>
-<p>The CLI reads <code>yeti-deploy.yaml</code> from your project root, packages source (respecting <code>.gitignore</code> and <code>.yetiignore</code>), and uploads it to the build server.</p>
+<p>Reads <code>yeti-deploy.yaml</code> from project root, packages source (respecting <code>.gitignore</code> and <code>.yetiignore</code>), and uploads to the build server.</p>
 <h3 id="deployment-manifest"><a class="header" href="#deployment-manifest">Deployment Manifest</a></h3>
-<p>The <code>yeti-deploy.yaml</code> file in your repository root defines what gets built and how it deploys:</p>
+<p><code>yeti-deploy.yaml</code> in the repository root defines builds and deployment:</p>
 <pre><code class="language-yaml"># yeti-deploy.yaml
 name: acme-platform
 customer_id: acme-corp
@@ -192,39 +192,39 @@ deploy:
     cpu_limit: 1000m
     memory_limit: 256Mi
 </code></pre>
-<p>The <code>latency_ms</code> target drives regional placement — lower latency targets result in more regions and better global coverage.</p>
+<p>The <code>latency_ms</code> target drives regional placement -- lower targets mean more regions.</p>
 <h2 id="customer-instances"><a class="header" href="#customer-instances">Customer Instances</a></h2>
-<p>Each deployed application runs as a separate operating system process with full isolation:</p>
+<p>Each application runs as a separate OS process:</p>
 <ul>
-<li><strong>Process isolation</strong> — one app crashing cannot affect other apps or the platform</li>
-<li><strong>Own RocksDB</strong> — each app has its own data directory that persists across deploys and restarts</li>
-<li><strong>Resource limits</strong> — CPU, memory, and I/O are capped per instance via cgroup v2</li>
-<li><strong>No network exposure</strong> — apps communicate with the platform via Unix domain sockets, not TCP ports</li>
-<li><strong>Subdomain routing</strong> — traffic reaches your app at <code>{app}.{customer}.cloud.yetirocks.com</code></li>
+<li><strong>Process isolation</strong> -- one crash cannot affect other apps or the platform</li>
+<li><strong>Own RocksDB</strong> -- per-app data directory, persists across deploys and restarts</li>
+<li><strong>Resource limits</strong> -- CPU, memory, and I/O capped via cgroup v2</li>
+<li><strong>No network exposure</strong> -- apps communicate via Unix domain sockets, not TCP</li>
+<li><strong>Subdomain routing</strong> -- traffic at <code>{app}.{customer}.cloud.yetirocks.com</code></li>
 </ul>
-<p>All inbound traffic flows through the platform's HTTPS gateway (port 443), which routes requests by <code>Host</code> header to the appropriate app via its Unix socket. Your app never binds a network port.</p>
+<p>All traffic flows through the HTTPS gateway (port 443), routing by <code>Host</code> header to Unix sockets. Apps never bind network ports.</p>
 <h2 id="multi-region-support"><a class="header" href="#multi-region-support">Multi-Region Support</a></h2>
 <h3 id="automatic-placement"><a class="header" href="#automatic-placement">Automatic Placement</a></h3>
-<p>Yeti Cloud places your app across regions based on the <code>latency_ms</code> target in your deployment manifest. Lower latency targets mean more regions:</p>
+<p>Apps place across regions based on <code>latency_ms</code> in the deployment manifest:</p>
 <div class="table-wrapper"><table><thead><tr><th>Latency Target</th><th>Typical Coverage</th></tr></thead><tbody>
 <tr><td>500ms</td><td>5+ regions worldwide</td></tr>
 <tr><td>1000ms</td><td>3 regions (baseline)</td></tr>
 <tr><td>2000ms</td><td>1 region</td></tr>
 </tbody></table>
 </div>
-<p>Paying customers receive a baseline topology of three regions: <code>us-west</code>, <code>us-east</code>, and <code>eu-west</code>. The auto-scaler expands beyond this based on traffic patterns.</p>
+<p>Paid plans start with three regions (<code>us-west</code>, <code>us-east</code>, <code>eu-west</code>). The auto-scaler expands based on traffic patterns.</p>
 <h3 id="data-residency"><a class="header" href="#data-residency">Data Residency</a></h3>
-<p>By default, all instances of your app share the same data via full replication — every region has a complete copy. This means:</p>
+<p>By default, full replication -- every region has a complete copy:</p>
 <ul>
-<li>Reads are always local (no cross-region queries)</li>
-<li>Writes replicate asynchronously to all regions</li>
-<li>Conflict resolution uses last-writer-wins with hybrid logical clocks</li>
+<li>Reads are always local</li>
+<li>Writes replicate asynchronously</li>
+<li>Last-writer-wins conflict resolution via hybrid logical clocks</li>
 </ul>
-<p>For apps with large datasets (&gt;10GB), sharded replication is available, where data is partitioned and only stored on a subset of nodes.</p>
+<p>For datasets &gt;10GB, sharded replication partitions data across a subset of nodes.</p>
 <h3 id="multi-cloud"><a class="header" href="#multi-cloud">Multi-Cloud</a></h3>
-<p>Yeti Cloud runs across multiple cloud providers (Linode, GCP, AWS). The platform is provider-agnostic — your app runs identically on any provider. All inter-node communication uses mTLS encryption regardless of provider boundaries.</p>
+<p>Runs across multiple providers (Linode, GCP, AWS). Apps run identically on any provider. All inter-node communication uses mTLS regardless of provider boundaries.</p>
 <h2 id="auto-scaling"><a class="header" href="#auto-scaling">Auto-Scaling</a></h2>
-<p>The auto-scaler monitors your app continuously and adjusts capacity based on:</p>
+<p>The auto-scaler adjusts capacity based on:</p>
 <ol>
 <li><strong>Request latency</strong> — if p95 latency exceeds your SLA target, scale out to closer regions</li>
 <li><strong>CPU utilization</strong> — if CPU exceeds 80% for 10 minutes, add instances</li>
@@ -232,17 +232,17 @@ deploy:
 <li><strong>Underutilization</strong> — if resources are idle for 1 week, scale down</li>
 </ol>
 <h3 id="scaling-proposals"><a class="header" href="#scaling-proposals">Scaling Proposals</a></h3>
-<p>Topology changes (adding or removing regions) go through a proposal system rather than executing immediately. Proposals accumulate confidence points over time based on sustained traffic patterns:</p>
+<p>Topology changes (adding or removing regions) go through a proposal system. Proposals accumulate confidence based on sustained traffic:</p>
 <ul>
-<li>Proposals appear in the Studio UI with evidence (traffic data, latency impact, cost change)</li>
-<li>You can approve proposals immediately or let them auto-execute when confidence is high</li>
-<li>Emergency SLA breaches trigger automatic scaling regardless of proposal status</li>
-<li>Scale-down proposals require a 1-week minimum observation period</li>
+<li>Proposals appear in Studio with evidence (traffic data, latency impact, cost change)</li>
+<li>Approve immediately or let them auto-execute when confidence is high</li>
+<li>Emergency SLA breaches trigger automatic scaling regardless</li>
+<li>Scale-down requires 1-week minimum observation</li>
 </ul>
-<p>Within-region scaling (adding instances to an existing region) happens automatically without proposals.</p>
+<p>Within-region scaling happens automatically without proposals.</p>
 <h2 id="monitoring-and-observability"><a class="header" href="#monitoring-and-observability">Monitoring and Observability</a></h2>
 <h3 id="built-in-dashboard"><a class="header" href="#built-in-dashboard">Built-In Dashboard</a></h3>
-<p>Every Yeti Cloud app includes a monitoring dashboard accessible from Studio. Charts update in real-time via SSE (30-second push interval):</p>
+<p>Built-in dashboard in Studio. Charts update via SSE (30-second interval):</p>
 <ul>
 <li>Request rate and error rate</li>
 <li>Latency percentiles (p50, p95, p99)</li>
@@ -252,13 +252,13 @@ deploy:
 <li>Cost accumulation</li>
 </ul>
 <h3 id="otlp-export"><a class="header" href="#otlp-export">OTLP Export</a></h3>
-<p>Connect your existing observability tools (Grafana, Datadog, New Relic) by configuring an OTLP export endpoint. Your app exposes standard OpenTelemetry Protocol endpoints:</p>
+<p>Connect existing observability tools (Grafana, Datadog, New Relic) via OTLP export:</p>
 <pre><code>https://{app}.{customer}.cloud.yetirocks.com/otel/v1/metrics
 https://{app}.{customer}.cloud.yetirocks.com/otel/v1/traces
 https://{app}.{customer}.cloud.yetirocks.com/otel/v1/logs
 </code></pre>
 <h3 id="log-access"><a class="header" href="#log-access">Log Access</a></h3>
-<p>Logs are stored per-instance. Use Studio to drill into a specific instance's logs (region, app, then instance). For centralized cross-instance log aggregation, configure OTLP export to a third-party log service.</p>
+<p>Logs are per-instance. Drill into specific instances via Studio (region, app, instance). For cross-instance aggregation, configure OTLP export.</p>
 <h3 id="data-retention"><a class="header" href="#data-retention">Data Retention</a></h3>
 <ul>
 <li>Real-time metrics: 30 days</li>
@@ -281,18 +281,17 @@ https://{app}.{customer}.cloud.yetirocks.com/otel/v1/logs
 <tr><td><strong>Cost</strong></td><td>Your infrastructure costs</td><td>Usage-based pricing</td></tr>
 </tbody></table>
 </div>
-<p>The key principle: Yeti Cloud runs the exact same platform you run locally. Your app code, configuration, and schemas are identical. The cloud adds managed infrastructure, automatic scaling, and multi-region distribution.</p>
+<p>Same platform locally and in the cloud. App code, configuration, and schemas are identical. The cloud adds managed infrastructure, automatic scaling, and multi-region distribution.</p>
 <h2 id="version-management"><a class="header" href="#version-management">Version Management</a></h2>
-<p>Yeti Cloud supports multiple binary versions simultaneously. Your deployment manifest pins a major version:</p>
+<p>Multiple binary versions run simultaneously. Pin a major version in the manifest:</p>
 <pre><code class="language-yaml">build:
   yeti_version: "0.4"
 </code></pre>
 <ul>
-<li><strong>Patch updates</strong> (0.4.2 to 0.4.3) — applied automatically, no action needed</li>
-<li><strong>Minor updates</strong> (0.4.x to 0.4.y) — applied automatically, new features available</li>
-<li><strong>Major updates</strong> (0.4.x to 0.5.0) — opt-in; test locally first, then update your manifest</li>
+<li><strong>Patch updates</strong> (0.4.2 to 0.4.3) -- applied automatically</li>
+<li><strong>Minor updates</strong> (0.4.x to 0.4.y) -- applied automatically</li>
+<li><strong>Major updates</strong> (0.4.x to 0.5.0) -- opt-in; test locally first, then update your manifest</li>
 </ul>
-<p>When a new major version is available, Studio shows a notification. Update your local Yeti binary, test your apps, then update <code>yeti_version</code> in your manifest and deploy.</p>
 <h2 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h2>
 <ol>
 <li>Sign up at <a href="https://cloud.yetirocks.com">cloud.yetirocks.com</a> (Google/GitHub OAuth or email)</li>

@@ -108,9 +108,9 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="sdk-overview"><a class="header" href="#sdk-overview">SDK Overview</a></h1>
-<p>The Yeti SDK (<code>yeti-sdk</code>) is the developer-facing API for building Yeti applications. It is built on <code>yeti-types</code> (which defines the core <code>Resource</code> trait and <code>Context</code> struct) and re-exports everything you need through a single import:</p>
+<p>The Yeti SDK (<code>yeti-sdk</code>) is the developer-facing API for building applications. Built on <code>yeti-types</code>, it re-exports everything through a single import:</p>
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;</code></pre>
-<h2 id="what-the-prelude-provides"><a class="header" href="#what-the-prelude-provides">What the prelude provides</a></h2>
+<h2 id="prelude-exports"><a class="header" href="#prelude-exports">Prelude exports</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Category</th><th>Key exports</th></tr></thead><tbody>
 <tr><td><a href="resource-macros.html">Resource Types</a></td><td><code>resource!</code>, <code>extends_table!</code>, <code>register_resource!</code>, <code>Resource</code>, <code>Context</code>, <code>ContextExt</code></td></tr>
 <tr><td><a href="response-helpers.html">Response Builders</a></td><td><code>ok()</code>, <code>reply()</code>, <code>created()</code>, <code>no_content()</code>, <code>not_found()</code>, <code>json_response()</code>, <code>html_response()</code>, <code>text_response()</code></td></tr>
@@ -125,19 +125,19 @@
 <tr><td><a href="utilities.html">Logging</a></td><td><code>yeti_log!</code> macro (dylib-safe, bridges to host tracing)</td></tr>
 </tbody></table>
 </div>
-<p>The prelude also re-exports commonly used external types: <code>Request</code>, <code>Response</code>, <code>StatusCode</code>, <code>Method</code>, <code>json!</code>, <code>Value</code>, and <code>HashMap</code>. Error types (<code>YetiError</code>, <code>ProblemDetails</code>, <code>BadRequest</code>, <code>Forbidden</code>, <code>NotFoundError</code>, <code>Unauthorized</code>) and registration types (<code>AppRegistration</code>) are also included.</p>
+<p>The prelude also re-exports: <code>Request</code>, <code>Response</code>, <code>StatusCode</code>, <code>Method</code>, <code>json!</code>, <code>Value</code>, <code>HashMap</code>, error types (<code>YetiError</code>, <code>ProblemDetails</code>, <code>BadRequest</code>, <code>Forbidden</code>, <code>NotFoundError</code>, <code>Unauthorized</code>), and <code>AppRegistration</code>.</p>
 <h2 id="application-architecture"><a class="header" href="#application-architecture">Application architecture</a></h2>
-<p>Yeti applications compile to dynamic libraries (<code>.dylib</code>). The compiler reads your <code>config.yaml</code>, copies resource <code>.rs</code> files into a build cache, generates a <code>lib.rs</code> that wires everything together, and compiles the result. You write individual resource files; the toolchain handles the rest.</p>
-<p>Each resource file defines a struct that implements the <code>Resource</code> trait (usually via the <code>resource!</code> macro). The struct name becomes the route path (lowercased by default).</p>
+<p>Applications compile to dynamic libraries (<code>.dylib</code>). The compiler reads <code>config.yaml</code>, copies resource <code>.rs</code> files into a build cache, generates a <code>lib.rs</code>, and compiles the result. Write individual resource files; the toolchain handles the rest.</p>
+<p>Each resource file defines a struct implementing the <code>Resource</code> trait (usually via <code>resource!</code>). The struct name becomes the route path, lowercased by default.</p>
 <h2 id="minimal-example"><a class="header" href="#minimal-example">Minimal example</a></h2>
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
 
 resource!(Hello {
     get =&gt; json!({"message": "Hello, World!"})
 });</code></pre>
-<p>This registers a resource at <code>GET /my-app/hello</code>. The <code>resource!</code> macro generates the struct, implements the <code>Resource</code> trait, and registers it for export automatically.</p>
+<p>Registers a resource at <code>GET /my-app/hello</code>. The macro generates the struct, implements <code>Resource</code>, and registers it for export.</p>
 <h2 id="context-based-example"><a class="header" href="#context-based-example">Context-based example</a></h2>
-<p>The <code>Context</code> struct carries everything about a request: method, path, body, headers, auth identity, query parameters, path ID, and access to the application's tables.</p>
+<p><code>Context</code> carries the full request: method, path, body, headers, auth identity, query parameters, path ID, and table access.</p>
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
 
 resource!(Items {
@@ -170,13 +170,13 @@ resource!(Items {
 });</code></pre>
 <h2 id="context-fields"><a class="header" href="#context-fields">Context fields</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>method</code></td><td><code>http::Method</code></td><td>HTTP method (GET, POST, etc.)</td></tr>
+<tr><td><code>method</code></td><td><code>http::Method</code></td><td>HTTP method</td></tr>
 <tr><td><code>path</code></td><td><code>String</code></td><td>Full request path</td></tr>
 <tr><td><code>body</code></td><td><code>Bytes</code></td><td>Raw request body</td></tr>
 <tr><td><code>headers</code></td><td><code>HeaderMap</code></td><td>HTTP headers</td></tr>
 <tr><td><code>app_id</code></td><td><code>Arc&lt;str&gt;</code></td><td>Application identifier</td></tr>
 <tr><td><code>resource_id</code></td><td><code>Arc&lt;str&gt;</code></td><td>Resource name</td></tr>
-<tr><td><code>path_id</code></td><td><code>Option&lt;String&gt;</code></td><td>Record ID from path (e.g., "123" from <code>/Table/123</code>)</td></tr>
+<tr><td><code>path_id</code></td><td><code>Option&lt;String&gt;</code></td><td>Record ID from path (e.g. <code>"123"</code> from <code>/Table/123</code>)</td></tr>
 <tr><td><code>query_params</code></td><td><code>HashMap&lt;String, String&gt;</code></td><td>Parsed query string</td></tr>
 <tr><td><code>is_collection</code></td><td><code>bool</code></td><td>True when no ID specified</td></tr>
 <tr><td><code>auth_identity</code></td><td><code>Option&lt;AuthIdentity&gt;</code></td><td>Authenticated user identity</td></tr>
@@ -185,16 +185,16 @@ resource!(Items {
 </div>
 <h2 id="contextext-helper-methods"><a class="header" href="#contextext-helper-methods">ContextExt helper methods</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>get_table(name)</code></td><td><code>Result&lt;Table&gt;</code></td><td>Get a table accessor by name</td></tr>
-<tr><td><code>tables()</code></td><td><code>Result&lt;Tables&gt;</code></td><td>Get accessor for all tables</td></tr>
-<tr><td><code>require_id()</code></td><td><code>Result&lt;&amp;str&gt;</code></td><td>Get path ID or return 400</td></tr>
-<tr><td><code>require_json_body()</code></td><td><code>Result&lt;&amp;Value&gt;</code></td><td>Parse body as JSON or return 400</td></tr>
-<tr><td><code>auth_identity()</code></td><td><code>Option&lt;&amp;AuthIdentity&gt;</code></td><td>Get auth identity</td></tr>
-<tr><td><code>cookie(name)</code></td><td><code>Option&lt;String&gt;</code></td><td>Read a cookie value</td></tr>
+<tr><td><code>get_table(name)</code></td><td><code>Result&lt;Table&gt;</code></td><td>Table accessor by name</td></tr>
+<tr><td><code>tables()</code></td><td><code>Result&lt;Tables&gt;</code></td><td>Accessor for all tables</td></tr>
+<tr><td><code>require_id()</code></td><td><code>Result&lt;&amp;str&gt;</code></td><td>Path ID or 400</td></tr>
+<tr><td><code>require_json_body()</code></td><td><code>Result&lt;&amp;Value&gt;</code></td><td>Parsed JSON body or 400</td></tr>
+<tr><td><code>auth_identity()</code></td><td><code>Option&lt;&amp;AuthIdentity&gt;</code></td><td>Authenticated identity</td></tr>
+<tr><td><code>cookie(name)</code></td><td><code>Option&lt;String&gt;</code></td><td>Cookie value</td></tr>
 </tbody></table>
 </div>
 <h2 id="dylib-constraints"><a class="header" href="#dylib-constraints">Dylib constraints</a></h2>
-<p>Code running inside applications executes in a dynamically loaded library. This imposes several constraints:</p>
+<p>Application code runs inside a dynamically loaded library. Constraints:</p>
 <ul>
 <li><strong>No <code>tracing::info!</code></strong> -- use <code>yeti_log!</code> instead (tracing TLS is isolated per dylib)</li>
 <li><strong>No <code>tokio::spawn</code></strong> -- causes crashes. Use <code>futures::stream::unfold</code> for async patterns</li>

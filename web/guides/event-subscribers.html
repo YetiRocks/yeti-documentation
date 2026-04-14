@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="event-subscribers"><a class="header" href="#event-subscribers">Event Subscribers</a></h1>
-<p>Event subscribers receive structured tracing events (logs and spans) as JSON over a bounded channel (capacity 10,000). This is how the yeti-telemetry service captures runtime data for persistence, export, and real-time dashboards.</p>
+<p>Event subscribers receive structured tracing events (logs and spans) as JSON over a bounded channel (capacity 10,000). The yeti-telemetry service uses this to capture runtime data for persistence, export, and real-time dashboards.</p>
 <h2 id="the-eventsubscriber-trait"><a class="header" href="#the-eventsubscriber-trait">The EventSubscriber Trait</a></h2>
 <p>Defined in <code>yeti-types</code>:</p>
 <pre><code class="language-rust ignore">pub trait EventSubscriber: Send + 'static {
@@ -176,14 +176,14 @@ impl EventSubscriber for DebugSubscriber {
 <h2 id="feedback-prevention"><a class="header" href="#feedback-prevention">Feedback Prevention</a></h2>
 <p>The <code>DispatchLayer</code> filters events from internal targets to prevent infinite recursion when subscribers write to tables or emit tracing events. Only <code>FILTERED_MESSAGE_PREFIXES</code> (SSE content checks) are filtered. In production mode, non-ERROR events are skipped.</p>
 <h2 id="host-spawning"><a class="header" href="#host-spawning">Host Spawning</a></h2>
-<p>The subscriber object is constructed by the service but executed by the host. After <code>on_ready()</code> returns:</p>
+<p>The service constructs the subscriber; the host executes it. After <code>on_ready()</code> returns:</p>
 <ol>
 <li>Host calls <code>ctx.take_event_subscriber()</code></li>
 <li>Host creates <code>mpsc::channel(10_000)</code> in host context</li>
 <li>Host registers the sender with <code>DispatchLayer</code></li>
 <li>Host spawns <code>subscriber.run(rx)</code> on the host tokio runtime</li>
 </ol>
-<p>This ensures all async operations (channel receives, table writes, network I/O) run in host context where the tokio runtime is accessible.</p>
+<p>All async operations (channel receives, table writes, network I/O) run in host context where the tokio runtime is accessible.</p>
 <h2 id="see-also"><a class="header" href="#see-also">See Also</a></h2>
 <ul>
 <li><a href="building-extensions.html">Building Services</a> -- Service development</li>

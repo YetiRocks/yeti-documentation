@@ -131,15 +131,15 @@ curl -sk "https://localhost:9996/my-app/Product?category==Tools&amp;price=lt=50&
 curl -sk "https://localhost:9996/my-app/Product?stream=sse"
 </code></pre>
 <h2 id="why-yeti"><a class="header" href="#why-yeti">Why Yeti</a></h2>
-<p><strong>Schema-driven</strong> - Define tables in GraphQL. REST, GraphQL, SSE, WebSocket, gRPC, MQTT, and MCP endpoints are generated automatically. No boilerplate.</p>
-<p><strong>Custom resources in Rust</strong> - Extend any table with business logic using Rust. Resources compile to dynamic libraries and hot-reload without server restart.</p>
-<p><strong>Built-in auth</strong> - Basic, JWT, and OAuth authentication with role-based access control down to individual fields. Add auth to any app with one line of config.</p>
-<p><strong>Real-time by default</strong> - Every table supports Server-Sent Events, WebSocket subscriptions, and MQTT. Clients receive updates as they happen.</p>
-<p><strong>Multi-protocol</strong> - REST, GraphQL, WebSocket, SSE, MQTT, gRPC, and MCP (Model Context Protocol) -- all from the same schema. Toggle protocols per app or server-wide.</p>
-<p><strong>Fast</strong> - Single-process architecture, RocksDB embedded storage, and Rust performance. Yeti Cloud provides multi-node replication and clustering.</p>
+<p><strong>Schema-driven</strong> - Define tables in GraphQL. REST, GraphQL, SSE, WebSocket, gRPC, MQTT, and MCP endpoints generate automatically.</p>
+<p><strong>Custom resources in Rust</strong> - Extend any table with business logic. Resources compile to dynamic libraries and hot-reload without restart.</p>
+<p><strong>Built-in auth</strong> - Basic, JWT, and OAuth with role-based access control down to individual fields. One line of config.</p>
+<p><strong>Real-time by default</strong> - Every table supports SSE, WebSocket, and MQTT. Clients receive updates as they happen.</p>
+<p><strong>Multi-protocol</strong> - REST, GraphQL, WebSocket, SSE, MQTT, gRPC, and MCP from the same schema. Toggle per app or server-wide.</p>
+<p><strong>Fast</strong> - Single-process Rust binary with embedded RocksDB. Yeti Cloud adds multi-node replication and clustering.</p>
 <h2 id="quick-links"><a class="header" href="#quick-links">Quick links</a></h2>
 <ul>
-<li><a href="getting-started/installation.html">Installation</a> - Install Yeti in minutes</li>
+<li><a href="getting-started/installation.html">Installation</a> - Download and run</li>
 <li><a href="getting-started/quickstart.html">Quickstart</a> - Build a REST API in 5 minutes</li>
 <li><a href="concepts/applications.html">Core Concepts</a> - Understand applications, schemas, and resources</li>
 <li><a href="guides/custom-resources.html">Custom Resources</a> - Add business logic in Rust</li>

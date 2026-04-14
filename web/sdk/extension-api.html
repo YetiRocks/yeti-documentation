@@ -108,9 +108,9 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="service-api"><a class="header" href="#service-api">Service API</a></h1>
-<p>Services provide shared capabilities across applications: authentication, telemetry, AI inference, vector embeddings, and custom middleware.</p>
+<p>Services provide shared capabilities across applications -- authentication, telemetry, AI inference, vector embeddings, and custom middleware.</p>
 <h2 id="service-trait"><a class="header" href="#service-trait">Service Trait</a></h2>
-<p>The <code>Service</code> trait is the contract between the yeti binary and service crates. The runtime calls methods in order: <code>is_required()</code> -&gt; <code>register()</code> -&gt; <code>on_ready()</code> -&gt; <code>on_shutdown()</code>.</p>
+<p>Contract between the yeti binary and service crates. The runtime calls methods in order: <code>is_required()</code> -&gt; <code>register()</code> -&gt; <code>on_ready()</code> -&gt; <code>on_shutdown()</code>.</p>
 <pre><code class="language-rust ignore">pub trait Service: Send + Sync + 'static {
     /// Unique identifier (e.g., "yeti-auth").
     fn id(&amp;self) -&gt; &amp;'static str;
@@ -135,7 +135,7 @@
     /// Called during graceful shutdown.
     fn on_shutdown(&amp;self) {}
 }</code></pre>
-<p>Only <code>id()</code>, <code>name()</code>, and <code>register()</code> are required. All other methods have default implementations.</p>
+<p>Only <code>id()</code>, <code>name()</code>, and <code>register()</code> are required. All others have defaults.</p>
 <h3 id="full-example"><a class="header" href="#full-example">Full example</a></h3>
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
 
@@ -175,13 +175,13 @@ impl Service for MyService {
     }
 }</code></pre>
 <h2 id="startupcontext"><a class="header" href="#startupcontext">StartupContext</a></h2>
-<p>Read-only context passed to <code>Service::is_required()</code>. Used to decide whether a service should activate based on what applications have declared.</p>
+<p>Read-only context passed to <code>Service::is_required()</code>. Determines whether a service activates based on application declarations.</p>
 <pre><code class="language-rust ignore">pub struct StartupContext&lt;'a&gt; {
     pub tables: &amp;'a [TableDefinition],
     pub app_configs: &amp;'a [Value],
 }</code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>any_app_has_config(key)</code></td><td><code>bool</code></td><td>Any app has a top-level config key (e.g., <code>"auth"</code>, <code>"vectors"</code>)</td></tr>
+<tr><td><code>any_app_has_config(key)</code></td><td><code>bool</code></td><td>Any app has a top-level config key (e.g. <code>"auth"</code>, <code>"vectors"</code>)</td></tr>
 <tr><td><code>any_table_has_field_directive(directive)</code></td><td><code>bool</code></td><td>Any table has a field whose type matches (case-insensitive)</td></tr>
 <tr><td><code>any_app_requires_auth()</code></td><td><code>bool</code></td><td>Any app has non-empty <code>requiredRoles</code> / <code>required_roles</code></td></tr>
 </tbody></table>
@@ -191,23 +191,23 @@ impl Service for MyService {
     ctx.any_table_has_field_directive("vector")
 }</code></pre>
 <h2 id="registrationcontext"><a class="header" href="#registrationcontext">RegistrationContext</a></h2>
-<p>Mutable context passed to <code>Service::register()</code>. Collect schemas, resources, hooks, providers, and middleware here. The runtime processes them after all services register.</p>
+<p>Mutable context passed to <code>Service::register()</code>. Collect schemas, resources, hooks, providers, and middleware. The runtime processes them after all services register.</p>
 <pre><code class="language-rust ignore">pub struct RegistrationContext {
     pub app_id: String,
     pub root_directory: String,
     // ... internal fields populated via methods below
 }</code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Argument</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>add_schema(graphql)</code></td><td><code>&amp;str</code></td><td>Add a GraphQL schema string</td></tr>
-<tr><td><code>add_resource(r)</code></td><td><code>Box&lt;dyn Resource&gt;</code></td><td>Add a resource handler</td></tr>
-<tr><td><code>add_web_files(files)</code></td><td><code>Vec&lt;EmbeddedFile&gt;</code></td><td>Add embedded static web files</td></tr>
-<tr><td><code>add_auth_provider(p)</code></td><td><code>Arc&lt;dyn AuthProvider&gt;</code></td><td>Register an authentication provider</td></tr>
-<tr><td><code>add_vector_hook(h)</code></td><td><code>Arc&lt;dyn VectorHook&gt;</code></td><td>Register a vector embedding hook</td></tr>
-<tr><td><code>add_ai_hook(h)</code></td><td><code>Arc&lt;dyn AiHook&gt;</code></td><td>Register an AI inference hook</td></tr>
-<tr><td><code>add_middleware(m)</code></td><td><code>Arc&lt;dyn RequestMiddleware&gt;</code></td><td>Add request middleware</td></tr>
-<tr><td><code>add_event_subscriber(s)</code></td><td><code>Box&lt;dyn EventSubscriber&gt;</code></td><td>Register a telemetry event handler</td></tr>
-<tr><td><code>app_id()</code></td><td></td><td>Get the application ID</td></tr>
-<tr><td><code>root_dir()</code></td><td></td><td>Get the server root directory path</td></tr>
+<tr><td><code>add_schema(graphql)</code></td><td><code>&amp;str</code></td><td>GraphQL schema string</td></tr>
+<tr><td><code>add_resource(r)</code></td><td><code>Box&lt;dyn Resource&gt;</code></td><td>Resource handler</td></tr>
+<tr><td><code>add_web_files(files)</code></td><td><code>Vec&lt;EmbeddedFile&gt;</code></td><td>Embedded static web files</td></tr>
+<tr><td><code>add_auth_provider(p)</code></td><td><code>Arc&lt;dyn AuthProvider&gt;</code></td><td>Authentication provider</td></tr>
+<tr><td><code>add_vector_hook(h)</code></td><td><code>Arc&lt;dyn VectorHook&gt;</code></td><td>Vector embedding hook</td></tr>
+<tr><td><code>add_ai_hook(h)</code></td><td><code>Arc&lt;dyn AiHook&gt;</code></td><td>AI inference hook</td></tr>
+<tr><td><code>add_middleware(m)</code></td><td><code>Arc&lt;dyn RequestMiddleware&gt;</code></td><td>Request middleware</td></tr>
+<tr><td><code>add_event_subscriber(s)</code></td><td><code>Box&lt;dyn EventSubscriber&gt;</code></td><td>Telemetry event handler</td></tr>
+<tr><td><code>app_id()</code></td><td></td><td>Application ID</td></tr>
+<tr><td><code>root_dir()</code></td><td></td><td>Server root directory path</td></tr>
 </tbody></table>
 </div>
 <pre><code class="language-rust ignore">fn register(&amp;self, ctx: &amp;mut RegistrationContext) -&gt; Result&lt;()&gt; {
@@ -232,17 +232,17 @@ impl Service for MyService {
     Ok(())
 }</code></pre>
 <h2 id="servicecontext"><a class="header" href="#servicecontext">ServiceContext</a></h2>
-<p>Context passed to <code>Service::on_ready()</code> after all registration is complete. Tables and routes are available at this point.</p>
+<p>Context passed to <code>Service::on_ready()</code> after all registration completes. Tables and routes are available.</p>
 <pre><code class="language-rust ignore">pub struct ServiceContext {
     pub app_id: String,
     pub root_directory: String,
     // ... internal lookup functions
 }</code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>table(name)</code></td><td><code>Option&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Get a table backend by name</td></tr>
-<tr><td><code>require_table(name)</code></td><td><code>Result&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Get a table backend or return an error</td></tr>
-<tr><td><code>pubsub(table_name)</code></td><td><code>Option&lt;Arc&lt;PubSubManager&gt;&gt;</code></td><td>Get the PubSub manager for a table</td></tr>
-<tr><td><code>set_event_subscriber(sub)</code></td><td><code>()</code></td><td>Register a telemetry event handler</td></tr>
+<tr><td><code>table(name)</code></td><td><code>Option&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Table backend by name</td></tr>
+<tr><td><code>require_table(name)</code></td><td><code>Result&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Table backend or error</td></tr>
+<tr><td><code>pubsub(table_name)</code></td><td><code>Option&lt;Arc&lt;PubSubManager&gt;&gt;</code></td><td>PubSub manager for a table</td></tr>
+<tr><td><code>set_event_subscriber(sub)</code></td><td><code>()</code></td><td>Telemetry event handler</td></tr>
 <tr><td><code>app_id()</code></td><td><code>&amp;str</code></td><td>Application ID</td></tr>
 <tr><td><code>root_dir()</code></td><td><code>&amp;str</code></td><td>Server root directory</td></tr>
 </tbody></table>
@@ -262,7 +262,7 @@ impl Service for MyService {
     Ok(())
 }</code></pre>
 <h2 id="eventsubscriber-trait"><a class="header" href="#eventsubscriber-trait">EventSubscriber Trait</a></h2>
-<p>Process telemetry events (logs, spans, metrics) in a background task. The host spawns the future after <code>on_ready()</code> returns.</p>
+<p>Processes telemetry events (logs, spans, metrics) in a background task. The host spawns the future after <code>on_ready()</code> returns.</p>
 <pre><code class="language-rust ignore">pub trait EventSubscriber: Send + 'static {
     fn run(
         self: Box&lt;Self&gt;,
@@ -284,9 +284,9 @@ impl EventSubscriber for MySubscriber {
         })
     }
 }</code></pre>
-<p>The channel is bounded (capacity 10,000).</p>
+<p>Channel is bounded (capacity 10,000).</p>
 <h2 id="vectorhook-trait"><a class="header" href="#vectorhook-trait">VectorHook Trait</a></h2>
-<p>Provide vector embedding generation for <code>@vector</code> schema fields. Implementations must be <strong>sync</strong> for dylib boundary safety.</p>
+<p>Vector embedding generation for <code>@vector</code> schema fields. Implementations must be <strong>sync</strong> for dylib boundary safety.</p>
 <pre><code class="language-rust ignore">pub trait VectorHook: Send + Sync {
     fn vectorize_fields(
         &amp;self,
@@ -316,7 +316,7 @@ impl EventSubscriber for MySubscriber {
     pub field_type: String,  // "text" (default) or "image"
 }</code></pre>
 <h2 id="aihook-trait"><a class="header" href="#aihook-trait">AiHook Trait</a></h2>
-<p>Provide local LLM inference capabilities. Implementations must be <strong>sync</strong> for dylib boundary safety.</p>
+<p>Local LLM inference. Implementations must be <strong>sync</strong> for dylib boundary safety.</p>
 <pre><code class="language-rust ignore">pub trait AiHook: Send + Sync {
     /// Single-turn text completion.
     fn complete(&amp;self, prompt: &amp;str, max_tokens: u32) -&gt; Result&lt;String, String&gt;;
@@ -351,7 +351,7 @@ impl EventSubscriber for MySubscriber {
     pub memory_bytes: u64,
 }</code></pre>
 <h2 id="authhook-trait"><a class="header" href="#authhook-trait">AuthHook Trait</a></h2>
-<p>Override role resolution before the default logic runs. Return <code>Some(access)</code> to override, <code>None</code> to fall through.</p>
+<p>Overrides role resolution before default logic. Return <code>Some(access)</code> to override, <code>None</code> to fall through.</p>
 <pre><code class="language-rust ignore">pub trait AuthHook: Send + Sync {
     async fn on_resolve_role(
         &amp;self,
@@ -360,7 +360,7 @@ impl EventSubscriber for MySubscriber {
     ) -&gt; Option&lt;Arc&lt;dyn AccessControl&gt;&gt;;
 }</code></pre>
 <h2 id="computedfieldhook-trait"><a class="header" href="#computedfieldhook-trait">ComputedFieldHook Trait</a></h2>
-<p>Resolve virtual field values at read time. Fields are <code>(name, type)</code> pairs from the schema.</p>
+<p>Resolves virtual field values at read time. Fields are <code>(name, type)</code> pairs from the schema.</p>
 <pre><code class="language-rust ignore">#[async_trait]
 pub trait ComputedFieldHook: Send + Sync {
     async fn resolve(
@@ -380,7 +380,7 @@ pub trait ComputedFieldHook: Send + Sync {
 <li>Server starts accepting requests</li>
 <li><code>Service::on_shutdown()</code> on graceful shutdown</li>
 </ol>
-<p>Telemetry services are sorted first so their event subscriber captures other services' startup logs.</p>
+<p>Telemetry services sort first so their event subscriber captures other services' startup logs.</p>
 <h2 id="minimal-service-example"><a class="header" href="#minimal-service-example">Minimal Service Example</a></h2>
 <pre><code class="language-rust ignore">use yeti_sdk::prelude::*;
 

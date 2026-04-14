@@ -2,7 +2,7 @@
 
 ## Health Check
 
-Liveness probe available on the main HTTPS port:
+Liveness probe on the main HTTPS port:
 
 ```bash
 curl -sk https://localhost:9996/health
@@ -12,7 +12,7 @@ Returns server status and loaded application count.
 
 ## Admin Dashboard
 
-Full application management and monitoring via Studio:
+Application management and monitoring via Studio:
 
 ```
 https://localhost:9996/studio/
@@ -53,13 +53,13 @@ telemetry:
   otlpEndpoint: "http://otel-collector:4317"
 ```
 
-OTLP export is owned entirely by the `yeti-telemetry` service (core has zero OpenTelemetry code). Exports via OpenTelemetry Protocol to Grafana, Datadog, Jaeger, Prometheus, etc.
+OTLP export lives in `yeti-telemetry` (core has zero OpenTelemetry code). Exports to Grafana, Datadog, Jaeger, Prometheus, etc.
 
 Also configurable via `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
 
 ## MCP Audit Logging
 
-The MCP interface (Model Context Protocol) has audit logging enabled by default. All MCP tool invocations are recorded with request/response details:
+MCP tool invocations are audit-logged by default:
 
 ```yaml
 interfaces:
@@ -68,7 +68,7 @@ interfaces:
     audit: true
 ```
 
-Audit events flow through the telemetry pipeline and appear in the Log table.
+Events flow through telemetry and appear in the Log table.
 
 ## Monitoring Tiers
 

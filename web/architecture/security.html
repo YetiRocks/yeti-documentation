@@ -179,18 +179,18 @@ curl -sk -X POST https://localhost:9996/yeti-auth/jwt_refresh \
 }
 </code></pre>
 <h2 id="mqtt-auth-adapter"><a class="header" href="#mqtt-auth-adapter">MQTT Auth Adapter</a></h2>
-<p>The MQTT broker integrates with yeti-auth for client authentication. MQTT <code>CONNECT</code> packets are validated against the same User/Role tables, enforcing the same permission model as HTTP. The broker uses in-memory storage (no file persistence).</p>
+<p>The MQTT broker validates <code>CONNECT</code> packets against the same User/Role tables as HTTP. In-memory storage (no file persistence).</p>
 <h2 id="mcp-audit-logging"><a class="header" href="#mcp-audit-logging">MCP Audit Logging</a></h2>
-<p>The MCP interface (Model Context Protocol) has audit logging enabled by default. All MCP tool invocations are captured through the telemetry pipeline, providing a complete record of AI agent interactions.</p>
+<p>MCP tool invocations are audit-logged by default through the telemetry pipeline.</p>
 <pre><code class="language-yaml">interfaces:
   mcp:
     enabled: true
     audit: true
 </code></pre>
 <h2 id="cgroup-isolation-yeti-cloud"><a class="header" href="#cgroup-isolation-yeti-cloud">Cgroup Isolation (Yeti Cloud)</a></h2>
-<p>In Yeti Cloud deployments, each application runs within cgroup boundaries for CPU, memory, and I/O isolation. This prevents noisy-neighbor effects between tenants.</p>
+<p>In Yeti Cloud, each application runs within cgroup boundaries for CPU, memory, and I/O isolation.</p>
 <h2 id="unix-socket-permissions"><a class="header" href="#unix-socket-permissions">Unix Socket Permissions</a></h2>
-<p>When using Unix socket listeners, filesystem permissions on the socket file control access. Ensure the socket path is readable/writable only by the intended service user.</p>
+<p>Filesystem permissions on the socket file control access. Restrict the socket path to the intended service user.</p>
 <h2 id="rate-limiting"><a class="header" href="#rate-limiting">Rate Limiting</a></h2>
 <pre><code class="language-yaml">rateLimiting:
   maxRequestsPerSecond: 1000

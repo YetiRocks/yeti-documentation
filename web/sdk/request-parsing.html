@@ -108,9 +108,9 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="request-parsing"><a class="header" href="#request-parsing">Request Parsing</a></h1>
-<p>Resource handlers receive a <code>Context</code> struct that accumulates data as the request flows through the pipeline. The <code>ContextExt</code> trait adds convenience methods for common handler patterns.</p>
+<p><code>Context</code> accumulates data as a request flows through the pipeline. <code>ContextExt</code> adds convenience methods for common handler patterns.</p>
 <h2 id="context-struct"><a class="header" href="#context-struct">Context Struct</a></h2>
-<p>Each layer of the pipeline populates its fields:</p>
+<p>Each pipeline layer populates its fields:</p>
 <pre><code class="language-text">Protocol adapter  -&gt;  Router  -&gt;  Auth  -&gt;  Dispatch  -&gt;  Resource
      |                  |          |           |             |
      creates            adds       adds        adds          reads
@@ -147,17 +147,17 @@
     pub json_body: Option&lt;Value&gt;,
     pub backend_manager: Option&lt;Arc&lt;BackendManager&gt;&gt;,
 }</code></pre>
-<h3 id="built-in-methods-on-context"><a class="header" href="#built-in-methods-on-context">Built-in methods on Context</a></h3>
+<h3 id="built-in-methods"><a class="header" href="#built-in-methods">Built-in methods</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>query(name)</code></td><td><code>Option&lt;&amp;str&gt;</code></td><td>Get a query parameter by name</td></tr>
+<tr><td><code>query(name)</code></td><td><code>Option&lt;&amp;str&gt;</code></td><td>Query parameter by name</td></tr>
 <tr><td><code>query_int(name, default)</code></td><td><code>i64</code></td><td>Query parameter as integer with default</td></tr>
 <tr><td><code>query_bool(name, default)</code></td><td><code>bool</code></td><td>Query parameter as boolean with default</td></tr>
-<tr><td><code>table(name)</code></td><td><code>Result&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Get the low-level backend for a table</td></tr>
+<tr><td><code>table(name)</code></td><td><code>Result&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Low-level backend for a table</td></tr>
 <tr><td><code>table_context()</code></td><td><code>(&amp;str, &amp;str)</code></td><td>Database and table name pair</td></tr>
 </tbody></table>
 </div>
 <h2 id="contextext-trait"><a class="header" href="#contextext-trait">ContextExt Trait</a></h2>
-<p>Import via <code>use yeti_sdk::prelude::*</code>. Adds higher-level convenience methods to <code>Context</code>.</p>
+<p>Imported via <code>use yeti_sdk::prelude::*</code>. Higher-level convenience methods on <code>Context</code>.</p>
 <pre><code class="language-rust ignore">pub trait ContextExt {
     fn get_table(&amp;self, name: &amp;str) -&gt; Result&lt;Table&gt;;
     fn tables(&amp;self) -&gt; Result&lt;Tables&gt;;
@@ -167,16 +167,16 @@
     fn cookie(&amp;self, name: &amp;str) -&gt; Option&lt;String&gt;;
 }</code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>get_table(name)</code></td><td><code>Result&lt;Table&gt;</code></td><td>Get a <code>Table</code> accessor by name</td></tr>
-<tr><td><code>tables()</code></td><td><code>Result&lt;Tables&gt;</code></td><td>Get a <code>Tables</code> accessor for all tables</td></tr>
-<tr><td><code>require_id()</code></td><td><code>Result&lt;&amp;str&gt;</code></td><td>Get <code>path_id</code> or return a validation error</td></tr>
-<tr><td><code>require_json_body()</code></td><td><code>Result&lt;&amp;Value&gt;</code></td><td>Get parsed JSON body or return a validation error</td></tr>
-<tr><td><code>auth_identity()</code></td><td><code>Option&lt;&amp;AuthIdentity&gt;</code></td><td>Get the authenticated identity</td></tr>
-<tr><td><code>cookie(name)</code></td><td><code>Option&lt;String&gt;</code></td><td>Get a cookie value from request headers</td></tr>
+<tr><td><code>get_table(name)</code></td><td><code>Result&lt;Table&gt;</code></td><td>Table accessor by name</td></tr>
+<tr><td><code>tables()</code></td><td><code>Result&lt;Tables&gt;</code></td><td>Accessor for all tables</td></tr>
+<tr><td><code>require_id()</code></td><td><code>Result&lt;&amp;str&gt;</code></td><td><code>path_id</code> or validation error</td></tr>
+<tr><td><code>require_json_body()</code></td><td><code>Result&lt;&amp;Value&gt;</code></td><td>Parsed JSON body or validation error</td></tr>
+<tr><td><code>auth_identity()</code></td><td><code>Option&lt;&amp;AuthIdentity&gt;</code></td><td>Authenticated identity</td></tr>
+<tr><td><code>cookie(name)</code></td><td><code>Option&lt;String&gt;</code></td><td>Cookie value from request headers</td></tr>
 </tbody></table>
 </div>
 <h2 id="path-id-and-record-lookup"><a class="header" href="#path-id-and-record-lookup">Path ID and Record Lookup</a></h2>
-<p>The router extracts the path ID from the URL (e.g., <code>"123"</code> from <code>/app/Table/123</code>). Use <code>require_id()</code> when the ID is mandatory.</p>
+<p>The router extracts the path ID from the URL (e.g. <code>"123"</code> from <code>/app/Table/123</code>). Use <code>require_id()</code> when the ID is mandatory.</p>
 <pre><code class="language-rust ignore">fn get(&amp;self, ctx: Context) -&gt; ResourceFuture {
     Box::pin(async move {
         let id = ctx.require_id()?;
@@ -201,7 +201,7 @@
     })
 }</code></pre>
 <h2 id="request-body-parsing"><a class="header" href="#request-body-parsing">Request Body Parsing</a></h2>
-<p>The dispatch layer eagerly parses JSON bodies into <code>ctx.json_body</code>. Use <code>require_json_body()</code> when a body is required, or read <code>ctx.json_body</code> directly when optional.</p>
+<p>The dispatch layer eagerly parses JSON bodies into <code>ctx.json_body</code>. Use <code>require_json_body()</code> when a body is required, or read <code>ctx.json_body</code> directly for optional bodies.</p>
 <pre><code class="language-rust ignore">fn post(&amp;self, ctx: Context) -&gt; ResourceFuture {
     Box::pin(async move {
         let body = ctx.require_json_body()?;
@@ -229,7 +229,7 @@ fn post(&amp;self, ctx: Context) -&gt; ResourceFuture {
     })
 }</code></pre>
 <h2 id="query-parameters"><a class="header" href="#query-parameters">Query Parameters</a></h2>
-<p>Query parameters are parsed by the router into <code>ctx.query_params</code>. Access them with the built-in <code>query()</code>, <code>query_int()</code>, and <code>query_bool()</code> methods.</p>
+<p>The router parses query parameters into <code>ctx.query_params</code>. Access them with <code>query()</code>, <code>query_int()</code>, and <code>query_bool()</code>.</p>
 <pre><code class="language-rust ignore">fn get(&amp;self, ctx: Context) -&gt; ResourceFuture {
     Box::pin(async move {
         let limit = ctx.query_int("limit", 100);
@@ -250,7 +250,7 @@ fn post(&amp;self, ctx: Context) -&gt; ResourceFuture {
 }</code></pre>
 <p><code>query_bool</code> recognizes <code>"true"</code>, <code>"1"</code>, <code>"yes"</code>, <code>"on"</code> as true.</p>
 <h2 id="header-access"><a class="header" href="#header-access">Header Access</a></h2>
-<p>Headers are available as a standard <code>http::HeaderMap</code> on <code>ctx.headers</code>.</p>
+<p>Standard <code>http::HeaderMap</code> on <code>ctx.headers</code>.</p>
 <pre><code class="language-rust ignore">fn get(&amp;self, ctx: Context) -&gt; ResourceFuture {
     Box::pin(async move {
         let auth = ctx.headers.get("authorization")
@@ -267,11 +267,11 @@ fn post(&amp;self, ctx: Context) -&gt; ResourceFuture {
         ok(json!({"accept": accept}))
     })
 }</code></pre>
-<p>For cookies, use the <code>cookie()</code> method from <code>ContextExt</code> which handles HTTP/2 cookie header splitting:</p>
+<p>For cookies, <code>cookie()</code> from <code>ContextExt</code> handles HTTP/2 cookie header splitting:</p>
 <pre><code class="language-rust ignore">let session = ctx.cookie("session_id");
 let theme = ctx.cookie("theme").unwrap_or_else(|| "light".to_string());</code></pre>
 <h2 id="auth-identity"><a class="header" href="#auth-identity">Auth Identity</a></h2>
-<p>The auth layer populates <code>ctx.auth_identity</code> and <code>ctx.access</code>. Use <code>auth_identity()</code> from <code>ContextExt</code> to inspect who made the request.</p>
+<p>The auth layer populates <code>ctx.auth_identity</code> and <code>ctx.access</code>.</p>
 <pre><code class="language-rust ignore">pub enum AuthIdentity {
     Basic { username: String },
     Jwt { username: String, claims: Value },
@@ -301,7 +301,7 @@ let theme = ctx.cookie("theme").unwrap_or_else(|| "light".to_string());</code></
     })
 }</code></pre>
 <h2 id="table-permission"><a class="header" href="#table-permission">Table Permission</a></h2>
-<p>The auth layer pre-computes <code>ctx.permission</code> for field-level access control. The <code>Resource</code> trait's <code>allow_*</code> methods use this automatically, but you can read it directly for custom logic.</p>
+<p>The auth layer pre-computes <code>ctx.permission</code> for field-level access control. The <code>allow_*</code> methods use this automatically; read it directly for custom logic.</p>
 <pre><code class="language-rust ignore">match &amp;ctx.permission {
     TablePermission::Public =&gt; { /* no auth required */ }
     TablePermission::FullAccess =&gt; { /* super_user or wildcard */ }
@@ -311,7 +311,7 @@ let theme = ctx.cookie("theme").unwrap_or_else(|| "light".to_string());</code></
     }
 }</code></pre>
 <h2 id="table-access"><a class="header" href="#table-access">Table Access</a></h2>
-<p>The <code>Table</code> struct returned by <code>ctx.get_table()</code> provides CRUD operations, querying, and convenience methods.</p>
+<p><code>Table</code> (from <code>ctx.get_table()</code>) provides CRUD operations, querying, and convenience methods.</p>
 <h3 id="crud-operations"><a class="header" href="#crud-operations">CRUD Operations</a></h3>
 <pre><code class="language-rust ignore">let table = ctx.get_table("Product")?;
 
@@ -360,21 +360,21 @@ while let Ok(msg) = rx.recv().await {
 <div class="table-wrapper"><table><thead><tr><th>Source</th><th>Method</th><th>Returns</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>Context</code></td><td><code>method</code></td><td><code>http::Method</code></td><td>HTTP method</td></tr>
 <tr><td></td><td><code>path</code></td><td><code>String</code></td><td>Request path</td></tr>
-<tr><td></td><td><code>body</code></td><td><code>Bytes</code></td><td>Raw request body</td></tr>
+<tr><td></td><td><code>body</code></td><td><code>Bytes</code></td><td>Raw body</td></tr>
 <tr><td></td><td><code>headers</code></td><td><code>HeaderMap</code></td><td>HTTP headers</td></tr>
 <tr><td></td><td><code>app_id</code></td><td><code>Arc&lt;str&gt;</code></td><td>Application ID</td></tr>
 <tr><td></td><td><code>resource_id</code></td><td><code>Arc&lt;str&gt;</code></td><td>Resource name</td></tr>
 <tr><td></td><td><code>path_id</code></td><td><code>Option&lt;String&gt;</code></td><td>Record ID from path</td></tr>
 <tr><td></td><td><code>is_collection</code></td><td><code>bool</code></td><td>No ID in path</td></tr>
-<tr><td></td><td><code>json_body</code></td><td><code>Option&lt;Value&gt;</code></td><td>Eagerly parsed JSON body</td></tr>
+<tr><td></td><td><code>json_body</code></td><td><code>Option&lt;Value&gt;</code></td><td>Parsed JSON body</td></tr>
 <tr><td></td><td><code>query(name)</code></td><td><code>Option&lt;&amp;str&gt;</code></td><td>Query parameter</td></tr>
 <tr><td></td><td><code>query_int(name, default)</code></td><td><code>i64</code></td><td>Integer query parameter</td></tr>
 <tr><td></td><td><code>query_bool(name, default)</code></td><td><code>bool</code></td><td>Boolean query parameter</td></tr>
 <tr><td></td><td><code>table(name)</code></td><td><code>Result&lt;Arc&lt;dyn KvBackend&gt;&gt;</code></td><td>Low-level table backend</td></tr>
 <tr><td><code>ContextExt</code></td><td><code>get_table(name)</code></td><td><code>Result&lt;Table&gt;</code></td><td>Table accessor</td></tr>
 <tr><td></td><td><code>tables()</code></td><td><code>Result&lt;Tables&gt;</code></td><td>All-tables accessor</td></tr>
-<tr><td></td><td><code>require_id()</code></td><td><code>Result&lt;&amp;str&gt;</code></td><td>Path ID or 400 error</td></tr>
-<tr><td></td><td><code>require_json_body()</code></td><td><code>Result&lt;&amp;Value&gt;</code></td><td>JSON body or 400 error</td></tr>
+<tr><td></td><td><code>require_id()</code></td><td><code>Result&lt;&amp;str&gt;</code></td><td>Path ID or 400</td></tr>
+<tr><td></td><td><code>require_json_body()</code></td><td><code>Result&lt;&amp;Value&gt;</code></td><td>JSON body or 400</td></tr>
 <tr><td></td><td><code>auth_identity()</code></td><td><code>Option&lt;&amp;AuthIdentity&gt;</code></td><td>Authenticated identity</td></tr>
 <tr><td></td><td><code>cookie(name)</code></td><td><code>Option&lt;String&gt;</code></td><td>Cookie value</td></tr>
 </tbody></table>

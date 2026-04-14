@@ -117,12 +117,12 @@
   embedding: Vector @indexed(source: "content")
 }
 </code></pre>
-<p>When you write a record, the embedding generates automatically:</p>
+<p>Embeddings generate automatically on write:</p>
 <pre><code class="language-bash">curl -X POST https://localhost:9996/my-app/Document \
   -H 'Content-Type: application/json' \
   -d '{"content": "Yeti runs everything in a single binary"}'
 </code></pre>
-<p>The <code>embedding</code> field is populated by the yeti-ai service using the configured model.</p>
+<p>The yeti-ai service populates the <code>embedding</code> field using the configured model.</p>
 <h2 id="vector-search"><a class="header" href="#vector-search">Vector Search</a></h2>
 <p>Query by similarity with FIQL or JSON:</p>
 <pre><code class="language-bash"># FIQL — search by text similarity
@@ -130,7 +130,7 @@ curl 'https://localhost:9996/my-app/Document?filter=embedding=vector="single bin
 </code></pre>
 <p>Results are ranked by cosine similarity. The HNSW index provides sub-millisecond lookups at any dataset size.</p>
 <h2 id="local-inference"><a class="header" href="#local-inference">Local Inference</a></h2>
-<p>The yeti-ai service provides chat completion and text generation via the <code>AiHook</code> trait. AI hooks are registered at the service level (via <code>RegistrationContext::add_ai_hook()</code>) and are not directly accessible from resource handler context. To expose inference to application code, build a service that wraps the <code>AiHook</code>:</p>
+<p>The yeti-ai service provides chat completion and text generation via the <code>AiHook</code> trait. AI hooks register at the service level (<code>RegistrationContext::add_ai_hook()</code>) and are not directly accessible from resource handler context. Expose inference to application code by building a service that wraps the <code>AiHook</code>:</p>
 <pre><code class="language-rust ignore">// In a service's register():
 ctx.add_ai_hook(Arc::new(MyAiHook::new()));
 
@@ -147,7 +147,7 @@ let response = ai_hook.complete("Summarize this:", 256)
 </tbody></table>
 </div>
 <h2 id="model-management"><a class="header" href="#model-management">Model Management</a></h2>
-<p>Manage models through the yeti-ai REST API:</p>
+<p>Models are managed through the yeti-ai REST API:</p>
 <pre><code class="language-bash"># List available models
 curl https://localhost:9996/yeti-ai/models
 

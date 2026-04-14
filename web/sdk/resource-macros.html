@@ -109,15 +109,15 @@
                     <main>
                         <h1 id="resource-macros"><a class="header" href="#resource-macros">Resource Macros</a></h1>
 <h2 id="resource"><a class="header" href="#resource">resource!</a></h2>
-<p>The primary macro for defining HTTP resources. It generates a struct, implements the <code>Resource</code> trait, and registers the resource for export.</p>
+<p>The primary macro for defining HTTP resources. Generates a struct, implements <code>Resource</code>, and registers it for export.</p>
 <h3 id="simple-no-context"><a class="header" href="#simple-no-context">Simple (no context)</a></h3>
-<p>For static responses that don't need request data:</p>
+<p>Static responses without request data:</p>
 <pre><code class="language-rust ignore">resource!(Health {
     get =&gt; json!({"status": "ok"})
 });</code></pre>
-<p>The struct name becomes the route path (lowercased): <code>GET /app/health</code>.</p>
+<p>Struct name becomes the route path (lowercased): <code>GET /app/health</code>.</p>
 <h3 id="with-context"><a class="header" href="#with-context">With Context</a></h3>
-<p>Use a single parameter to access the <code>Context</code>, which carries the request, path ID, query params, auth identity, headers, body, and table access:</p>
+<p>Pass a parameter to access the <code>Context</code> (request, path ID, query params, auth identity, headers, body, tables):</p>
 <pre><code class="language-rust ignore">resource!(Items {
     get(ctx) =&gt; {
         let table = ctx.get_table("Items")?;
@@ -141,14 +141,14 @@
 });</code></pre>
 <p>The parameter name is arbitrary (<code>ctx</code>, <code>c</code>, <code>request</code>, etc.).</p>
 <h3 id="custom-url-path"><a class="header" href="#custom-url-path">Custom URL path</a></h3>
-<p>Override the route path with <code>name =</code>:</p>
+<p>Override the route path:</p>
 <pre><code class="language-rust ignore">resource!(MyHandler {
     name = "custom-path",
     get =&gt; json!({"served_at": "/app/custom-path"})
 });</code></pre>
-<p>The resource registers at <code>/app/custom-path</code> instead of <code>/app/myhandler</code>.</p>
+<p>Registers at <code>/app/custom-path</code> instead of <code>/app/myhandler</code>.</p>
 <h3 id="catch-all-default"><a class="header" href="#catch-all-default">Catch-all (default)</a></h3>
-<p>A default resource handles any path not matched by other resources or tables:</p>
+<p>A default resource handles unmatched paths:</p>
 <pre><code class="language-rust ignore">resource!(Fallback {
     default = true,
     get(ctx) =&gt; {
@@ -157,7 +157,7 @@
     }
 });</code></pre>
 <h3 id="combined-options"><a class="header" href="#combined-options">Combined options</a></h3>
-<p><code>name</code> and <code>default</code> can be used together, in either order:</p>
+<p><code>name</code> and <code>default</code> combine in either order:</p>
 <pre><code class="language-rust ignore">resource!(CatchAll {
     name = "fallback",
     default = true,
@@ -166,8 +166,7 @@
     }
 });</code></pre>
 <h3 id="custom-fields"><a class="header" href="#custom-fields">Custom fields</a></h3>
-<p>Resources can hold state via the <code>fields</code> block:</p>
-<p>Custom fields are accessible via <code>self</code> inside handler bodies, since each handler is a <code>fn get(&amp;self, ctx: Context)</code> method. Note: the <code>fields</code> pattern does not support a context parameter.</p>
+<p>Resources hold state via the <code>fields</code> block. Fields are accessible via <code>self</code> inside handlers (each handler is a <code>fn get(&amp;self, ctx: Context)</code> method). The <code>fields</code> pattern does not support a context parameter.</p>
 <pre><code class="language-rust ignore">resource!(Counter {
     fields { count: Arc&lt;std::sync::atomic::AtomicU64&gt; },
     get =&gt; {
@@ -176,17 +175,17 @@
     }
 });</code></pre>
 <h3 id="supported-methods"><a class="header" href="#supported-methods">Supported methods</a></h3>
-<p>The macro supports these HTTP methods, each with or without a context parameter:</p>
+<p>Supported HTTP methods (each with or without a context parameter):</p>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>get</code></td><td>Handle GET requests</td></tr>
-<tr><td><code>post</code></td><td>Handle POST requests</td></tr>
-<tr><td><code>put</code></td><td>Handle PUT requests</td></tr>
-<tr><td><code>patch</code></td><td>Handle PATCH requests</td></tr>
-<tr><td><code>delete</code></td><td>Handle DELETE requests</td></tr>
-<tr><td><code>search</code></td><td>Handle SEARCH requests</td></tr>
+<tr><td><code>get</code></td><td>GET requests</td></tr>
+<tr><td><code>post</code></td><td>POST requests</td></tr>
+<tr><td><code>put</code></td><td>PUT requests</td></tr>
+<tr><td><code>patch</code></td><td>PATCH requests</td></tr>
+<tr><td><code>delete</code></td><td>DELETE requests</td></tr>
+<tr><td><code>search</code></td><td>SEARCH requests</td></tr>
 </tbody></table>
 </div>
-<p>Real-time methods are available when implementing the <code>Resource</code> trait directly:</p>
+<p>Real-time methods (available when implementing <code>Resource</code> directly):</p>
 <div class="table-wrapper"><table><thead><tr><th>Method</th><th>Return type</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>subscribe</code></td><td><code>SubscriptionFuture</code></td><td>SSE event streams</td></tr>
 <tr><td><code>publish</code></td><td><code>ResourceFuture</code></td><td>MQTT publish handling</td></tr>
@@ -194,18 +193,18 @@
 </tbody></table>
 </div>
 <h2 id="extends_table"><a class="header" href="#extends_table">extends_table!</a></h2>
-<p>Override behavior on an auto-generated table resource. Only the methods you define are overridden; all others delegate to the default table implementation.</p>
+<p>Override behavior on an auto-generated table resource. Only defined methods are overridden; others delegate to the default table implementation.</p>
 <pre><code class="language-rust ignore">extends_table!(Product {
     get =&gt; json!({"message": "custom product listing"})
 });</code></pre>
-<p>Note: <code>extends_table!</code> uses simple expression syntax (no context parameter). For table extensions that need context access, use <code>resource!</code> with the TableExtender pattern or implement the <code>Resource</code> trait directly.</p>
+<p><code>extends_table!</code> uses simple expression syntax (no context parameter). For context access, use <code>resource!</code> with the TableExtender pattern or implement <code>Resource</code> directly.</p>
 <h2 id="permission-overrides-tableextender"><a class="header" href="#permission-overrides-tableextender">Permission overrides (TableExtender)</a></h2>
-<p>Declare which methods on a table resource are publicly accessible without authentication:</p>
+<p>Declare publicly accessible methods on a table resource (no authentication required):</p>
 <pre><code class="language-rust ignore">resource!(TableExtender for Product {
     get =&gt; allow_read(),
     subscribe =&gt; allow_read(),
 });</code></pre>
-<p>Available permission functions:</p>
+<p>Permission functions:</p>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Makes public</th><th>Applies to</th></tr></thead><tbody>
 <tr><td><code>allow_read()</code></td><td>Read access</td><td><code>get</code>, <code>search</code>, <code>subscribe</code>, <code>connect</code></td></tr>
 <tr><td><code>allow_create()</code></td><td>Insert access</td><td><code>post</code>, <code>publish</code></td></tr>
@@ -213,7 +212,7 @@
 <tr><td><code>allow_delete()</code></td><td>Delete access</td><td><code>delete</code></td></tr>
 </tbody></table>
 </div>
-<p>Multiple methods can map to the same permission. Duplicates are automatically deduplicated:</p>
+<p>Multiple methods can map to the same permission. Duplicates are deduplicated:</p>
 <pre><code class="language-rust ignore">resource!(TableExtender for Chat {
     get =&gt; allow_read(),
     post =&gt; allow_create(),
@@ -224,7 +223,7 @@
 });</code></pre>
 <h2 id="response-helpers"><a class="header" href="#response-helpers">Response helpers</a></h2>
 <h3 id="reply-builder"><a class="header" href="#reply-builder">reply() builder</a></h3>
-<p>The preferred way to build responses. Chainable, Fastify-style API:</p>
+<p>Chainable response builder:</p>
 <pre><code class="language-rust ignore">resource!(Api {
     get(ctx) =&gt; {
         reply()
@@ -236,19 +235,19 @@
 <p>Builder methods: <code>.code(status)</code>, <code>.header(name, value)</code>, <code>.json(value)</code>, <code>.text(content)</code>, <code>.html(content)</code>.</p>
 <h3 id="function-helpers"><a class="header" href="#function-helpers">Function helpers</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Function</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>ok(value)</code></td><td>200 with JSON body</td></tr>
-<tr><td><code>created(value)</code></td><td>201 with JSON body</td></tr>
-<tr><td><code>no_content()</code></td><td>204 empty response</td></tr>
+<tr><td><code>ok(value)</code></td><td>200 + JSON body</td></tr>
+<tr><td><code>created(value)</code></td><td>201 + JSON body</td></tr>
+<tr><td><code>no_content()</code></td><td>204 empty</td></tr>
 <tr><td><code>not_found(msg)</code></td><td>404 error</td></tr>
 <tr><td><code>bad_request(msg)</code></td><td>400 error</td></tr>
 <tr><td><code>unauthorized(msg)</code></td><td>401 error</td></tr>
-<tr><td><code>json_response(status, value)</code></td><td>Custom status with JSON</td></tr>
-<tr><td><code>html_response(content)</code></td><td>200 with text/html</td></tr>
-<tr><td><code>text_response(content)</code></td><td>200 with text/plain</td></tr>
+<tr><td><code>json_response(status, value)</code></td><td>Custom status + JSON</td></tr>
+<tr><td><code>html_response(content)</code></td><td>200 + text/html</td></tr>
+<tr><td><code>text_response(content)</code></td><td>200 + text/plain</td></tr>
 </tbody></table>
 </div>
 <h2 id="resource-trait-reference"><a class="header" href="#resource-trait-reference">Resource trait reference</a></h2>
-<p>The full <code>Resource</code> trait that macros implement:</p>
+<p>The full trait that macros implement:</p>
 <pre><code class="language-rust ignore">pub trait Resource: Send + Sync {
     fn name(&amp;self) -&gt; &amp;str;
     fn is_default(&amp;self) -&gt; bool { false }
@@ -278,7 +277,17 @@
     fn allow_connect(&amp;self, ctx: &amp;Context) -&gt; bool;
     fn allow_publish(&amp;self, ctx: &amp;Context) -&gt; bool;
 }</code></pre>
-<p>All methods except <code>name()</code> have default implementations. HTTP methods default to 405 Method Not Allowed. Authorization methods default to RBAC checks against the context's <code>AccessControl</code>.</p>
+<p>All methods except <code>name()</code> have defaults. HTTP methods default to 405. Authorization methods default to RBAC checks against the context's <code>AccessControl</code>.
+ssControl<code>. l</code>.
+essControl<code>. ssControl</code>.
+l<code>. ext's </code>AccessControl<code>. ssControl</code>.
+l<code>. essControl</code>.
+ssControl<code>. l</code>.
+trol<code>. l</code>.
+<code>. essControl</code>.
+ssControl<code>. l</code>.
+trol<code>. l</code>.
+l`.</p>
 
                     </main>
 

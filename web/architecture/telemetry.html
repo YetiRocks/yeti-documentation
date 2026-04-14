@@ -108,7 +108,7 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="telemetry-pipeline"><a class="header" href="#telemetry-pipeline">Telemetry Pipeline</a></h1>
-<p>Core provides a minimal event channel (~260 lines). All processing lives in the optional <code>yeti-telemetry</code> service.</p>
+<p>Minimal event channel in core (~260 lines). All processing lives in the optional <code>yeti-telemetry</code> service.</p>
 <h2 id="pipeline"><a class="header" href="#pipeline">Pipeline</a></h2>
 <pre><code>tracing::info!("message")
         │
@@ -124,7 +124,7 @@
         └──&gt; OtlpOutput (optional)
 </code></pre>
 <h2 id="dispatchlayer"><a class="header" href="#dispatchlayer">DispatchLayer</a></h2>
-<p>A <code>tracing</code> subscriber layer that serializes log events and span lifecycle to JSON and sends through a bounded channel (capacity 10,000).</p>
+<p>A <code>tracing</code> subscriber layer that serializes events and spans to JSON, sent through a bounded channel (capacity 10,000).</p>
 <h3 id="event-format"><a class="header" href="#event-format">Event Format</a></h3>
 <pre><code class="language-json">{"kind": "log", "timestamp": 1700000000.123, "level": "INFO", "target": "yeti_core::routing", "message": "Request processed"}
 {"kind": "span", "timestamp": 1700000000.456, "name": "process_request", "level": "DEBUG", "duration_ms": 12.5}

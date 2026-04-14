@@ -108,9 +108,9 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="native-replication"><a class="header" href="#native-replication">Native Replication</a></h1>
-<p>Yeti includes a native replication system for distributing data across multiple nodes. Replication is a license-gated feature — without a valid license key, Yeti runs as a standalone single-node server.</p>
+<p>Native replication for distributing data across multiple nodes. License-gated -- without a valid key, Yeti runs standalone.</p>
 <h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
-<p>The replication system has three components:</p>
+<p>Three components:</p>
 <ul>
 <li><strong>Gossip-based discovery</strong> — nodes find each other and exchange metadata using the chitchat protocol</li>
 <li><strong>gRPC WAL replication</strong> — write-ahead log batches are pushed between nodes over gRPC with mTLS</li>
@@ -118,22 +118,22 @@
 </ul>
 <p>All three components share a single port (default: 9997). Gossip runs over UDP and gRPC runs over TCP on the same port number.</p>
 <h2 id="consistency-model"><a class="header" href="#consistency-model">Consistency Model</a></h2>
-<p>Yeti uses <strong>asynchronous replication with last-writer-wins conflict resolution</strong>. Every write is stamped with a hybrid logical clock (HLC) timestamp that combines wall-clock time with a logical counter. When two nodes write to the same key concurrently, the write with the higher HLC timestamp wins.</p>
-<p>This model provides:</p>
+<p>Asynchronous replication with last-writer-wins conflict resolution. Every write is stamped with a hybrid logical clock (HLC) timestamp combining wall-clock time with a logical counter. Concurrent writes to the same key resolve by highest HLC.</p>
+<p>This provides:</p>
 <ul>
 <li><strong>Eventual consistency</strong> — all nodes converge to the same state</li>
 <li><strong>Low-latency writes</strong> — writes succeed locally without waiting for acknowledgment from peers</li>
 <li><strong>Partition tolerance</strong> — nodes continue operating independently during network partitions; WAL batches catch up when connectivity restores</li>
 </ul>
 <h3 id="crdt-support"><a class="header" href="#crdt-support">CRDT Support</a></h3>
-<p>For data types that require conflict-free merging instead of last-writer-wins, Yeti includes built-in CRDT types:</p>
+<p>For conflict-free merging instead of last-writer-wins, use built-in CRDT types:</p>
 <ul>
 <li><strong>Counter</strong> — increment-only counter</li>
 <li><strong>PN-Counter</strong> — increment/decrement counter</li>
 <li><strong>OR-Set</strong> — observed-remove set</li>
 </ul>
 <h3 id="per-table-consistency-future"><a class="header" href="#per-table-consistency-future">Per-Table Consistency (Future)</a></h3>
-<p>The <code>@table</code> directive will support per-table consistency levels, allowing you to choose the right trade-off for each table:</p>
+<p>The <code>@table</code> directive will support per-table consistency levels:</p>
 <pre><code class="language-graphql">type UserProfile @table @export {
   id: ID! @primaryKey
   name: String!
@@ -148,18 +148,18 @@ type PageView @table @export {
 </code></pre>
 <p>Full replication (the default) means every node has a complete copy of every table. This is appropriate for most workloads where dataset size is manageable (under 10GB).</p>
 <h2 id="gossip-based-node-discovery"><a class="header" href="#gossip-based-node-discovery">Gossip-Based Node Discovery</a></h2>
-<p>Nodes discover each other through a gossip protocol based on <a href="https://github.com/quickwit-oss/chitchat">chitchat</a>. On startup, a node contacts one or more seed nodes to join the cluster. Gossip then propagates membership changes and metadata to all nodes.</p>
-<p>Each node advertises via gossip:</p>
+<p>Gossip protocol based on <a href="https://github.com/quickwit-oss/chitchat">chitchat</a>. On startup, a node contacts seed nodes to join the cluster. Gossip propagates membership changes and metadata.</p>
+<p>Each node advertises:</p>
 <ul>
 <li>Node ID and address</li>
 <li>Provider and region (for topology-aware routing)</li>
 <li>Server capacity and current load</li>
 <li>Which applications and tables are hosted locally</li>
 </ul>
-<p>Gossip metadata enables the replication layer to route WAL batches to the correct peers without a centralized registry.</p>
+<p>Gossip metadata routes WAL batches to correct peers without a centralized registry.</p>
 <h2 id="wal-replication"><a class="header" href="#wal-replication">WAL Replication</a></h2>
-<p>Every write to RocksDB is recorded in the write-ahead log (WAL) with an HLC timestamp and the originating node ID. The async replicator pushes WAL batches to peer nodes over gRPC.</p>
-<p>The replication protocol (defined in <code>replication.proto</code>) provides three RPC methods:</p>
+<p>Every write to RocksDB is recorded in the WAL with an HLC timestamp and originating node ID. The async replicator pushes batches to peers over gRPC.</p>
+<p>Three RPC methods (defined in <code>replication.proto</code>):</p>
 <div class="table-wrapper"><table><thead><tr><th>RPC</th><th>Purpose</th></tr></thead><tbody>
 <tr><td><code>Replicate</code></td><td>Push WAL batches to a peer (primary replication path)</td></tr>
 <tr><td><code>Fetch</code></td><td>Pull WAL batches from a peer (catch-up after restart)</td></tr>
@@ -177,9 +177,9 @@ type PageView @table @export {
 </code></pre>
 <p>All operations in a batch are applied atomically on the receiving node.</p>
 <h3 id="catch-up-replication"><a class="header" href="#catch-up-replication">Catch-Up Replication</a></h3>
-<p>When a node restarts or temporarily loses connectivity, it uses <code>Fetch</code> to pull any missed WAL batches from peers. The <code>after_sequence</code> parameter tells the peer which batches the requesting node already has, so only new batches are sent.</p>
+<p>When a node restarts or loses connectivity, <code>Fetch</code> pulls missed WAL batches from peers. The <code>after_sequence</code> parameter ensures only new batches transfer.</p>
 <h2 id="shard-map-and-distributed-routing"><a class="header" href="#shard-map-and-distributed-routing">Shard Map and Distributed Routing</a></h2>
-<p>For large datasets where full replication is impractical, Yeti supports sharded replication with distributed query routing.</p>
+<p>For large datasets where full replication is impractical, sharded replication with distributed query routing is available.</p>
 <h3 id="residency-modes"><a class="header" href="#residency-modes">Residency Modes</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Mode</th><th>Behavior</th></tr></thead><tbody>
 <tr><td><strong>Full</strong></td><td>Every node has all data. Reads are always local. Default mode.</td></tr>
@@ -189,7 +189,7 @@ type PageView @table @export {
 </tbody></table>
 </div>
 <h3 id="distributed-query-routing"><a class="header" href="#distributed-query-routing">Distributed Query Routing</a></h3>
-<p>In sharded mode, a <code>DistSender</code> component routes reads and writes to the correct shard owner:</p>
+<p>In sharded mode, <code>DistSender</code> routes reads and writes to the correct shard owner:</p>
 <ul>
 <li><strong>Point reads</strong> — hash the key, find the shard owner, send a gRPC <code>Get</code> to that node</li>
 <li><strong>Prefix scans</strong> — identify all shard owners for the table, send parallel <code>Scan</code> requests, merge sorted results (scatter-gather)</li>
@@ -228,18 +228,18 @@ type PageView @table @export {
 </tbody></table>
 </div>
 <h3 id="single-port-design"><a class="header" href="#single-port-design">Single Port Design</a></h3>
-<p>Gossip (UDP) and gRPC replication (TCP) share the same port number. This simplifies firewall configuration — you only need to open one port for all replication traffic.</p>
+<p>Gossip (UDP) and gRPC replication (TCP) share the same port number. One firewall rule covers all replication traffic.</p>
 <h3 id="security"><a class="header" href="#security">Security</a></h3>
-<p>All inter-node communication uses mTLS with per-node X.509 certificates. This provides:</p>
+<p>All inter-node communication uses mTLS with per-node X.509 certificates:</p>
 <ul>
-<li>Mutual authentication — both sides prove their identity</li>
-<li>Encryption in transit — all WAL batches and gossip messages are encrypted</li>
-<li>Per-node revocation — individual node certificates can be revoked without affecting the cluster</li>
+<li>Mutual authentication -- both sides prove identity</li>
+<li>Encryption in transit -- all WAL batches and gossip encrypted</li>
+<li>Per-node revocation -- revoke individual certificates without affecting the cluster</li>
 </ul>
 <h2 id="license-gating"><a class="header" href="#license-gating">License Gating</a></h2>
-<p>Replication requires a valid Ed25519-signed license key. The public key is embedded at compile time in the Yeti binary. Key validation is offline — no network call is needed.</p>
-<p>Without a valid license key, the <code>replication</code> configuration section is ignored and Yeti runs as a standalone server. All other features (REST, GraphQL, gRPC, MCP, plugins, extensions) work without a license.</p>
-<p>License keys encode:</p>
+<p>Replication requires a valid Ed25519-signed license key. The public key is embedded at compile time. Validation is offline -- no network call needed.</p>
+<p>Without a valid key, the <code>replication</code> section is ignored and Yeti runs standalone. All other features work without a license.</p>
+<p>Keys encode:</p>
 <ul>
 <li>Customer identifier (wildcard for cloud fleet, specific for enterprise on-prem)</li>
 <li>Feature flags (replication, multi-tenant, build-server)</li>
