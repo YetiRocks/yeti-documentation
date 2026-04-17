@@ -40,5 +40,5 @@ __pycache__/
 target/criterion/
 
 book/
-
+web/
 # RocksDB prebuilt binaries (downloaded or local)
