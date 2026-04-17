@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found | Yeti Documentation</title>
+    <link rel="icon" href="/documentation/learn/favicon.png">
+    <style>
+        :root {
+            --color-black: #0e0e0e;
+            --color-white: #dddddd;
+            --color-grey: #888888;
+            --color-primary: #d34516;
+            --color-border-primary: rgba(255, 255, 255, 0.06);
+            --font-size-sm: 0.9375rem;
+            --font-size-lg: 1.125rem;
+            --space-4: 1rem;
+            --space-6: 1.5rem;
+            --space-8: 2rem;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--color-black);
+            color: var(--color-white);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: var(--space-8);
+        }
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: var(--space-4);
+        }
+        .subtitle {
+            color: var(--color-grey);
+            margin-bottom: var(--space-6);
+        }
+        .fact {
+            font-size: var(--font-size-lg);
+            line-height: 1.8;
+            max-width: 600px;
+            margin: 0 auto var(--space-6);
+        }
+        .buttons {
+            display: flex;
+            gap: var(--space-4);
+            justify-content: center;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid var(--color-border-primary);
+            background: transparent;
+            color: var(--color-white);
+            transition: all 0.15s;
+        }
+        .btn:hover { border-color: var(--color-grey); }
+        .btn-primary {
+            background: var(--color-primary);
+            border-color: var(--color-primary);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: color-mix(in srgb, var(--color-primary) 85%, white);
+        }
+    </style>
+</head>
+<body>
+    <h1>Uh oh, we couldn't find that page.</h1>
+    <p class="subtitle">But here's a fun fact about Samoyeds:</p>
+    <p class="fact" id="fact"></p>
+    <div class="buttons">
+        <button class="btn" onclick="pickFact()">Another fact</button>
+        <a href="/documentation/learn/" class="btn btn-primary">Go home</a>
+    </div>
+    <script>
+        var facts = [
+            'Samoyeds were bred by the Samoyede people of Siberia to herd reindeer, pull sleds, and keep their owners warm by sleeping on top of them.',
+            'A Samoyed\'s mouth curves upward at the corners, giving them a permanent smile. This is called the "Sammy smile" and it actually serves a purpose \u2014 it prevents drooling, which would form icicles in freezing temperatures.',
+            'Samoyed fur is so warm and soft that it can be spun into yarn and knitted into clothing. It\'s sometimes called "Samoyed wool" and is as warm as actual sheep\'s wool.',
+            'Samoyeds were part of Roald Amundsen\'s expedition to the South Pole in 1911. A Samoyed named Etah was the lead dog on the first team to reach the South Pole.',
+            'Despite being Arctic dogs, Samoyeds are surprisingly adaptable and can live comfortably in warmer climates \u2014 their double coat actually insulates against heat as well as cold.',
+            'Samoyeds are one of the 14 ancient dog breeds, meaning their DNA is closest to wolves among all domestic dogs. They\'ve been companions to humans for over 3,000 years.',
+            'A group of Samoyeds is sometimes called a "cloud" because when they lie down together, they look like a fluffy white cloud on the ground.',
+            'Samoyeds have black lips, nose, and eye rims \u2014 the dark pigmentation protects against sunburn and snow glare in Arctic conditions.',
+            'The Samoyed\'s tail curls over their back and can be used as a face warmer. They\'ll curl up and tuck their nose under their tail to stay warm while sleeping in snow.',
+            'Samoyeds are known as "velcro dogs" because they form extremely strong bonds with their families and want to be involved in everything. Leaving them alone too long makes them dramatically sad.',
+            'A Samoyed named Moustan of Doginton was the first Best in Show winner at Crufts in 1929, back when the competition was only two years old.',
+            'Samoyeds can pull up to 1.5 times their own body weight on a sled. A team of six Samoyeds can haul over 1,000 pounds across frozen terrain.',
+            'Samoyed puppies are born with their ears folded down. The ears gradually stand up over the first few months, giving them their alert, fox-like appearance.',
+            'In their native Siberia, Samoyeds were considered family members, not just working dogs. They slept inside the chooms (tents) with their human families for mutual warmth.',
+            'Samoyeds have a double coat that sheds heavily twice a year \u2014 an event owners call "blowing coat." During this time, you can literally pull handfuls of soft undercoat off them.',
+            'The Samoyed breed nearly went extinct in England in the early 1900s. The modern breed descends from just 12 dogs brought to England by Arctic explorers.',
+            'Samoyeds are one of the few breeds that genuinely enjoy cold weather baths. Many owners report their Samoyeds rolling in snow immediately after being towel-dried.',
+            'A Samoyed\'s bark is surprisingly deep for their size. They\'re also known for "talking" \u2014 a distinctive woo-woo-woo vocalization they use to communicate with their owners.',
+            'Samoyeds have an incredible sense of direction. Sled teams in the Arctic were often trusted to find the way home through blizzards when humans couldn\'t see the trail.',
+            'The white color of the Samoyed wasn\'t always dominant. Early Samoyeds came in white, cream, biscuit, and even black. Selective breeding in England favored the all-white coat.'
+        ];
+        var lastIndex = -1;
+        function pickFact() {
+            var next;
+            do { next = Math.floor(Math.random() * facts.length); } while (next === lastIndex);
+            lastIndex = next;
+            document.getElementById('fact').textContent = '\u201C' + facts[next] + '\u201D';
+        }
+        pickFact();
+    </script>
+</body>
+</html>

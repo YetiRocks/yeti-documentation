@@ -1,0 +1,36 @@
+[book]
+title = "Yeti Learn"
+description = "Yeti platform documentation — Learn"
+authors = ["Yeti Team"]
+language = "en"
+src = "."
+
+[build]
+build-dir = "../../../web/learn"
+create-missing = false
+
+[output.html]
+default-theme = "rust"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/yetiRocks/yeti"
+site-url = "/documentation/learn/"
+additional-css = ["theme/yeti.css", "theme/custom.css"]
+theme = "theme"
+
+[output.html.search]
+enable = true
+limit-results = 30
+use-boolean-and = true
+expand = true
+
+[output.html.fold]
+enable = true
+level = 0
+
+[output.html.playground]
+runnable = false
+copyable = true
+line-numbers = true
+
+[output.html.print]
+enable = false

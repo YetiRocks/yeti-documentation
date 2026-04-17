@@ -14,8 +14,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#121212">
 
-    <link rel="icon" href="{{ path_to_root }}favicon.png">
-    <link rel="shortcut icon" href="{{ path_to_root }}favicon.png">
+    <link rel="icon" href="/documentation/assets/favicon.png">
+    <link rel="shortcut icon" href="/documentation/assets/favicon.png">
 
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="{{ path_to_root }}FontAwesome/css/font-awesome.css">
@@ -56,12 +56,17 @@
         localStorage.setItem('mdbook-theme', 'coal');
     </script>
 
-    <!-- Yeti Header — matches demo app nav structure -->
+    <!-- Yeti Header — responsive with hamburger for mobile -->
     <nav class="nav">
         <div class="nav-left">
-            <a href="/"><img src="{{ path_to_root }}logo_white.svg" class="nav-logo" alt="Yeti"></a>
+            <a href="/documentation/"><img src="/documentation/assets/logo_white.svg" class="nav-logo nav-logo-full" alt="Yeti"></a>
+            <a href="/documentation/"><img src="/documentation/assets/icon.svg" class="nav-logo nav-logo-icon" alt="Yeti"></a>
         </div>
-        <span class="nav-title">Documentation</span>
+        <div class="nav-center">
+            <a href="/documentation/learn/" class="nav-link">Learn</a>
+            <a href="/documentation/guides/" class="nav-link">Guides</a>
+            <a href="/documentation/reference/" class="nav-link">Reference</a>
+        </div>
         <div class="nav-right">
             <div id="search-wrapper" class="header-search">
                 <i class="fa fa-search header-search-icon"></i>
@@ -69,8 +74,57 @@
                     <input type="search" id="searchbar" name="searchbar" placeholder="Search..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
                 </form>
             </div>
+            <button class="nav-hamburger" id="nav-hamburger" aria-label="Toggle menu">&#9776;</button>
         </div>
     </nav>
+
+    <!-- Mobile nav overlay -->
+    <div class="nav-mobile" id="nav-mobile">
+        <a href="/documentation/learn/" class="nav-link">Learn</a>
+        <a href="/documentation/guides/" class="nav-link">Guides</a>
+        <a href="/documentation/reference/" class="nav-link">Reference</a>
+    </div>
+
+    <script>
+        // Highlight active topnav link
+        (function() {
+            var path = window.location.pathname;
+            document.querySelectorAll('.nav-center .nav-link, .nav-mobile .nav-link').forEach(function(link) {
+                if (path.indexOf(link.getAttribute('href')) === 0) {
+                    link.classList.add('active');
+                }
+            });
+        })();
+        // Hamburger toggle
+        (function() {
+            var btn = document.getElementById('nav-hamburger');
+            var menu = document.getElementById('nav-mobile');
+            if (btn && menu) {
+                btn.addEventListener('click', function() {
+                    var open = menu.classList.toggle('open');
+                    btn.innerHTML = open ? '\u2715' : '\u2630';
+                });
+            }
+        })();
+        // Move search to nav-center on mobile
+        (function() {
+            var mq = window.matchMedia('(max-width: 768px)');
+            var search = document.getElementById('search-wrapper');
+            var center = document.querySelector('.nav-center');
+            var right = document.querySelector('.nav-right');
+            if (!search || !center || !right) return;
+            function update() {
+                if (mq.matches) {
+                    center.appendChild(search);
+                } else {
+                    right.insertBefore(search, right.firstChild);
+                }
+            }
+            mq.addEventListener('change', update);
+            update();
+        })();
+    </script>
+
     <!-- Hidden search-toggle stub for searcher.js compatibility -->
     <button id="search-toggle" style="display:none" aria-expanded="false"></button>
 

@@ -3,7 +3,7 @@
  * Only styles specific to mdbook documentation layout
  */
 
-/* ===== Base layout (replaces mdbook's general.css + chrome.css) ===== */
+/* ===== Base layout ===== */
 
 html, body, #root { height: 100%; }
 
@@ -17,25 +17,16 @@ body {
 }
 
 .page-wrapper, .page { background: var(--color-black); }
+.page { padding-top: 0; min-height: 100%; }
 
-/* Sidebar layout — mdbook structure */
+/* ===== Body container (below fixed nav) ===== */
+
 #body-container {
   display: flex;
   height: calc(100vh - 73px);
+  margin-top: 73px;
+  padding: 0;
 }
-
-.sidebar {
-  width: 300px;
-  flex-shrink: 0;
-  overflow-y: auto;
-}
-
-/* Sidebar toggle via hidden checkbox */
-.hidden { display: none; }
-
-/* When checkbox unchecked, hide sidebar */
-#sidebar-toggle-anchor:not(:checked) ~ .sidebar { display: none; }
-#sidebar-toggle-anchor:not(:checked) ~ #page-wrapper { flex: 1; }
 
 #page-wrapper {
   flex: 1;
@@ -43,26 +34,52 @@ body {
   min-width: 0;
 }
 
-.page { min-height: 100%; }
-
-/* ===== Header — uses shared .nav from yeti.css ===== */
+/* ===== Header overrides ===== */
 
 .nav { z-index: 200; }
+.nav-left { gap: 0; min-width: 40px; }
 .nav-left a { text-decoration: none; border: none; }
+.nav-right { min-width: 0; }
 
-/* Push body below fixed header */
-#body-container { margin-top: 73px; padding: 0; }
+.nav-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.nav-link,
+.nav-link:link,
+.nav-link:visited {
+  color: var(--color-grey);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  text-decoration: none;
+  padding: var(--space-2) 0;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.nav-link:hover {
+  color: var(--color-white);
+  text-decoration: none;
+}
+
+.nav-link.active {
+  color: var(--color-white);
+  border-bottom-color: var(--color-primary);
+  text-decoration: none;
+}
 
 /* Hide default mdBook menu bar */
 .menu-bar, #menu-bar, #menu-bar-hover-placeholder { display: none; }
 
-/* ===== Search — compact in header-right ===== */
+/* ===== Search ===== */
 
-.header-search {
-  position: relative;
-  width: 220px;
-}
-
+.header-search { position: relative; }
 #search-wrapper.hidden { display: flex; }
 .header-search-form { width: 100%; margin: 0; }
 
@@ -94,7 +111,6 @@ body {
 .nav #searchbar:focus { border-color: var(--color-border-primary); }
 .nav #searchbar::placeholder { color: var(--color-grey); }
 
-/* Search results */
 #searchresults-outer {
   position: fixed;
   top: 73px;
@@ -133,17 +149,8 @@ body {
 }
 
 .searchresult-outer:hover { background: var(--color-white-overlay); }
-
-#searchresults a {
-  display: block;
-  margin-top: var(--space-3);
-}
-
-#searchresults a .breadcrumbs {
-  display: block;
-  font-weight: 600;
-  margin-bottom: var(--space-2);
-}
+#searchresults a { display: block; margin-top: var(--space-3); }
+#searchresults a .breadcrumbs { display: block; font-weight: 600; margin-bottom: var(--space-2); }
 
 mark {
   background: rgba(215, 186, 125, 0.3);
@@ -155,9 +162,16 @@ mark {
 /* ===== Sidebar ===== */
 
 .sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  overflow-y: auto;
   background: var(--color-black);
   border-right: 1px solid var(--color-border-primary);
 }
+
+.hidden { display: none; }
+#sidebar-toggle-anchor:not(:checked) ~ .sidebar { display: none; }
+#sidebar-toggle-anchor:not(:checked) ~ #page-wrapper { flex: 1; }
 
 .sidebar-scrollbox { background: var(--color-black); padding: var(--space-4) 0; }
 .sidebar .sidebar-resize-handle { display: none; }
@@ -168,12 +182,7 @@ mark {
   list-style: none;
 }
 
-.sidebar ol.chapter li {
-  list-style: none;
-  margin: 5px 0;
-}
-
-/* Nested sections indent */
+.sidebar ol.chapter li { list-style: none; margin: 5px 0; }
 .sidebar ol.chapter ol { padding-left: var(--space-4); }
 
 .sidebar li a {
@@ -185,7 +194,6 @@ mark {
   font-size: var(--font-size-sm);
 }
 
-/* Chapter item row: link + toggle caret side by side */
 .sidebar .chapter-item {
   display: flex;
   align-items: center;
@@ -207,10 +215,8 @@ mark {
   border-left: none;
 }
 
-/* Hide mdBook chapter numbers */
 .sidebar .chapter-item a strong { display: none; }
 
-/* Expand/collapse toggle carets */
 .sidebar .toggle {
   display: flex;
   align-items: center;
@@ -243,11 +249,10 @@ mark {
   margin: var(--space-4) 0;
 }
 
-/* Fold/expand — collapsed sections hidden until parent toggled */
 .sidebar .section { display: none; }
 .sidebar .chapter-item.expanded + li > .section { display: block; }
 
-/* Hamburger toggle */
+/* Sidebar toggle button */
 .sidebar-hamburger {
   position: fixed;
   left: 0;
@@ -289,7 +294,6 @@ mark {
 
 main { color: var(--color-white); }
 
-/* Reset yeti.css .header class — mdbook uses it for heading anchor links */
 .content a.header {
   display: inline;
   height: auto;
@@ -308,29 +312,15 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 1rem;
 }
 
-.content > main > h1:first-child {
-  margin-top: 0;
-}
+.content > main > h1:first-child { margin-top: 0; }
 
-h1 {
-  font-size: 3rem;
-  font-weight: 200;
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-h2 {
-  font-size: var(--font-size-3xl, 1.75rem);
-  border-bottom: 1px solid var(--color-border-primary);
-  padding-bottom: var(--space-3);
-}
-
+h1 { font-size: 3rem; font-weight: 200; border-bottom: none; padding-bottom: 0; }
+h2 { font-size: var(--font-size-3xl, 1.75rem); border-bottom: 1px solid var(--color-border-primary); padding-bottom: var(--space-3); }
 h3 { font-size: var(--font-size-2xl, 1.35rem); }
 h4 { font-size: var(--font-size-xl); }
 h5, h6 { font-size: var(--font-size-base); }
 
 p { line-height: 1.7; margin: var(--space-4) 0; }
-
 strong, b { font-weight: 600; }
 
 /* ===== Links ===== */
@@ -348,7 +338,6 @@ a:hover, .content a:hover, #searchresults a:hover {
   text-decoration: underline;
 }
 
-/* Header anchor links stay white */
 .content h1 a.header, .content h2 a.header, .content h3 a.header,
 .content h4 a.header, .content h5 a.header, .content h6 a.header,
 h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
@@ -371,15 +360,8 @@ code {
   flex-shrink: initial !important;
 }
 
-pre code {
-  display: block !important;
-  padding: 0;
-  background: var(--color-black-overlay) !important;
-  color: var(--color-white);
-  font-size: var(--font-size-sm);
-}
-
 pre {
+  position: relative;
   background: var(--color-black-overlay);
   border: none;
   border-radius: var(--radius-md);
@@ -389,8 +371,9 @@ pre {
 }
 
 pre code {
-  background: var(--color-black-overlay);
+  display: block !important;
   padding: 0;
+  background: var(--color-black-overlay) !important;
   color: var(--color-white);
   font-size: var(--font-size-sm);
 }
@@ -424,7 +407,6 @@ td {
 
 tr:last-child td { border-bottom: none; }
 tr:hover { background: none; }
-
 td code, th code { background: none; }
 
 /* ===== Blockquotes ===== */
@@ -488,17 +470,7 @@ hr { border: none; border-top: 1px solid var(--color-border-primary); margin: va
   font-size: var(--font-size-sm);
 }
 
-/* Copy button on code blocks */
-.buttons {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-  z-index: 2;
-}
-
-pre {
-  position: relative;
-}
+.buttons { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 2; }
 
 .clip-button {
   background: var(--color-white-overlay);
@@ -511,32 +483,104 @@ pre {
   transition: all var(--transition-fast);
 }
 
-.clip-button:hover {
-  color: var(--color-white);
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.clip-button::before {
-  content: "Copy";
-}
-
+.clip-button:hover { color: var(--color-white); background: rgba(255, 255, 255, 0.1); }
+.clip-button::before { content: "Copy"; }
 .clip-button i.tooltiptext { display: none; }
 
-/* hljs overrides */
 .hljs-symbol { color: #c77dbb; }
 .hljs-keyword { color: #cf8e6d; }
-
-/* ===== Scrollbar ===== */
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-white-overlay); border-radius: var(--radius-full); }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.1); }
 
-/* ===== Mobile ===== */
+/* ===== Intro cards ===== */
+
+.intro-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--space-4);
+  margin: var(--space-6) 0;
+}
+
+.intro-card {
+  background: var(--color-black-overlay);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-6);
+}
+
+.intro-card strong {
+  display: block;
+  font-size: var(--font-size-base);
+  color: var(--color-white);
+  margin-bottom: var(--space-2);
+}
+
+.intro-card span {
+  font-size: var(--font-size-sm);
+  color: var(--color-grey);
+  line-height: 1.6;
+}
+
+@media (max-width: 1200px) {
+  .intro-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 800px) {
+  .intro-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== Responsive ===== */
+
+.nav-logo-icon { display: none; }
+
+.nav-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--color-grey);
+  font-size: 24px;
+  cursor: pointer;
+  padding: var(--space-2);
+}
+
+.nav-hamburger:hover { color: var(--color-white); }
+
+.nav-mobile { display: none; }
+
+.nav-mobile.open {
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 73px;
+  left: 0;
+  right: 0;
+  background: var(--color-black);
+  border-bottom: 1px solid var(--color-border-primary);
+  padding: var(--space-4);
+  gap: var(--space-2);
+  z-index: 99;
+}
+
+.nav-mobile .nav-link {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-base);
+  border-bottom: none;
+}
 
 @media (max-width: 768px) {
+  .nav-logo-full { display: none; }
+  .nav-logo-icon { display: inline; transform: translateY(3px); }
+  .nav-center { display: flex; flex: 1; justify-content: center; }
+  .nav-center .nav-link { display: none; }
+  .nav-hamburger { display: block; }
+  .nav-right { flex: none; }
   .content { padding: var(--space-4); }
   h1 { font-size: 1.75rem; }
   h2 { font-size: 1.4rem; }
+  .sidebar { display: none; }
+  #body-container { margin-top: 73px; }
+  .sidebar-hamburger { display: none; }
 }
