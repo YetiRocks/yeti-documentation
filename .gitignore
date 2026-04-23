@@ -42,3 +42,9 @@ target/criterion/
 book/
 web/
 # RocksDB prebuilt binaries (downloaded or local)
+
+# Added by yeti scaffolder (Phase 49c)
+/src/
+/target/
+/Cargo.lock
+/web/

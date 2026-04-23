@@ -1,0 +1,11 @@
+[package]
+name = "documentation"
+edition = "2024"
+description = "Documentation"
+version = "1.0.0"
+
+[package.metadata.app]
+customer_id = "yeti"
+static = { path = "web", root = "/", source = "source", build = "for book in learn guides reference; do (cd books/$book && mdbook build); done && mkdir -p ../web/assets && cp assets/*.svg assets/*.png ../web/assets/ && cp books/index.html ../web/index.html" }
+
+[dependencies]
