@@ -16,16 +16,6 @@
 - [Plugins](concepts/plugins.md)
 - [Routing & Endpoints](concepts/routing.md)
 
-# Agentic Development
-
-- [Overview](agentic/overview.md)
-- [Connecting Your Agent](agentic/connecting-agent.md)
-- [Connecting Your IDE](agentic/connecting-ide.md)
-- [Discovery Service](agentic/discovery.md)
-- [Interface Selection](agentic/interfaces.md)
-- [Building Agent Applications](agentic/building-agents.md)
-- [Knowledge & Context](agentic/knowledge.md)
-
 # Studio
 
 - [Studio](studio.md)

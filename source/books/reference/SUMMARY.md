@@ -26,16 +26,10 @@
 # API
 
 - [REST API](api/rest.md)
-- [Content Types](api/content-types.md)
-- [URL Extensions](api/url-extensions.md)
-- [Format Resolution](api/format-resolution.md)
-- [Discovery Endpoint](api/discovery.md)
-- [Connect Protocol](api/connect-protocol.md)
 - [GraphQL API](api/graphql.md)
 - [MCP API](api/operations.md)
 - [Error Codes](api/errors.md)
 - [Data Types](api/data-types.md)
-- [MQTT](api/mqtt.md)
 
 # Architecture
 
