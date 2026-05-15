@@ -5,7 +5,7 @@ Custom resources compile into dynamic libraries (dylibs) loaded at runtime.
 ## Compilation Pipeline
 
 ```
-config.yaml + schema.graphql + resources/*.rs
+Cargo.toml + schema.graphql + resources/*.rs
         │
 ApplicationCompiler
   1. Copy resource files to cache/builds/{app}/src/
@@ -49,8 +49,8 @@ Dynamic libraries get separate copies of all static data, creating hard constrai
 
 ## Service Plugins
 
-User-defined services follow the same pipeline. The compiler auto-detects service types by scanning for `struct {Type}Extension`.
+User-defined services follow the same pipeline. The compiler auto-detects service types by scanning for `struct {Type}Plugin`.
 
 ```yaml
-extension: true
+plugin: true
 ```

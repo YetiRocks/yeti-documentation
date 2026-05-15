@@ -41,13 +41,13 @@ pub trait Service: Send + Sync + 'static {
     /// Post-registration setup (bootstrap data, background tasks, etc.).
     fn on_ready(&self, ctx: &ServiceContext) -> Result<()> { Ok(()) }
 
-    /// Whether this is a global extension (loaded before user apps).
-    fn is_extension(&self) -> bool { false }
+    /// Whether this is a global plugin (loaded before user apps).
+    fn is_plugin(&self) -> bool { false }
 
     /// Whether registration failure should abort startup.
     fn is_critical(&self) -> bool { false }
 
-    /// Embedded config.yaml content.
+    /// Embedded `Cargo.toml` content.
     fn config_yaml(&self) -> Option<&'static str> { None }
 
     /// Called during graceful shutdown.
@@ -103,7 +103,7 @@ The runtime calls service methods in order:
 
 ## Consumer Configuration
 
-Apps opt in to services via top-level keys in `config.yaml`:
+Apps opt in to services via top-level keys in `Cargo.toml`:
 
 ```yaml
 auth:
@@ -141,7 +141,7 @@ Services declare dependencies via `depends_on()`. The runtime topologically sort
 
 ## Dylib Boundary Rules
 
-User-defined extensions (`extension: true`) compile as dynamic libraries and must observe these constraints:
+User-defined plugins (`plugin: true`) compile as dynamic libraries and must observe these constraints:
 
 - **No `tokio::spawn`** -- Spawning tasks corrupts the host runtime. Use `set_event_subscriber()` for background work.
 - **No host statics** -- `OnceLock` statics are duplicated in the dylib. Use dylib-local statics.

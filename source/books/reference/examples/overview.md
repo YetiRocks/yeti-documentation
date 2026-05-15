@@ -35,4 +35,4 @@ Start from scratch:
 mkdir ~/yeti/applications/my-app
 ```
 
-Add `config.yaml` and `schema.graphql`, then restart. See [Quickstart](../getting-started/quickstart.md).
+Add `Cargo.toml` and `schema.graphql`, then restart. See [Quickstart](../getting-started/quickstart.md).

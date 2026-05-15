@@ -20,9 +20,9 @@ Workflow:
 Local development:                    Cloud production:
 ~/yeti/                               Managed infrastructure
 ├── yeti-config.yaml                  ├── Your app process (isolated)
-├── applications/                     │   ├── config.yaml
+├── applications/                     │   ├── Cargo.toml
 │   └── my-api/                       │   ├── schema.graphql
-│       ├── config.yaml               │   ├── compiled plugins (.dylib)
+│       ├── Cargo.toml               │   ├── compiled plugins (.dylib)
 │       ├── schema.graphql            │   └── data/ (own RocksDB)
 │       └── resources/*.rs            └── HTTPS endpoint
 └── data/
@@ -84,7 +84,7 @@ applications:
   - repo: https://github.com/acme-corp/webhooks-app.git
     branch: main
 
-extensions:
+plugins:
   - repo: https://github.com/acme-corp/custom-auth-hook.git
 
 build:
@@ -205,7 +205,7 @@ Logs are per-instance. Drill into specific instances via Studio (region, app, in
 |---|---|---|
 | **Binary** | Same Yeti binary | Same Yeti binary |
 | **SDK** | Same yeti-sdk | Same yeti-sdk |
-| **Applications** | Identical config.yaml, schema.graphql, resources/*.rs | Identical |
+| **Applications** | Identical `Cargo.toml`, schema.graphql, resources/*.rs | Identical |
 | **Storage** | RocksDB (you manage) | RocksDB (managed, isolated per app) |
 | **Deployment** | Manual (SCP, CI/CD) | `yeti deploy` or git push |
 | **Scaling** | Manual | Automatic, latency-driven |

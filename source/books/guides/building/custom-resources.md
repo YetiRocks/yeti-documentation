@@ -4,11 +4,11 @@ Custom resources add business logic beyond auto-generated CRUD.
 
 ## Getting Started
 
-Place `.rs` files in `resources/` and reference them in `config.yaml`:
+Place `.rs` files in `resources/` and reference them in `Cargo.toml`:
 
-```yaml
-resources:
-  path: "resources/*.rs"
+```toml
+[package.metadata.app]
+resources = { path = "resources/*.rs" }
 ```
 
 Every resource file starts with:

@@ -42,7 +42,7 @@ HTTPS/gRPC/MCP :9996 ──> DynamicRouter ──> /{app-id}/ prefix match
 
 - **YetiRuntime** - Owns DynamicRouter, DatabaseManager, server lifecycle
 - **ApplicationLoader** - Discovers, compiles, and loads applications
-- **ApplicationCompiler** - Generates Cargo projects from config.yaml, builds dylibs
+- **ApplicationCompiler** - Generates compilation units from `[package.metadata.app]`, builds dylibs
 - **AutoRouter** - Schema-driven router mapping types to REST/GraphQL/SSE/gRPC/MCP endpoints
 - **BackendManager** - Maps table names to storage backends
 - **Health Endpoint** - `/health` for liveness checks and app count

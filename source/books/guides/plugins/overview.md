@@ -1,6 +1,6 @@
 # Building Services
 
-Services (formerly "extensions") add shared capabilities to Yeti -- authentication, telemetry, AI, Kafka bridging. Each service implements the `Service` trait from `yeti-types` and is compiled into the binary.
+Services (formerly "plugins") add shared capabilities to Yeti -- authentication, telemetry, AI, Kafka bridging. Each service implements the `Service` trait from `yeti-types` and is compiled into the binary.
 
 ## The Service Trait
 
@@ -20,11 +20,11 @@ pub trait Service: Send + Sync + 'static {
     fn register(&self, ctx: &mut RegistrationContext) -> Result<()>;
     /// Post-registration setup (bootstrap data, background tasks).
     fn on_ready(&self, ctx: &ServiceContext) -> Result<()> { Ok(()) }
-    /// Whether this is a global extension (loaded before user apps).
-    fn is_extension(&self) -> bool { false }
+    /// Whether this is a global plugin (loaded before user apps).
+    fn is_plugin(&self) -> bool { false }
     /// Whether registration failure should abort startup.
     fn is_critical(&self) -> bool { false }
-    /// Embedded config.yaml content.
+    /// Embedded `Cargo.toml` content.
     fn config_yaml(&self) -> Option<&'static str> { None }
     /// Called during graceful shutdown.
     fn on_shutdown(&self) {}
@@ -191,7 +191,7 @@ pub fn service() -> Box<dyn Service> {
 
 ## See Also
 
-- [Service Lifecycle](extension-lifecycle.md) -- Detailed startup sequence
+- [Service Lifecycle](plugins/lifecycle.md) -- Detailed startup sequence
 - [Event Subscribers](event-subscribers.md) -- Tracing event capture
 - [Authentication Overview](auth-overview.md) -- Auth provider integration
 - [Telemetry & Observability](telemetry.md) -- Telemetry service

@@ -12,11 +12,11 @@
 - [Seed Data & Data Loading](building/seed-data.md)
 - [Static File Serving](building/static-files.md)
 
-# Building Extensions
+# Building Plugins
 
-- [Overview](extensions/overview.md)
-- [Extension Lifecycle](extensions/lifecycle.md)
-- [Event Subscribers](extensions/event-subscribers.md)
+- [Overview](plugins/overview.md)
+- [Plugin Lifecycle](plugins/lifecycle.md)
+- [Event Subscribers](plugins/event-subscribers.md)
 
 # Authentication & Authorization
 

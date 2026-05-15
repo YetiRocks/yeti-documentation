@@ -51,11 +51,11 @@ type Review
 }
 ```
 
-Reference schemas in `config.yaml`:
+Reference schemas in `Cargo.toml`:
 
-```yaml
-schemas:
-  path: "schemas/*.graphql"
+```toml
+[package.metadata.app]
+schemas = { path = "schemas/*.graphql" }
 ```
 
 ## Data Types
@@ -112,7 +112,7 @@ type Product @table @export(rest: true, graphql: true, ws: false, mcp: true) { .
 **Public access** -- operations that skip authentication:
 
 ```graphql
-type Chat @table @export(public: [read, create, subscribe]) { ... }
+type Chat @table @access(public: [read, create, subscribe]) { ... }
 ```
 
 Values: `read`, `create`, `update`, `delete`, `subscribe`, `connect`, `publish`.

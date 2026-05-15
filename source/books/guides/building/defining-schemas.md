@@ -132,10 +132,10 @@ type Counter @table @export @distribute {
 
 ### Public Access
 
-Tables can declare which operations bypass authentication using `@export(public: [...])`:
+Tables can declare which operations bypass authentication using `@access(public: [...])`:
 
 ```graphql
-type Chat @table @export(public: [read, create, subscribe]) {
+type Chat @table @access(public: [read, create, subscribe]) {
     id: ID! @primaryKey
     message: String!
     author: String

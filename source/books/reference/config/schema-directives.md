@@ -1,362 +1,316 @@
 # Schema Directives
 
-All GraphQL schema directives for `schema.graphql` files. Directives control storage, indexing, exposure, distribution, and auditing.
-
----
-
-## Type-Level Directives
-
-### @table
-
-Marks a type as a persistent table.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `database` | String | `"data"` | Database namespace |
-| `table` | String | type name | Physical table name (if different from type name) |
-| `storage` | String | `"rocksdb"` | Storage backend |
-| `expiration` | Int | none | Table-wide TTL (seconds) |
+All GraphQL directives that drive table behavior. Each directive owns one
+orthogonal axis — mix them freely. Bare `@table` is the only thing the
+schema loader requires; everything else has sensible defaults.
 
 ```graphql
-# Minimal — uses defaults
-type Product @table {
-    id: ID! @primaryKey
-    name: String!
-}
-
-# Custom database and table name
-type User @table(database: "yeti-auth", table: "users") {
-    username: String! @primaryKey
-    email: String!
-}
-
-# Ephemeral table with 1-hour TTL
-type Session @table(expiration: 3600) {
-    id: ID! @primaryKey
-    token: String!
+type Order
+  @table
+  @store(durability: "strong")
+  @export(path: "/v1/orders")
+  @access(public: [read])
+  @audit(state: true)
+  @distribute(sharding: "hash", shardKey: "tenantId", shardCount: 16)
+{
+  id: ID! @primaryKey
+  tenantId: String! @indexed
+  total: Float!
+  createdAt: Float! @createdTime
 }
 ```
 
-Without `@table`, a type is ignored by the schema loader.
+## Type-level directives
+
+| Directive | Axis | Required? |
+|---|---|---|
+| `@table` | Identity (database, table name) | Always — the marker |
+| `@store` | Storage engine (durability, volume, eviction, compression) | Override only |
+| `@source` | Where data comes from on miss (URL / fn / another table) | Cache-aside tables |
+| `@distribute` | Replication topology (sharding, residency, replicas) | Clustered deploys |
+| `@export` | Protocol exposure + URL path | To serve over HTTP |
+| `@access` | Public ops + per-op RBAC | Override auth pipeline |
+| `@audit` | Compliance: which ops, retention, state capture | Opt in |
+| `@compositeIndex` | Multi-field index (repeatable) | Performance |
 
 ---
 
-### @export
-
-Controls which interfaces expose the table and which operations are public. Without `@export`, the table exists internally but has no endpoints.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `name` | String | type name | Custom endpoint path |
-| `rest` | Boolean | `true` | REST CRUD endpoints |
-| `graphql` | Boolean | `true` | GraphQL schema |
-| `ws` | Boolean | `true` | WebSocket subscriptions |
-| `sse` | Boolean | `true` | Server-Sent Events |
-| `mqtt` | Boolean | `true` | MQTT publish/subscribe |
-| `mcp` | Boolean | `true` | Model Context Protocol tools |
-| `grpc` | Boolean | `true` | gRPC service |
-| `public` | List | `[]` | Unauthenticated operations |
-
-All flags default to `true` when `@export` is present. Set `false` to disable.
+### `@table` — identity
 
 ```graphql
-# All interfaces enabled (defaults)
-type Product @table @export {
-    id: ID! @primaryKey
-    name: String!
-}
-
-# Custom endpoint path: GET /myapp/rule instead of /myapp/Rule
-type Rule @table @export(name: "rule") {
-    id: ID! @primaryKey
-    pattern: String!
-}
-
-# SSE-only streaming table
-type LogEntry @table @export(rest: false, graphql: false, ws: false, sse: true, mqtt: false) {
-    id: ID! @primaryKey
-    message: String!
-    timestamp: String @createdTime
-}
+type Users @table(database: "auth", table: "users") { ... }
 ```
 
-#### Public Access
+| Arg | Type | Default | Description |
+|---|---|---|---|
+| `database` | String | `"data"` | Database namespace (alias: `schema`) |
+| `table` | String | type name | Physical RocksDB table name |
 
-The `public` parameter declares operations that bypass authentication entirely.
-
-| Value | Maps To | Description |
-|-------|---------|-------------|
-| `read` | GET | Read and list |
-| `create` | POST | Create records |
-| `update` | PUT | Update records |
-| `delete` | DELETE | Delete records |
-| `subscribe` | SSE | Change streams |
-| `connect` | WebSocket | WebSocket connections |
-| `publish` | MQTT | MQTT messages |
-
-Unlisted operations still require authentication.
-
-```graphql
-# Anonymous reads and subscriptions, authenticated writes
-type ChatMessage @table @export(public: [read, subscribe]) {
-    id: ID! @primaryKey
-    author: String!
-    message: String!
-    createdAt: String @createdTime
-}
-
-# Fully public table
-type Announcement @table @export(public: [read, create, update, delete]) {
-    id: ID! @primaryKey
-    text: String!
-}
-```
+Bare `@table` is fine. `storage:` and `expiration:` moved to `@store`.
 
 ---
 
-### @distribute
-
-Distribution topology for clustered deployments. Bare `@distribute` inherits cluster defaults.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `sharding` | String | none | Sharding strategy: `"hash"` or `"range"` |
-| `residency` | String | `"full"` | Data residency: `"sharded"`, `"full"`, `"mirrored"`, `"adaptive"` |
-| `replicationFactor` | Int | cluster default | Number of replicas (1--255) |
-| `consistency` | String | `"eventual"` | `"strong"` or `"eventual"` |
-| `replication` | String | none | `"false"` to disable, `"global"` for all regions |
+### `@store` — storage engine
 
 ```graphql
-# Strong consistency with 3 replicas
-type Account @table @export @distribute(consistency: "strong", replicationFactor: 3) {
-    id: ID! @primaryKey
-    balance: Float!
-}
-
-# Hash-sharded with eventual consistency
-type Event @table @export @distribute(sharding: "hash", residency: "sharded") {
-    id: ID! @primaryKey
-    payload: String!
-}
-
-# Node-local only, no replication
-type Cache @table @export @distribute(replication: "false") {
-    key: String! @primaryKey
-    value: String!
-}
+type Cache @table @export @store(durability: "lossy", evictAfter: 3600) { ... }
+type Tickets @table @export @store(durability: "strong", flushIntervalMs: 100) { ... }
 ```
+
+| Arg | Type | Default | Description |
+|---|---|---|---|
+| `durability` | String | `"soft"` | `"memory"` / `"lossy"` / `"soft"` / `"strong"` |
+| `volume` | String | app default | Literal path, `s3://...`, or named volume from `yeti-config.yaml` |
+| `evictAfter` | Int (seconds) | none | Per-record TTL (replaces `@table(expiration:)`) |
+| `flushIntervalMs` | Int | none | Bounded crash-loss window between `"lossy"` and default |
+| `compression` | Bool | deployment default | Per-table override |
+
+**Durability tiers** (cost ↑, crash-loss ↓):
+
+| Value | Backend | Crash-loss window |
+|---|---|---|
+| `"memory"` | InMemory (HashMap) | everything (volatile) |
+| `"lossy"` | RocksDB, WAL off | ~minutes (memtable flush) |
+| `"soft"` | RocksDB, WAL on, OS fsync (default) | ~seconds |
+| `"strong"` | RocksDB, WAL on, per-write fsync | 0 ms |
 
 ---
 
-### @audit
+### `@source` — origin
 
-Compliance audit logging. Bare `@audit` logs all mutations, 90-day retention, no state capture.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `operations` | List | `[create, update, delete]` | Operations to audit |
-| `retention` | Int | `90` | Retention in days (0 = forever) |
-| `state` | Boolean | `false` | Capture before/after record state |
-
-Available: `read`, `create`, `update`, `delete`. Read auditing excluded from defaults; opt in explicitly.
+Cache-aside: where to fetch data when the table doesn't have it.
+**Exactly one of `url:` / `function:` / `table:` is required.**
 
 ```graphql
-# Default audit — log all mutations, 90-day retention
-type Order @table @export @audit {
-    id: ID! @primaryKey
-    total: Float!
-}
+# HTTP pull on miss
+type Pages @table @export @source(
+  url: "https://api.example.com/{id}"
+  staleAfter: 60
+  swr: 30
+) { ... }
 
-# Full audit trail with state capture and 1-year retention
+# Dylib-local Rust function
+type Computed @table @export @source(function: "populate_view") { ... }
+
+# Continuous sync from another yeti table (with optional projection)
+type BannedTokens @table @export @source(
+  table: "AggregatedTokens"
+  function: "evaluatePolicy"
+  propagateDeletes: false
+  maxLag: 500
+) { ... }
+```
+
+| Arg | Type | When | Description |
+|---|---|---|---|
+| `url` | String | url arm | HTTP endpoint with `{id}` substitution |
+| `function` | String | function or table arm | Rust fn symbol (same dylib) |
+| `table` | String | table arm | Source type name (same database) |
+| `staleAfter` | Int (s) | url + function | Seconds before entry is stale |
+| `swr` | Int (s) | url + function | Stale-while-revalidate window |
+| `headers` | object | url | Static headers. Keys are GraphQL identifiers (`authorization:`, not `Authorization:`) |
+| `propagateDeletes` | Bool | table, no function | Mirror source deletes (default `true`) |
+| `maxLag` | Int (ms) | table | Backpressure source writes if destination lags |
+
+Validators reject mixed arms, cyclic `table:` chains, and unresolved
+references at schema load.
+
+**Runtime status (2026-05-14):** only the `url:` arm has a runtime
+implementation. `function:` and `table:` parse and validate but are
+declarative-only — runtime work tracked in YTC-352.
+
+---
+
+### `@distribute` — replication topology
+
+```graphql
+type Events @table @export @distribute(
+  sharding: "hash"
+  shardKey: "tenantId"
+  shardCount: 16
+  consistency: "eventual"
+) { ... }
+```
+
+| Arg | Type | Default | Description |
+|---|---|---|---|
+| `sharding` | String | none | `"hash"` / `"range"` / custom |
+| `shardKey` | String | none | Field hashed/ranged on. **Required** for `"hash"` / `"range"` |
+| `shardCount` | Int | cluster default | Explicit count (validated ≥ 2) |
+| `residency` | String | none | `"sharded"` / `"full"` / `"mirrored"` / `"adaptive"` |
+| `replicationFactor` | Int | cluster default | Replicas (1–255) |
+| `consistency` | String | `"eventual"` | `"strong"` / `"eventual"` |
+| `replication` | String | none | `"false"` disables; `"global"` for all regions |
+
+---
+
+### `@export` — protocol exposure
+
+```graphql
+type Articles @table @export(path: "/v1/articles", rest: true, mqtt: false) { ... }
+```
+
+All transport flags default to `true` when `@export` is present. Omit
+`@export` entirely → no HTTP endpoints. Authorization moved to `@access`.
+
+| Arg | Type | Default | Description |
+|---|---|---|---|
+| `path` | String | lowercased type name | URL segment under `{app}/{path}` (replaces `@export(name:)`) |
+| `rest` | Bool | `true` | REST CRUD endpoints |
+| `graphql` | Bool | `true` | Include in GraphQL schema |
+| `ws` | Bool | `true` | WebSocket subscriptions |
+| `sse` | Bool | `true` | Server-Sent Events |
+| `mqtt` | Bool | `true` | MQTT topic |
+| `mcp` | Bool | `true` | Expose as MCP tool |
+| `grpc` | Bool | `true` | gRPC service |
+
+Path conflicts (two types resolving to the same path) are refused at
+schema load with both type names in the error.
+
+---
+
+### `@access` — authorization
+
+```graphql
+# Anonymous reads and subscribes; writes still need auth
+type ChatMessage @table @export @access(public: [read, subscribe]) { ... }
+
+# Per-op RBAC matrix
+type Orders @table @export @access(
+  public: [read]
+  roles: { create: [client, admin], update: [admin], delete: [admin] }
+) { ... }
+
+# Per-(op, protocol) gating — admins update via REST or GraphQL only, never MQTT
+type Vault @table @export @access(roles: {
+  update: { rest: [admin], graphql: [admin] }
+}) { ... }
+```
+
+| Arg | Type | Default | Description |
+|---|---|---|---|
+| `public` | List | `[]` | Ops anyone can perform without auth |
+| `roles` | object | `{}` | Per-op (or per-(op, protocol)) RBAC matrix |
+
+**Operations**: `read`, `create`, `update`, `delete`, `subscribe`, `connect`, `publish`.
+
+**Protocols** (when nesting `roles`): `rest`, `graphql`, `ws`, `sse`, `mqtt`, `mcp`, `grpc`.
+
+Omitting `@access` follows the app's auth pipeline. Public-everything is **not** the default.
+
+---
+
+### `@audit` — compliance
+
+```graphql
+# Defaults — log all mutations, 90 days, no state capture
+type Orders @table @export @audit { ... }
+
+# Forever retention with before/after state
 type FinancialRecord @table @export @audit(
-    operations: [read, create, update, delete],
-    retention: 365,
-    state: true
-) {
-    id: ID! @primaryKey
-    amount: Float!
-    account: String! @indexed
-}
-
-# Audit deletes only, keep forever
-type Document @table @export @audit(operations: [delete], retention: 0) {
-    id: ID! @primaryKey
-    content: String!
-}
+  operations: [read, create, update, delete]
+  retention: 0
+  state: true
+) { ... }
 ```
 
-Audit entries are emitted asynchronously after successful operations (timestamp, app ID, table, record ID, operation, identity). With `state: true`, before/after record snapshots are included.
+| Arg | Type | Default | Description |
+|---|---|---|---|
+| `operations` | List | `[create, update, delete]` | `read` / `create` / `update` / `delete` |
+| `retention` | Int (days) | `90` | `0` = forever |
+| `state` | Bool | `false` | Capture before/after JSON (+1 read per write) |
+
+Entries land on the unified TransactionLog (YTC-203), keyed by deployment hash.
 
 ---
 
-### @compositeIndex
+### `@compositeIndex` — multi-field index
 
-Multi-field index. Repeatable for multiple indexes. Index name auto-generated from field names.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `fields` | String | yes | Comma-separated field names |
+Repeatable at type level. Index name auto-generated.
 
 ```graphql
 type Product @table @export
-    @compositeIndex(fields: "category,price")
-    @compositeIndex(fields: "brand,category,rating")
-{
-    id: ID! @primaryKey
-    category: String!
-    brand: String!
-    price: Float!
-    rating: Float!
-}
+  @compositeIndex(fields: "category,price")
+  @compositeIndex(fields: "brand,category,rating") { ... }
 ```
 
 ---
 
-## Field-Level Directives
+## Field-level directives
 
-### @primaryKey
+### `@primaryKey`
 
-Primary key field. Every table needs exactly one. Defaults to `id` if omitted.
+Every table needs exactly one. Defaults to `id: ID` if omitted (auto-UUID).
 
 ```graphql
+id: ID! @primaryKey
+username: String! @primaryKey   # alternate primary key
+```
+
+### `@indexed`
+
+Three flavors. Each index slows writes — index only fields used in filters or searches.
+
+```graphql
+email: String! @indexed                          # standard hash + range index
+title: String @indexed(type: "fulltext")          # tokenized inverted index
+embedding: Vector @indexed                        # HNSW (auto for `Vector`)
+embedding: Vector @indexed(source: "title,description", model: "all-MiniLM-L6-v2")
+```
+
+HNSW arguments: `distance` (`"cosine"` / `"euclidean"`), `M`, `efConstruction`, `efSearchConstruction`, `mL`, `optimizeRouting`, `source`, `model`.
+
+### `@relationship`
+
+```graphql
+# Many-to-one: User has one Role
 type User @table @export {
-    username: String! @primaryKey
-    email: String!
-}
-```
-
-### @indexed
-
-Secondary index. Three types available.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `type` | String | `"standard"` | Index type: `"standard"`, `"fulltext"`, or `"HNSW"` |
-| `source` | String | none | Source field for auto-embedding (vector indexes only) |
-| `model` | String | app default | Embedding model identifier (vector indexes only) |
-
-**Standard index** (hash + range) -- for equality and range queries:
-
-```graphql
-email: String! @indexed
-category: String @indexed
-```
-
-**Full-text search index** -- tokenized inverted index:
-
-```graphql
-body: String @indexed(type: "fulltext")
-title: String @indexed(type: "fulltext")
-```
-
-**Vector index** -- HNSW algorithm for similarity search. The `Vector` field type automatically uses HNSW indexing even without explicit `type`:
-
-```graphql
-# Manual vectors (caller provides embedding data)
-embedding: Vector
-
-# Auto-embedding from a source field (requires yeti-ai)
-embedding: Vector @indexed(source: "content")
-
-# Auto-embedding with explicit model
-embedding: Vector @indexed(source: "description", model: "BAAI/bge-small-en-v1.5")
-```
-
-Each index slows writes. Only index fields used in filters or searches.
-
-### @relationship
-
-Foreign key relationships for GraphQL joins and REST `?select` expansion.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `from` | String | Local field referencing the foreign table's primary key (many-to-one) |
-| `to` | String | Foreign field referencing this table's primary key (one-to-many) |
-
-Use `from` on the "many" side and `to` on the "one" side:
-
-```graphql
-type User @table @export {
-    username: String! @primaryKey
-    roleId: String @indexed
-    role: Role @relationship(from: "roleId")
+  roleId: String @indexed
+  role: Role @relationship(from: "roleId")
 }
 
+# One-to-many: Role has many Users
 type Role @table @export {
-    id: String! @primaryKey
-    name: String!
-    users: [User] @relationship(to: "roleId")
+  id: String! @primaryKey
+  users: [User] @relationship(to: "roleId")
 }
 ```
 
-### @createdTime
+| Arg | Description |
+|---|---|
+| `from` | Local field holding the foreign key (many side) |
+| `to` | Foreign field referencing this table (one side) |
 
-Auto-populated with Unix epoch timestamp on record creation.
+### `@createdTime` / `@updatedTime` / `@expiresAt`
 
-```graphql
-createdAt: String @createdTime
-```
-
-### @updatedTime
-
-Auto-populated with Unix epoch timestamp on every update.
+Float fields. No arguments. Auto-populated.
 
 ```graphql
-updatedAt: String @updatedTime
+createdAt: Float! @createdTime
+updatedAt: Float! @updatedTime
+expiresAt: Float @expiresAt        # overrides @store(evictAfter:)
 ```
 
-### @expiresAt
-
-Per-record TTL expiration timestamp (Unix epoch). Overrides table-level `expiration`.
-
-```graphql
-expiresAt: Int @expiresAt
-```
-
-### @computed
-
-Computed/derived field. Value calculated from an expression referencing other fields.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `from` | String | yes | Expression to compute the field value |
+### `@computed`
 
 ```graphql
 fullName: String @computed(from: "firstName + ' ' + lastName")
 ```
 
-### @default
-
-Default value when not provided on insert. Type-validated at schema parse time.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `value` | any | yes | Default value (must match field type) |
-
-Supported types: `String`, `ID`, `Date` (stored as string), `Int`, `Float`, `Boolean`.
+### `@default`
 
 ```graphql
 status: String @default(value: "pending")
 priority: Int @default(value: 0)
-score: Float @default(value: 1.0)
 active: Boolean @default(value: true)
 ```
 
-Adding a `@default` field to an existing schema reconciles stored records on next access.
+Supported: `String`, `ID`, `Date`, `Int`, `Float`, `Boolean`. Adding to an
+existing schema reconciles stored records on next access.
 
-### @crdt
+### `@crdt`
 
-Conflict-free Replicated Data Type for automatic merge in distributed deployments.
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `type` | String | yes | CRDT type: `"counter"`, `"pn-counter"`, or `"or-set"` |
-
-| CRDT Type | Description |
-|-----------|-------------|
-| `counter` | Increment-only counter |
-| `pn-counter` | Increment/decrement counter (positive-negative) |
-| `or-set` | Observed-remove set (last-writer-wins on conflicts) |
+Conflict-free replicated data types for cluster merge.
 
 ```graphql
 viewCount: Int @crdt(type: "counter")
@@ -364,53 +318,32 @@ score: Int @crdt(type: "pn-counter")
 tags: String @crdt(type: "or-set")
 ```
 
----
-
-## Field Types
-
-| GraphQL Type | Storage Type | Notes |
-|-------------|-------------|-------|
-| `ID` / `ID!` | String | Typically with `@primaryKey` |
-| `String` / `String!` | String | UTF-8 text |
-| `Int` / `Int!` | i64 | 64-bit signed integer |
-| `Float` / `Float!` | f64 | 64-bit floating point |
-| `Boolean` / `Boolean!` | bool | true/false |
-| `Vector` | Array of f32 | HNSW-indexed embedding vector |
-| `[Type]` / `[Type!]!` | Array | For relationships |
-
-The `!` suffix means the field is required (non-nullable).
+| Type | Description |
+|---|---|
+| `counter` | Increment-only |
+| `pn-counter` | Increment / decrement |
+| `or-set` | Observed-remove set (LWW on conflict) |
 
 ---
 
-## Comprehensive Example
+## Field types
 
-All type-level directives together:
+| GraphQL | Storage | Notes |
+|---|---|---|
+| `ID` / `ID!` | String | Typical primary key |
+| `String` | String | UTF-8 |
+| `Int` | i64 | 64-bit signed |
+| `Float` | f64 | 64-bit float |
+| `Boolean` | bool | |
+| `Vector` | `[f32]` | HNSW-indexed; needs yeti-ai for auto-embedding |
+| `[Type]` | array | For `@relationship` |
 
-```graphql
-type Transaction @table(database: "finance", expiration: 7776000)
-    @export(name: "transactions", rest: true, sse: true, mqtt: false, public: [read])
-    @distribute(consistency: "strong", replicationFactor: 3, sharding: "hash")
-    @audit(operations: [create, update, delete], retention: 365, state: true)
-    @compositeIndex(fields: "accountId,createdAt")
-    @compositeIndex(fields: "status,amount")
-{
-    id: ID! @primaryKey
-    accountId: String! @indexed
-    amount: Float!
-    currency: String @default(value: "USD")
-    status: String @default(value: "pending") @indexed
-    memo: String @indexed(type: "fulltext")
-    account: Account @relationship(from: "accountId")
-    createdAt: String @createdTime
-    updatedAt: String @updatedTime
-    expiresAt: Int @expiresAt
-}
-```
+`!` = required (non-nullable).
 
 ---
 
-## See Also
+## See also
 
-- [Defining Schemas](../guides/defining-schemas.md) -- Schema authoring guide
-- [Application Configuration](app-config.md) -- Schema file configuration
-- [Vector Search](../guides/vector-search.md) -- HNSW vector search guide
+- [Defining Schemas](../../guides/building/defining-schemas.md) — authoring walkthrough
+- [Application Configuration](app-config.md) — schema file wiring in `Cargo.toml`
+- [Vector Search](../../guides/querying/vector-search.md) — HNSW + auto-embedding

@@ -12,7 +12,7 @@ HTTP Basic authentication sends credentials with every request using `Authorizat
 
 ## Configuration
 
-Add `auth:` to your app's config.yaml. Basic auth is always available when auth is enabled:
+Add `[package.metadata.auth]` to your app's `Cargo.toml`. Basic auth is always available when auth is enabled:
 
 ```yaml
 auth: {}

@@ -95,7 +95,7 @@ Browse interactively at `https://localhost:9996/graphql-explorer/`.
 
 ## GraphQL Setup
 
-Application-wide in `config.yaml`:
+Application-wide in `Cargo.toml`:
 
 ```yaml
 graphql: true

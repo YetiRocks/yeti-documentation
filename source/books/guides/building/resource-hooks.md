@@ -4,7 +4,7 @@ Hooks are shell commands that run before or after resource handler execution. Us
 
 ## Configuration
 
-Add hooks to your application's `config.yaml`:
+Add hooks to your application's `Cargo.toml` (`[package.metadata.app]`):
 
 ```yaml
 hooks:

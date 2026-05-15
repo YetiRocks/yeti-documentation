@@ -50,7 +50,7 @@
 
 ## Variable Substitution
 
-`config.yaml` supports `${VAR:-default}` syntax:
+`Cargo.toml` supports `${VAR:-default}` syntax:
 
 ```yaml
 custom:

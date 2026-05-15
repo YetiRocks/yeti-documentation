@@ -12,7 +12,7 @@ Yeti supports OAuth 2.0 with GitHub, Google, and Microsoft providers.
 
 Callback URL: `https://your-host:port/yeti-auth/oauth_callback`
 
-### 2. Configure Per-App OAuth in config.yaml
+### 2. Configure Per-App OAuth in `Cargo.toml`
 
 Provider credentials and role-mapping rules are declared in the app's `auth:` section. Values support `${ENV_VAR}` interpolation:
 
@@ -107,7 +107,7 @@ Two-tier: in-memory cache for fast lookup, OAuthSession table in the database fo
 
 - **Wrong callback URL**: The callback registered with your OAuth provider must exactly match `https://your-host:port/yeti-auth/oauth_callback`. A mismatch (trailing slash, wrong port, HTTP vs HTTPS) causes a silent redirect failure.
 - **Missing HTTPS in production**: OAuth providers reject non-HTTPS callback URLs in production. Yeti also validates this at startup.
-- **Credentials in config instead of env vars**: Use `${ENV_VAR}` syntax in config.yaml. Values resolve from environment variables at startup.
+- **Credentials in config instead of env vars**: Use `${ENV_VAR}` syntax in the manifest. Values resolve from environment variables at startup.
 - **No matching rule and no catch-all**: Without a matching rule, the user is denied after successful provider login. Add a fallback rule if you want all OAuth users to have access.
 
 ## See Also

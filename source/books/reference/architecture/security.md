@@ -40,7 +40,7 @@ curl -sk -X POST https://localhost:9996/yeti-auth/jwt_refresh \
 
 ## OAuth Integration
 
-Per-app OAuth rules in config.yaml:
+Per-app OAuth rules in `Cargo.toml`:
 
 ```yaml
 auth:

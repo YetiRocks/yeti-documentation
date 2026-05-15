@@ -1,78 +1,102 @@
-# Service API
+# Plugin API
 
-Services provide shared capabilities across applications -- authentication, telemetry, AI inference, vector embeddings, and custom middleware.
+Plugins provide shared capabilities across applications — authentication,
+telemetry, AI inference, vector embeddings, custom middleware. They live
+in `crates/plugins/` and are compiled into the binary.
 
-## Service Trait
+## Plugin trait
 
-Contract between the yeti binary and service crates. The runtime calls methods in order: `is_required()` -> `register()` -> `on_ready()` -> `on_shutdown()`.
+Contract between the yeti binary and plugin crates. Runtime call order:
+`is_required()` → `schemas()` → `resources()` → `on_ready()` →
+`install_event_subscriber()` → `on_shutdown()`.
 
 ```rust,ignore
-pub trait Service: Send + Sync + 'static {
+use yeti_types::plugins::Plugin;
+
+pub trait Plugin: Send + Sync + 'static {
     /// Unique identifier (e.g., "yeti-auth").
     fn id(&self) -> &'static str;
     /// Human-readable name.
     fn name(&self) -> &'static str;
-    /// Semantic version.
+
     fn version(&self) -> &'static str { "0.1.0" }
-    /// Service IDs this service depends on (for topological ordering).
+
+    /// Plugin IDs this plugin depends on (topological ordering).
     fn depends_on(&self) -> &[&'static str] { &[] }
-    /// Whether this service should be activated given the current config.
+
+    /// Whether this plugin activates given the current config.
     fn is_required(&self, ctx: &StartupContext) -> bool { true }
-    /// Register schemas, resources, hooks, and providers.
-    fn register(&self, ctx: &mut RegistrationContext) -> Result<()>;
-    /// Post-registration setup (bootstrap data, background tasks).
-    fn on_ready(&self, ctx: &ServiceContext) -> Result<()> { Ok(()) }
-    /// Whether this is a global extension (loaded before user apps).
-    fn is_extension(&self) -> bool { false }
-    /// Whether registration failure should abort startup.
+
+    /// Global plugin: loaded before user apps. Default: false.
+    fn is_plugin(&self) -> bool { false }
+
+    /// Whether registration failure aborts startup.
     fn is_critical(&self) -> bool { false }
-    /// Embedded config.yaml content.
-    fn config_yaml(&self) -> Option<&'static str> { None }
+
+    /// Embedded `Cargo.toml` content. Discovery extracts
+    /// `[package.metadata.app]` + plugin-metadata blocks via
+    /// `yeti_sdk::application::cargo_manifest`.
+    fn config_toml(&self) -> Option<&'static str> { None }
+
+    /// GraphQL schema strings. Called once during discovery, before
+    /// backends exist.
+    fn schemas(&self) -> Vec<&'static str> { vec![] }
+
+    /// Register resources, hooks, web files, providers. Called once
+    /// during loading, after backends exist.
+    fn resources(&self, ctx: &mut RegistrationContext) -> Result<()> { Ok(()) }
+
+    /// Post-registration setup (bootstrap data, background tasks).
+    fn on_ready(&self, ctx: &Context) -> Result<()> { Ok(()) }
+
+    /// Build the plugin's telemetry-subscriber `Service<TelemetryEvent>`,
+    /// if any. Per ADR-006 this is a Tower service, not a boxed
+    /// subscriber. Default: no subscriber.
+    fn install_event_subscriber(
+        &self,
+        ctx: &Context,
+    ) -> Result<Option<TelemetryService>> { Ok(None) }
+
     /// Called during graceful shutdown.
     fn on_shutdown(&self) {}
 }
 ```
 
-Only `id()`, `name()`, and `register()` are required. All others have defaults.
+Only `id()` and `name()` are required. Everything else has a default.
 
-### Full example
+### Minimal plugin
 
 ```rust,ignore
 use yeti_sdk::prelude::*;
+use yeti_types::plugins::Plugin;
 
-pub struct MyService;
+pub struct MyPlugin;
 
-impl Service for MyService {
-    fn id(&self) -> &'static str { "my-service" }
-    fn name(&self) -> &'static str { "My Service" }
+impl Plugin for MyPlugin {
+    fn id(&self) -> &'static str { "my-plugin" }
+    fn name(&self) -> &'static str { "My Plugin" }
     fn version(&self) -> &'static str { "1.0.0" }
 
     fn depends_on(&self) -> &[&'static str] {
-        &["yeti-auth"]  // load after auth
+        &["yeti-auth"]
     }
 
-    fn is_required(&self, ctx: &StartupContext) -> bool {
-        ctx.any_app_has_config("my-service")
+    fn config_toml(&self) -> Option<&'static str> {
+        Some(include_str!("../Cargo.toml"))
     }
 
-    fn config_yaml(&self) -> Option<&'static str> {
-        Some(include_str!("config.yaml"))
+    fn schemas(&self) -> Vec<&'static str> {
+        vec![include_str!("schema.graphql")]
     }
 
-    fn register(&self, ctx: &mut RegistrationContext) -> Result<()> {
-        ctx.add_schema(include_str!("schema.graphql"));
+    fn resources(&self, ctx: &mut RegistrationContext) -> Result<()> {
         ctx.add_resource(Box::new(MyResource));
         Ok(())
     }
 
-    fn on_ready(&self, ctx: &ServiceContext) -> Result<()> {
-        let config = ctx.require_table("Config")?;
-        tracing::info!("[{}] service ready", ctx.app_id());
+    fn on_ready(&self, ctx: &Context) -> Result<()> {
+        yeti_log!(info, "[{}] plugin ready", ctx.app_id());
         Ok(())
-    }
-
-    fn on_shutdown(&self) {
-        tracing::info!("service shutting down");
     }
 }
 ```

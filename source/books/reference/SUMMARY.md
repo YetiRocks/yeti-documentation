@@ -10,7 +10,7 @@
 - [Response Helpers](sdk/response-helpers.md)
 - [Table Access](sdk/table-access.md)
 - [Utilities](sdk/utilities.md)
-- [Extension API](sdk/extension-api.md)
+- [Plugin API](sdk/plugin-api.md)
 
 # Configuration
 
@@ -38,6 +38,7 @@
 # Architecture
 
 - [System Overview](architecture/overview.md)
+- [Crate Layout](architecture/crate-layout.md)
 - [Storage Engine](architecture/storage.md)
 - [Application Compilation & Hot Reload](architecture/plugins.md)
 - [Telemetry Pipeline](architecture/telemetry.md)

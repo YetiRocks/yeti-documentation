@@ -8,7 +8,7 @@ Check the compiler output in the terminal. Common causes:
 
 - Missing `use yeti_sdk::prelude::*;` at top of resource file
 - Syntax error in `schema.graphql` (mismatched braces, missing `@primaryKey`)
-- Bad dependency version in `config.yaml` `dependencies:` section
+- Bad dependency version in `[dependencies]` table in `Cargo.toml`
 
 **Source changes aren't taking effect**
 
@@ -30,7 +30,7 @@ Always clear after `cargo clean` or rebuilding yeti.
 
 ## Dylib Boundary
 
-These issues only affect custom resources and extensions (code compiled as dynamic libraries).
+These issues only affect custom resources and plugins (code compiled as dynamic libraries).
 
 **`tokio::spawn` crashes with "cannot catch foreign exceptions"**
 
@@ -42,11 +42,11 @@ Tracing macros use thread-local storage, which is duplicated in the dylib. Messa
 
 **Host statics have wrong values**
 
-`OnceLock` and other statics in yeti-core are duplicated in the dylib. The host's copy and the dylib's copy are independent. Use dylib-local statics for state shared between an extension and its resources.
+`OnceLock` and other statics in yeti-host are duplicated in the dylib. The host's copy and the dylib's copy are independent. Use dylib-local statics for state shared between an plugin and its resources.
 
 **Methods on host types don't work as expected**
 
-Methods defined on host-compiled structs (like `ExtensionContext`) run in dylib context when called from dylib code. The dylib has its own compiled copy. Creating tokio channels or futures in such methods silently corrupts the host runtime. Fix: set flags in dylib, let the host check flags after `on_ready()` returns.
+Methods defined on host-compiled structs (like `RegistrationContext`) run in dylib context when called from dylib code. The dylib has its own compiled copy. Creating tokio channels or futures in such methods silently corrupts the host runtime. Fix: set flags in dylib, let the host check flags after `on_ready()` returns.
 
 **`reqwest::blocking::Client` crashes**
 
@@ -107,10 +107,10 @@ Seed data loads once when the table is empty. If the table already has records, 
 
 **App not detected on startup**
 
-Yeti scans `~/yeti/applications/*/config.yaml`. Check that:
+Yeti scans `~/yeti/applications/*/Cargo.toml`. Check that:
 
 - The directory is directly under `applications/` (not nested)
-- `config.yaml` exists and is valid YAML
+- `Cargo.toml` exists with a `[package.metadata.app]` block
 - `enabled: true` is set (or not set to `false`)
 
 **`@export` table has no REST endpoints**
@@ -140,5 +140,5 @@ rm -rf ~/yeti/cache/builds/my-app/src/
 Always clear after:
 - Rebuilding yeti from source (`cargo clean && cargo build`)
 - Upgrading yeti to a new version
-- Changing plugin dependencies in config.yaml
+- Changing `[dependencies]` in Cargo.toml
 - Seeing unexplained segfaults or ABI errors

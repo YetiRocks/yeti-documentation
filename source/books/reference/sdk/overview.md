@@ -26,7 +26,7 @@ The prelude also re-exports: `Request`, `Response`, `StatusCode`, `Method`, `jso
 
 ## Application architecture
 
-Applications compile to dynamic libraries (`.dylib`). The compiler reads `config.yaml`, copies resource `.rs` files into a build cache, generates a `lib.rs`, and compiles the result. Write individual resource files; the toolchain handles the rest.
+Applications compile to dynamic libraries (`.dylib`). The compiler reads `Cargo.toml`, copies resource `.rs` files into a build cache, generates a `lib.rs`, and compiles the result. Write individual resource files; the toolchain handles the rest.
 
 Each resource file defines a struct implementing the `Resource` trait (usually via `resource!`). The struct name becomes the route path, lowercased by default.
 

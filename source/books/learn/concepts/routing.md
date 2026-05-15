@@ -59,15 +59,15 @@ With `@export(sse: true)`, the table supports `GET /{app-id}/{Table}?stream=sse`
 
 ### Custom Endpoint Paths
 
-Use `@export(name: "custom-path")` to override the default endpoint path (lowercase type name):
+Use `@export(path: "custom-path")` to override the default endpoint path (lowercase type name):
 
 ```graphql
-type Product @table @export(name: "api/v1/products") { ... }
+type Product @table @export(path: "api/v1/products") { ... }
 ```
 
 This serves the table at `/{app-id}/api/v1/products` instead of `/{app-id}/product`.
 
-An empty name (`@export(name: "")`) mounts the table at the app root.
+An empty name (`@export(path: "")`) mounts the table at the app root.
 
 ## Protocol-Specific Endpoints
 

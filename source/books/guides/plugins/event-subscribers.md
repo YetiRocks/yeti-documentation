@@ -112,6 +112,6 @@ All async operations (channel receives, table writes, network I/O) run in host c
 
 ## See Also
 
-- [Building Services](building-extensions.md) -- Service development
-- [Service Lifecycle](extension-lifecycle.md) -- Startup sequence
+- [Building Services](plugins/overview.md) -- Service development
+- [Service Lifecycle](plugins/lifecycle.md) -- Startup sequence
 - [Telemetry & Observability](telemetry.md) -- yeti-telemetry service

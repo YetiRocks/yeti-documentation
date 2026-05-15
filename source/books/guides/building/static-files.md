@@ -8,43 +8,49 @@ Serve frontend applications alongside your API.
 
 For single-page applications (React, Vue, etc.), set `spa: true`. Unmatched paths serve `index.html` with status 200, letting the client-side router handle navigation. Route defaults to `/`.
 
-```yaml
-static:
-  path: web
-  spa: true
-  build:
-    sourceDir: source
-    command: npm run build
+```toml
+[package.metadata.app]
+static = { path = "web", spa = true, source = "source", build = "npm run build" }
 ```
 
-The config key `static` is preferred. The aliases `static_files` and `staticFiles` are also accepted for backward compatibility.
+To mount the SPA at a subpath instead of the root, set `root`:
 
-To mount the SPA at a subpath instead of the root, add `route`:
-
-```yaml
-static:
-  path: web
-  spa: true
-  route: /dashboard
+```toml
+[package.metadata.app]
+static = { path = "web", root = "/dashboard", spa = true }
 ```
 
 Unmatched paths under `/dashboard/...` serve `index.html`. Paths outside `/dashboard` are unaffected.
 
 ## Plain Static Files
 
-Without `spa`, Yeti serves files directly and returns 404 for unmatched paths. Use `route` to control the URL prefix.
+Without `spa`, Yeti serves files directly and returns 404 for unmatched
+paths (or your custom `not_found` page). Use `root` to control the URL
+prefix.
 
-```yaml
-static:
-  path: web
-  route: /assets
+```toml
+[package.metadata.app]
+static = { path = "web", root = "/assets" }
 ```
+
+## Custom 404
+
+Author a `404.html` and wire it via `not_found`:
+
+```toml
+[package.metadata.app]
+static = { path = "web", not_found = "404.html" }
+```
+
+The server returns 404 status with the file as the body. With `spa = true`
+**and** `not_found` set, the explicit 404 wins for missing files; the SPA
+fallback only fires for paths that haven't been served as files.
 
 ## Directory Structure
 
 ```
 ~/yeti/applications/my-app/
-  config.yaml
+  Cargo.toml
   web/
     index.html
     assets/
@@ -63,18 +69,14 @@ Subfolders work in both SPA and plain modes. The only difference is what happens
 
 ## Build Pipelines
 
-Build configuration lives inside the `static` block:
+Set `source` (the frontend project dir, default `"source"`) and `build`
+(the build command). Build output must land in the directory named by
+`path`.
 
-```yaml
-static:
-  path: web
-  spa: true
-  build:
-    sourceDir: source          # Frontend project directory (default: "source")
-    command: npm run build     # Build command (default: "npm run build")
+```toml
+[package.metadata.app]
+static = { path = "web", spa = true, source = "source", build = "npm run build" }
 ```
-
-`sourceDir` contains the frontend project (package.json, vite.config.ts, etc.). Build output must land in the directory specified by `path`.
 
 ## Vite Integration
 

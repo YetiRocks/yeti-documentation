@@ -161,7 +161,7 @@ for each service (reverse order):
 
 ## See Also
 
-- [Building Services](building-extensions.md) -- `Service` trait overview
+- [Building Services](plugins/overview.md) -- `Service` trait overview
 - [Event Subscribers](event-subscribers.md) -- Tracing event capture
 - [Telemetry & Observability](telemetry.md) -- Telemetry service
 - [PubSub](pubsub.md) -- Internal messaging backbone

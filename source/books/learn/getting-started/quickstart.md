@@ -8,17 +8,22 @@ Build a REST API in 5 minutes. Requires a running Yeti server ([install first](i
 mkdir ~/yeti/applications/my-app
 ```
 
-Create `~/yeti/applications/my-app/config.yaml`:
+Create `~/yeti/applications/my-app/Cargo.toml`:
 
-```yaml
-name: "My App"
-app_id: "my-app"
-version: "1.0.0"
-enabled: true
-rest: true
-graphql: true
-schemas:
-  path: schema.graphql
+```toml
+[package]
+name = "my-app"
+edition = "2024"
+version = "1.0.0"
+
+[package.metadata.app]
+app_id = "my-app"
+name = "My App"
+rest = true
+graphql = true
+schemas = { path = "schema.graphql" }
+
+[dependencies]
 ```
 
 ## Step 2: Define Your Schema

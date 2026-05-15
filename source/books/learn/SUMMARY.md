@@ -13,7 +13,7 @@
 - [Applications](concepts/applications.md)
 - [Schemas & Tables](concepts/schemas.md)
 - [Resources](concepts/resources.md)
-- [Extensions](concepts/extensions.md)
+- [Plugins](concepts/plugins.md)
 - [Routing & Endpoints](concepts/routing.md)
 
 # Agentic Development

@@ -1,150 +1,144 @@
 # Applications
 
-A self-contained directory bundling configuration, schemas, custom logic, and optional static files. Each application gets its own database namespace and URL prefix.
+A self-contained directory bundling configuration, schemas, custom
+logic, and optional static files. Each application gets its own
+database namespace and URL prefix.
 
-## Directory Structure
+## Directory structure
 
 ```
 ~/yeti/applications/my-app/
-  config.yaml          # Required
-  schemas/             # Table definitions
+  Cargo.toml          # Required — manifest holds [package.metadata.app]
+  schemas/            # Table definitions
     schema.graphql
-  resources/           # Custom Rust handlers
+  resources/          # Custom Rust handlers
     greeting.rs
-  modules/             # Shared Rust modules
+  modules/            # Shared Rust modules
     helpers.rs
-  bin/                 # Standalone binaries
+  bin/                # Standalone binaries
     worker.rs
-  data/                # Seed data
+  data/               # Seed data (JSON, CSV)
     users.json
-  web/                 # Static files
+  web/                # Static files
     index.html
 ```
 
-Only `config.yaml` is required. The compiler generates `Cargo.toml`, `build.rs`, and `source/` (including `lib.rs`) automatically. Do not edit generated files.
+Only `Cargo.toml` is required. The compiler generates `src/lib.rs` and
+the build scaffolding from the manifest — don't edit generated files.
 
 ## Configuration
 
-```yaml
-name: "My Application"
-app_id: "my-app"
-version: "1.0.0"
-enabled: true
+App metadata lives under `[package.metadata.app]` in `Cargo.toml`.
+Standard cargo fields (`name`, `edition`, `version`) sit at the top
+where rust-analyzer and `cargo *` commands can see them.
 
-rest: true
-graphql: true
-mcp: false
+```toml
+[package]
+name = "my-app"
+edition = "2024"
+version = "1.0.0"
 
-schemas:
-  path: "schemas/*.graphql"
+[package.metadata.app]
+app_id = "my-app"
+name = "My Application"
+enabled = true
 
-resources:
-  path: "resources/*.rs"
-  route: "/api"
+# Protocols (each defaults to true)
+rest = true
+graphql = true
+mcp = false
 
-static:
-  path: web
-  route: /
-  spa: true
+# Source globs
+schemas = { path = "schemas/*.graphql" }
+resources = { path = "resources/*.rs", route = "/api" }
+static = { path = "web", root = "/", spa = true }
+modules = "modules/*.rs"
+binaries = "bin/*.rs"
 
-modules:
-  - "modules/*.rs"
+# Seed data + auth-seed (basename routes Roles/Users into yeti-auth)
+loaders = { data = "data/*.json", auth = ["auth/roles.json"] }
 
-binaries:
-  - "bin/*.rs"
+# Per-app auth (each plugin has its own [package.metadata.<plugin>] block)
+[package.metadata.auth]
+methods = ["basic", "oauth"]
 
-hooks:
-  pre_request:
-    - "./scripts/rate_limit.sh"
-  post_request:
-    - "./scripts/log_request.sh"
-  post_request_failure:
-    - "./scripts/alert_on_failure.sh"
+[package.metadata.auth.oauth]
+providers = [{ name = "github", client_id = "${GITHUB_CLIENT_ID}", client_secret = "${GITHUB_CLIENT_SECRET}" }]
+rules = [{ strategy = "provider", pattern = "github", role = "standard" }]
 
-dataLoader: "data/*.json"
-
-auth:
-  oauth:
-    rules:
-      - strategy: provider
-        pattern: "github"
-        role: standard
-
-dependencies:
-  serde_yaml: "0.9"
+# Cargo dependencies for resources/
+[dependencies]
+serde = "1"
 ```
 
 | Field | Purpose |
-|-------|---------|
+|---|---|
 | `app_id` | URL prefix and database namespace |
-| `enabled` | Toggle the app on/off (default: true) |
-| `rest` / `graphql` / `mcp` | Enable protocol interfaces per app |
-| `schemas` | Object with `path` -- glob patterns for GraphQL SDL files |
-| `resources` | Object with `path` and `route` -- Rust handlers and their URL prefix (default route: `/api`) |
-| `static` | Object with `path`, `route`, `spa` -- serve a directory of static files (aliases: `static_files`, `staticFiles`) |
-| `modules` | Shared Rust modules compiled as `pub mod` alongside resources |
-| `binaries` | Standalone Rust executables compiled alongside the plugin dylib |
-| `hooks` | Shell commands executed around resource dispatch (pre/post request) |
-| `dataLoader` | Glob pattern for JSON seed data files |
-| `auth` / `telemetry` / `audit` | Per-app service config (opt-in via top-level keys) |
-| `dependencies` | Rust crate dependencies for resources |
+| `name` | Human-readable name |
+| `enabled` | Toggle on/off (default `true`) |
+| `rest` / `graphql` / `mcp` / `ws` / `sse` / `mqtt` / `grpc` | Per-protocol toggles (default `true`) |
+| `schemas` | `{ path = "..." }` — glob of GraphQL SDL files |
+| `resources` | `{ path = "...", route = "/api" }` — Rust handlers + URL prefix |
+| `static` | `{ path, root, spa, index, notfound, build }` — static file mount |
+| `modules` | `pub mod` files compiled alongside resources |
+| `binaries` | Standalone `bin/*.rs` executables |
+| `loaders.data` | Glob of JSON/CSV seed files |
+| `loaders.auth` | Auth seed files (basename routes Role/User) |
 | `required_roles` | Role names required to access this app (empty = unrestricted) |
-| `request_timeout` | Handler timeout in seconds (default: 30) |
+| `request_timeout` | Handler timeout in seconds (default 30) |
+
+Plugin-specific config lives under sibling `[package.metadata.{auth,vectors,telemetry,...}]` tables, parsed by each plugin at load time.
 
 ## Discovery
 
-Yeti scans `~/yeti/applications/*/` for directories containing a `config.yaml`. Drop a directory in and restart. Apps with `enabled: false` are discovered but not loaded.
+Yeti scans `~/yeti/applications/*/` for directories containing a
+`Cargo.toml` with `[package.metadata.app]`. Drop a directory in and
+restart. Apps with `enabled = false` are discovered but not loaded.
 
 ## Isolation
 
-- **URL prefix**: All routes are under `/{app-id}/` (unless designated as the `root_app` in `yeti-config.yaml`)
-- **Database namespace**: `@table(database: "...")` controls storage isolation
-- **Route space**: Resources and tables share the app's route space but cannot conflict with other apps
+- **URL prefix** — all routes under `/{app-id}/` (unless designated
+  as `root_app` in `yeti-config.yaml`).
+- **Database namespace** — `@table(database: "...")` controls storage isolation.
+- **Route space** — resources and tables share the app's route space but cannot conflict with other apps.
 
 ## Protocols
 
-Server-wide protocol toggles live in `yeti-config.yaml` under `interfaces:`. Per-app toggles in `config.yaml` control which protocols each app exposes:
+Server-wide protocol toggles live in `yeti-config.yaml` under
+`interfaces:`. Per-app toggles in the manifest control which protocols
+each app exposes:
 
-- **REST** / **GraphQL** -- toggled per app via `rest:`, `graphql:`
-- **MCP** (Model Context Protocol) -- per-app via `mcp: true`. Exposes a JSON-RPC 2.0 endpoint at `/{app-id}/mcp`
-- **gRPC** -- server-wide only (`interfaces.grpc.enabled`). Exposes all `@export`ed tables via a gRPC tables service on the same port
-- **MQTT** -- server-wide (`interfaces.mqtt.enabled`). Native MQTTS on port 8883, WebSocket proxy at `/mqtt`
-- **SSE** / **WebSocket** -- controlled per-table via `@export(sse: true, ws: true)` in the schema
+- **REST** / **GraphQL** — per app via `rest = true` / `graphql = true`.
+- **MCP** — per app via `mcp = true`. JSON-RPC 2.0 endpoint at `/{app-id}/mcp`.
+- **gRPC** — server-wide only (`interfaces.grpc.enabled`). All `@export`ed tables on the same port.
+- **MQTT** — server-wide (`interfaces.mqtt.enabled`). Native MQTTS on 8883; WS proxy at `/mqtt`.
+- **SSE** / **WebSocket** — controlled per-table via `@export(sse: true, ws: true)`.
 
-## Services
+## Plugins
 
-Apps with `extension: true` provide shared services to other apps. They load first and supply auth, telemetry, and middleware. Consumer apps opt in via top-level keys (`auth:`, `telemetry:`, `audit:`). See [Services](extensions.md).
+Apps with `plugin = true` in `[package.metadata.app]` provide shared
+services (auth, telemetry, AI, etc.). They load first and register
+with the runtime; consumer apps opt in via sibling
+`[package.metadata.{plugin-name}]` blocks. See [Plugins](plugins.md).
 
-## Hooks
+## Naming conventions
 
-Hook commands run as shell processes around resource dispatch. Environment variables provide request context (`HOOK_EVENT`, request metadata). Exit codes control flow:
+- **app_id** — lowercase kebab: `my-app`, `graphql-explorer`, `yeti-auth`
+- **Schema types** — PascalCase: `Product`, `UserProfile`, `OrderItem`
+- **Resource files** — snake_case: `greeting.rs`, `page_cache.rs`
+- **Seed data files** — match table names in lowercase: `products.json`, `authors.json`
 
-- **Exit 0** -- allow the request
-- **Exit 2** -- deny the request (returns 403 Forbidden)
-- **Other exit codes** -- hook failure (logged, does not block the request)
+## Apps without tables
 
-Post-request hooks are fire-and-forget and do not affect the response.
+Apps that only serve static files or custom endpoints can omit
+`schemas` entirely:
 
-## Naming Conventions
+```toml
+[package]
+name = "documentation"
+edition = "2024"
 
-- **app_id**: Lowercase with hyphens: `my-app`, `graphql-explorer`, `yeti-auth`
-- **Schema types**: PascalCase: `Product`, `UserProfile`, `OrderItem`
-- **Resource files**: snake_case: `greeting.rs`, `page_cache.rs`
-- **Seed data files**: Match table names in lowercase: `products.json`, `authors.json`
-
-## Apps Without Tables
-
-Apps that only serve static files or custom endpoints can omit `schemas:` entirely:
-
-```yaml
-name: "Documentation"
-app_id: "documentation"
-version: "1.0.0"
-enabled: true
-static:
-  path: web
-  spa: true
-```
-eb
-  spa: true
+[package.metadata.app]
+app_id = "documentation"
+static = { path = "web", root = "/", spa = true }
 ```

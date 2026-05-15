@@ -1,330 +1,201 @@
 # Application Configuration
 
-Reference for `config.yaml` at `~/yeti/applications/{app-id}/config.yaml`.
+Application metadata lives in `Cargo.toml` at
+`~/yeti/applications/{app-id}/Cargo.toml`. Yeti reads
+`[package.metadata.app]` plus sibling `[package.metadata.{plugin}]`
+blocks for per-plugin config.
 
-## Metadata
+The standard cargo fields (`name`, `edition`, `version`) live at the
+top of the file where `cargo *` and rust-analyzer can see them.
+
+```toml
+[package]
+name = "my-app"
+edition = "2024"
+version = "1.0.0"
+
+[package.metadata.app]
+app_id = "my-app"
+name = "My Application"
+```
+
+## Application metadata
 
 | Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `name` | string | yes | - | Human-readable application name |
-| `app_id` | string | yes | - | Application identifier (URL prefix: `/{app_id}`) |
-| `customer_id` | string | no | - | Owning tenant (injected by build server in cloud mode). Alias: `customerId` |
+|---|---|---|---|---|
+| `app_id` | string | yes | — | URL routing slug (`/{app_id}/...`). Kebab-case, 3–40 chars |
+| `name` | string | no | — | Human-readable name |
+| `customer_id` | string | no | — | Owning tenant (injected by build server in cloud mode) |
+| `enabled` | bool | no | `true` | Load at startup; disabled apps are skipped |
+| `plugin` | bool | no | `false` | Global plugin (loaded before user apps) |
+| `required_roles` | string[] | no | `[]` | Role names required for access. Missing role = 403; unauthenticated = 401 |
+| `request_timeout` | int (s) | no | `30` | Handler timeout (504 on expiry; SSE/WS exempt) |
+| `storage_path` | string | no | `{rootDirectory}/data/` | Override RocksDB storage path |
 
-## Application State
+`[package].name` is the cargo crate identity *and* the human-readable
+name. It's the only string a developer routinely types for the app.
+`app_id` is the URL routing slug; usually it matches `package.name`
+but the loader treats them as independent.
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `enabled` | boolean | `true` | Load at startup; disabled apps are skipped |
-| `extension` | boolean | `false` | Global extension (shared service loaded before applications) |
-| `required_roles` | string[] or `false` | `[]` | Roles required for access. Missing role = 403; unauthenticated = 401 |
-| `request_timeout` | integer | `30` | Handler timeout in seconds (504 on expiry). SSE/WebSocket exempt |
-| `route_prefix` | string | - | **Deprecated and ignored.** Use `root_app` in `yeti-config.yaml` instead |
+## Schemas, resources, static files
 
-## Schemas
+Source globs are either scalars (single path) or `{ path = "..." }` tables.
 
-Schema file locations. Omit entirely for apps without tables.
-
-```yaml
-schemas:
-  path: schemas/*.graphql
-```
-
-Or with multiple patterns:
-
-```yaml
-schemas:
-  path:
-    - schemas/core.graphql
-    - schemas/extra.graphql
-```
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `schemas.path` | string or string[] | - | Glob pattern(s) for `.graphql` schema files |
-
-## Resources
-
-Custom resource files compiled as dynamic library plugins.
-
-```yaml
-resources:
-  path: resources/*.rs
-  route: /api
-```
-
-Or with multiple patterns:
-
-```yaml
-resources:
-  path:
-    - resources/*.rs
-    - extra/*.rs
-  route: /api
-```
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `resources.path` | string or string[] | - | Glob pattern(s) for Rust source files |
-| `resources.route` | string | `"/api"` | URL route prefix. Apps without `resources:` serve tables at `"/"` |
-
-## Modules
-
-Shared library code compiled into the plugin as `pub mod` alongside resource modules.
-
-```yaml
-modules:
-  - modules/*.rs
-```
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `modules` | string[] | `[]` | Glob patterns for shared module source files |
-
-## Binaries
-
-Standalone executables compiled alongside the plugin. Each `.rs` file becomes a `[[bin]]` target.
-
-```yaml
-binaries:
-  - bin/*.rs
-```
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `binaries` | string[] | `[]` | Glob patterns for binary source files |
-
-## Static Files
-
-```yaml
-static:
-  path: web
-  route: /
-  spa: true
-  index: index.html
-  build:
-    sourceDir: source
-    command: npm run build
-```
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `static.path` | string | - | Directory containing static files (relative to app directory) |
-| `static.route` | string | `"/"` | URL route prefix |
-| `static.spa` | boolean | `false` | SPA mode: serve index.html for unmatched paths (200) so client-side router handles navigation |
-| `static.index` | string | `"index.html"` | Default file for directory requests |
-| `static.not_found` | string or object | - | Custom 404 page: file path string (served as 404) or `{ file: "path", statusCode: 200 }`. Overrides SPA fallback when both set |
-| `static.build` | object | - | Frontend build configuration. Runs the build command before serving |
-| `static.build.sourceDir` | string | `"source"` | Frontend source directory (relative to app directory) |
-| `static.build.command` | string | `"npm run build"` | Build command to run |
-
-Config key aliases: `static_files`, `staticFiles`, `static_config`.
-
-The `build` section uses `camelCase` field names (`sourceDir`, not `source_dir`).
-
-## Hooks
-
-Shell commands around resource dispatch. See [Resource Hooks](../guides/resource-hooks.md).
-
-```yaml
-hooks:
-  pre_request:
-    - "./hooks/validate.sh"
-  post_request:
-    - "./hooks/audit-log.sh"
-  post_request_failure:
-    - "./hooks/alert.sh"
-```
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `hooks.pre_request` | string[] | `[]` | Run before handler. Exit 0 = allow, exit 2 = deny (403), other = hook failure |
-| `hooks.post_request` | string[] | `[]` | Run after successful response. Fire-and-forget |
-| `hooks.post_request_failure` | string[] | `[]` | Run after error response. Fire-and-forget |
-
-Hooks receive JSON on stdin with method, path, app_id, resource_id, auth identity, status, and latency.
-
-## Interface Flags
-
-Protocol flags at the app level. Individual tables override via `@export` directives.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `rest` | boolean | `true` | REST API endpoints |
-| `graphql` | boolean | `true` | GraphQL endpoint |
-| `mcp` | boolean | `false` | MCP endpoint (auto-enabled when any table has `@export(mcp: true)`) |
-
-## Extension Configuration
-
-Per-app extension settings declared as top-level keys using the extension's short name. Captured via the `custom` config flatten and resolved by the extension at runtime.
-
-Built-in short names: `auth`, `vectors`, `telemetry`, `audit`, `applications`.
-
-### Auth Configuration
-
-Requires the yeti-auth service.
-
-```yaml
-auth:
-  signup: auto
-  default_role: viewer
-  methods: [oauth, basic]
-  oauth:
-    google:
-      clientId: "${GOOGLE_CLIENT_ID}"
-      clientSecret: "${GOOGLE_CLIENT_SECRET}"
-    rules:
-      - strategy: email
-        pattern: "*@mycompany.com"
-        role: admin
+```toml
+[package.metadata.app]
+schemas   = { path = "schemas/*.graphql" }
+resources = { path = "resources/*.rs", route = "/api" }
+modules   = "modules/*.rs"
+binaries  = "bin/*.rs"
+static    = { path = "web", root = "/", spa = true, source = "source", build = "npm run build" }
+loaders   = { data = "data/*.json", auth = ["auth/roles.json", "auth/users.json"] }
 ```
 
 | Field | Type | Description |
-|-------|------|-------------|
-| `auth.signup` | string | `"auto"` enables auto-signup on first login |
-| `auth.default_role` | string | Role assigned when no rule matches |
-| `auth.methods` | string[] | Enabled auth methods: `basic`, `jwt`, `oauth`, `mtls` |
-| `auth.oauth` | object | OAuth provider configuration (keyed by provider name) |
-| `auth.oauth.{provider}.clientId` | string | OAuth client ID |
-| `auth.oauth.{provider}.clientSecret` | string | OAuth client secret |
-| `auth.oauth.rules` | array | Provider-to-role mapping rules |
+|---|---|---|
+| `schemas.path` | string \| string[] | Glob(s) for `.graphql` files. Omit entirely for apps without tables |
+| `resources.path` | string \| string[] | Glob(s) for Rust handler files |
+| `resources.route` | string | URL route prefix (default `"/api"`; apps without `resources` serve tables at `"/"`) |
+| `modules` | string \| string[] | Glob(s) for shared `pub mod` files |
+| `binaries` | string \| string[] | Glob(s) for `bin/*.rs`; each becomes a `[[bin]]` target |
+| `static` | object | Static file mount (see below) |
+| `loaders.data` | string \| string[] | Glob(s) for JSON/CSV seed files |
+| `loaders.auth` | string[] | Auth-seed files; basename routes to `Role` / `User` tables |
 
-See [Authentication & Authorization](../guides/auth-overview.md).
+### Static files
 
-## Auth Loader
-
-Simplified role/user JSON for seeding yeti-auth on first startup. Files are bare arrays (no `database`/`table` wrapper). Permissions are JSON objects (serialized to strings on load). Passwords are plaintext (Argon2id-hashed on load).
-
-```yaml
-authLoader:
-  roles: auth/roles.json
-  users: auth/users.json
+```toml
+static = { path = "web", root = "/", spa = true, index = "index.html", not_found = "404.html", source = "source", build = "npm run build" }
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `authLoader.roles` | string | - | Path to roles JSON file (bare array of role records). Optional |
-| `authLoader.users` | string | - | Path to users JSON file (bare array of user records). Optional |
+| Field | Default | Description |
+|---|---|---|
+| `path` | — | Directory containing built static files (relative to app dir) |
+| `root` | `"/"` | URL route prefix |
+| `spa` | `false` | SPA mode: serve `index.html` for unmatched paths (status 200) |
+| `index` | `"index.html"` | Default file for directory requests |
+| `not_found` | — | Custom 404 page: string path (served as 404), or `{ file, statusCode }` |
+| `source` | — | Frontend source directory; build runs here |
+| `build` | — | Build command run before serving (e.g. `"npm run build"`) |
 
-Config key alias: `auth_loader`.
+`not_found = "404.html"` distinguishes "custom error page" from
+`spa = true` "client-side router". With both unset, missing paths
+return the platform JSON 404.
 
-## Data Loader
+## Protocol toggles
 
-Seed data files loaded on first startup. Accepts either a bare string or an object with a `files` key.
-
-```yaml
-# Bare string form
-dataLoader: "data/*.json"
-
-# Object form
-dataLoader:
-  files: "data/*.json"
+```toml
+[package.metadata.app]
+rest    = true
+graphql = true
+ws      = true
+sse     = true
+mqtt    = true
+mcp     = true
+grpc    = true
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `dataLoader` | string or object | - | Glob pattern for data files, or `{ files: "pattern" }` |
-| `dataLoader.files` | string | - | Glob pattern for data files (when using object form) |
+All default to `true`. Server-wide caps and toggles live in
+`yeti-config.yaml` `[interfaces]`. Per-table overrides happen via
+`@export(rest: false, ...)` in the schema.
 
-Config key alias: `data_loader`.
+## Plugin configuration
+
+Per-app plugin settings live in sibling
+`[package.metadata.{plugin-name}]` blocks. Each plugin parses its own
+block at load time.
+
+Built-in plugin keys: `auth`, `vectors`, `telemetry`, `audit`.
+
+### Auth
+
+```toml
+[package.metadata.auth]
+signup = "auto"
+default_role = "viewer"
+methods = ["oauth", "basic"]
+
+[package.metadata.auth.oauth]
+providers = [
+  { name = "google", client_id = "${GOOGLE_CLIENT_ID}", client_secret = "${GOOGLE_CLIENT_SECRET}" }
+]
+rules = [
+  { strategy = "email", pattern = "*@mycompany.com", role = "admin" }
+]
+```
+
+| Field | Description |
+|---|---|
+| `signup` | `"auto"` enables auto-signup on first login |
+| `default_role` | Role assigned when no `rules` entry matches |
+| `methods` | Enabled auth methods: `basic`, `jwt`, `oauth`, `mtls` |
+| `oauth.providers` | Array of `{ name, client_id, client_secret }`. Env-var interpolation supported |
+| `oauth.rules` | Provider-to-role mapping rules; first match wins |
+
+See [Authentication](../../guides/auth/overview.md) for the full surface.
+
+### Vectors / Telemetry / Audit
+
+Each plugin's metadata block follows the same pattern. See the plugin
+guides:
+
+- [Vector Search](../../guides/querying/vector-search.md)
+- [Telemetry](../architecture/telemetry.md)
+- [Auditing](../../guides/observability/auditing.md)
 
 ## Dependencies
 
-Rust crate dependencies for the compiled plugin. Cargo.toml dependency syntax in YAML.
+Standard cargo dependencies for resources. **Don't** add `yeti-sdk`
+here — the scaffolder injects it via the workspace.
 
-```yaml
-dependencies:
-  chrono: "0.4"
-  jsonwebtoken: { version: "10.3", features: ["aws_lc_rs"] }
+```toml
+[dependencies]
+chrono = "0.4"
+jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `dependencies` | object | `{}` | Crate name to version string or dependency object. Added to generated Cargo.toml |
+## Complete example
 
-## Storage
+```toml
+[package]
+name = "my-app"
+edition = "2024"
+version = "1.0.0"
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `storage_path` | string | `{rootDirectory}/data/` | Custom storage path for RocksDB databases. Priority: per-app `storage_path` > global `storage_path` from server config > `{rootDirectory}/data/` |
+[package.metadata.app]
+app_id = "my-app"
+name = "My Application"
+customer_id = "acme"
+request_timeout = 30
 
-## Custom Configuration
+schemas   = { path = "schemas/*.graphql" }
+resources = { path = "resources/*.rs", route = "/api" }
+modules   = "modules/*.rs"
+binaries  = "bin/*.rs"
+static    = { path = "web", root = "/", spa = true, source = "source", build = "npm run build" }
+loaders   = { data = "data/*.json", auth = ["auth/roles.json", "auth/users.json"] }
 
-Unrecognized top-level keys are captured via `serde(flatten)`. Access at runtime via `params.config().get_str("key", "default")` and typed accessors (`get_i64`, `get_u64`, `get_f64`, `get_bool`). Supports dot notation (e.g. `"origin.url"`).
+rest = true
+graphql = true
+mcp = false
 
-```yaml
-# These are custom -- accessible at runtime
-origin:
-  url: "https://www.example.com/"
-api_keys:
-  stripe: "${STRIPE_KEY}"
+[package.metadata.auth]
+methods = ["oauth"]
+
+[package.metadata.auth.oauth]
+providers = [
+  { name = "google", client_id = "${GOOGLE_CLIENT_ID}", client_secret = "${GOOGLE_CLIENT_SECRET}" }
+]
+rules = [
+  { strategy = "email", pattern = "*@acme.com", role = "admin" }
+]
+
+[dependencies]
+chrono = "0.4"
 ```
 
-Extension short names (`auth`, `vectors`, `telemetry`, `audit`, `applications`) are captured here and routed to the appropriate extension. See [Extension Configuration](#extension-configuration).
+## See also
 
-## Complete Example
-
-```yaml
-name: "My Application"
-app_id: "my-app"
-customer_id: "acme"
-enabled: true
-request_timeout: 30
-
-schemas:
-  path: schemas/*.graphql
-
-resources:
-  path: resources/*.rs
-  route: /api
-
-modules:
-  - modules/*.rs
-
-binaries:
-  - bin/*.rs
-
-static:
-  path: web
-  route: /
-  spa: true
-  index: index.html
-  build:
-    sourceDir: source
-    command: npm run build
-
-auth:
-  methods: [oauth]
-  oauth:
-    google:
-      clientId: "${GOOGLE_CLIENT_ID}"
-      clientSecret: "${GOOGLE_CLIENT_SECRET}"
-    rules:
-      - strategy: email
-        pattern: "*@acme.com"
-        role: admin
-
-authLoader:
-  roles: auth/roles.json
-  users: auth/users.json
-
-dataLoader: "data/*.json"
-
-hooks:
-  pre_request:
-    - "./hooks/validate.sh"
-  post_request:
-    - "./hooks/log.sh"
-
-dependencies:
-  chrono: "0.4"
-
-rest: true
-graphql: true
-mcp: false
-```
-
-## See Also
-
-- [Schema Directives](schema-directives.md) -- Table and field directives
-- [Server Configuration](server-config.md) -- Server-level settings
-- [Building Services](../guides/building-extensions.md) -- Service development
+- [Schema Directives](schema-directives.md) — table and field directives
+- [Server Configuration](server-config.md) — `yeti-config.yaml`
+- [Plugin API](../sdk/plugin-api.md) — the `Plugin` trait that consumes these metadata blocks

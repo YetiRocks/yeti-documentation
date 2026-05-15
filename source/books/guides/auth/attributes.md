@@ -79,7 +79,7 @@ The `has_unrestricted_attributes()` method provides a fast path: if no `attribut
 
 The dispatch layer pre-computes a `TablePermission` enum per request:
 
-- `Public` -- no auth required (from `@export(public: [...])`)
+- `Public` -- no auth required (from `@access(public: [...])`)
 - `FullAccess` -- authenticated with no attribute restrictions
 - `AttributeRestricted { readable, writable }` -- pre-computed field sets for this user's role
 

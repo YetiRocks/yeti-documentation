@@ -2,7 +2,7 @@
 
 The `yeti-auth` service provides multi-app authentication with RBAC down to the field level. Choose a method: [Basic](auth-basic.md) | [JWT](auth-jwt.md) | [OAuth](auth-oauth.md) | [mTLS](auth-mtls.md)
 
-Opt in by adding an `auth:` section to your app's config.yaml:
+Opt in by adding an `[package.metadata.auth]` block in your app's Cargo.toml:
 
 ```yaml
 auth:
@@ -47,7 +47,7 @@ A user authenticates once (proving identity), then authorization checks their me
 
 ## Auth is Per-App
 
-Each application independently declares its auth configuration. Apps without an `auth:` section in config.yaml have no authentication -- all requests are permitted. Public and authenticated APIs coexist on the same instance.
+Each application independently declares its auth configuration. Apps without an `[package.metadata.auth]` block have no authentication -- all requests are permitted. Public and authenticated APIs coexist on the same instance.
 
 ## Per-App Config
 
@@ -82,7 +82,7 @@ curl -sk -X POST https://localhost:9996/yeti-auth/users \
   -d '{"username":"myuser","password":"secure-password-123","roleId":"standard","email":"myuser@example.com"}'
 ```
 
-2. Add auth to your app's config.yaml:
+2. Add `[package.metadata.auth]` to your app's `Cargo.toml`:
 
 ```yaml
 auth: {}

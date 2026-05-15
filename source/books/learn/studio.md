@@ -14,7 +14,7 @@ Click **Manage** to open an application. Three tabs are available:
 
 **Data** - Browse table contents with a left sidebar for navigation. Edit records inline with the JSON editor. Delete records with confirmation.
 
-**Config** - View the application's `config.yaml` as syntax-highlighted JSON.
+**Config** - View the application's `Cargo.toml` (`[package.metadata.app]`) as syntax-highlighted JSON.
 
 ### Installing Applications
 

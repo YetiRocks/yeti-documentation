@@ -12,20 +12,24 @@ mkdir ~/yeti/applications/task-tracker/data
 
 ## Step 2: Write the Configuration
 
-Create `~/yeti/applications/task-tracker/config.yaml`:
+Create `~/yeti/applications/task-tracker/Cargo.toml`:
 
-```yaml
-name: "Task Tracker"
-app_id: "task-tracker"
-version: "1.0.0"
-enabled: true
-rest: true
-graphql: true
-schemas:
-  path: schema.graphql
-resources:
-  path: "resources/*.rs"
-dataLoader: data/*.json
+```toml
+[package]
+name = "task-tracker"
+edition = "2024"
+version = "1.0.0"
+
+[package.metadata.app]
+app_id = "task-tracker"
+name = "Task Tracker"
+rest = true
+graphql = true
+schemas = { path = "schema.graphql" }
+resources = { path = "resources/*.rs" }
+loaders = { data = "data/*.json" }
+
+[dependencies]
 ```
 
 ## Step 3: Define the Schema
@@ -189,7 +193,7 @@ curl -sk --max-time 30 "https://localhost:9996/task-tracker/Task?stream=sse"
 
 ```
 ~/yeti/applications/task-tracker/
-  config.yaml          # App configuration
+  Cargo.toml           # App manifest (has [package.metadata.app])
   schema.graphql       # Table definitions
   resources/
     summary.rs         # Custom resource
@@ -204,7 +208,7 @@ curl -sk --max-time 30 "https://localhost:9996/task-tracker/Task?stream=sse"
 
 - [Authentication](../guides/auth-overview.md) - Add Basic, JWT, or OAuth auth
 - [Real-Time Features](../guides/realtime-overview.md) - SSE, WebSocket, PubSub
-- [Building Services](../guides/building-extensions.md) - Shared services across apps
+- [Building Services](../guides/plugins/overview.md) - Shared services across apps
 - [FIQL Queries](../guides/fiql.md) - Advanced filtering
-Services](../guides/building-extensions.md) - Shared services across apps
+Services](../guides/plugins/overview.md) - Shared services across apps
 - [FIQL Queries](../guides/fiql.md) - Advanced filtering

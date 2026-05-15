@@ -137,9 +137,9 @@ rustfs:
 # Injected at startup. Real env vars take precedence.
 env: {}
 
-# ─── Extensions ─────────────────────────────────────────────────────────────
-# Per-extension runtime configuration. Each extension has an enabled flag.
-extensions:
+# ─── Plugins ─────────────────────────────────────────────────────────────
+# Per-plugin runtime configuration. Each plugin has an enabled flag.
+plugins:
   yeti-auth:
     enabled: true
     jwt:
@@ -163,7 +163,7 @@ extensions:
     enabled: true
 
 # ─── Auth (shorthand) ──────────────────────────────────────────────────────
-# Top-level shorthand parsed into extensions.yeti-auth configuration.
+# Top-level shorthand parsed into plugins.yeti-auth configuration.
 # auth:
 #   enabled: true
 #   jwt:
@@ -339,29 +339,29 @@ env:
   GOOGLE_CLIENT_SECRET: "secret-value"
 ```
 
-### extensions
+### plugins
 
-Per-extension runtime configuration. Each extension has an `enabled` flag and extension-specific settings.
+Per-plugin runtime configuration. Each plugin has an `enabled` flag and plugin-specific settings.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `extensions.yeti-auth.enabled` | boolean | `true` | Authentication extension |
-| `extensions.yeti-auth.jwt.secret` | string | `"development-secret-change-in-production"` | JWT signing secret |
-| `extensions.yeti-auth.jwt.algorithm` | string | `"HS256"` | JWT signing algorithm |
-| `extensions.yeti-auth.jwt.accessTtl` | integer | `900` | Access token TTL (seconds) |
-| `extensions.yeti-auth.jwt.refreshTtl` | integer | `604800` | Refresh token TTL (seconds) |
-| `extensions.yeti-auth.oauth.github.clientId` | string | `""` | GitHub OAuth client ID |
-| `extensions.yeti-auth.oauth.github.clientSecret` | string | `""` | GitHub OAuth client secret |
-| `extensions.yeti-auth.oauth.google.clientId` | string | `""` | Google OAuth client ID |
-| `extensions.yeti-auth.oauth.google.clientSecret` | string | `""` | Google OAuth client secret |
-| `extensions.yeti-auth.oauth.microsoft.clientId` | string | `""` | Microsoft OAuth client ID |
-| `extensions.yeti-auth.oauth.microsoft.clientSecret` | string | `""` | Microsoft OAuth client secret |
-| `extensions.yeti-telemetry.enabled` | boolean | `true` | Telemetry extension |
-| `extensions.yeti-ai.enabled` | boolean | `true` | AI service (embeddings, inference, model management) |
+| `plugins.yeti-auth.enabled` | boolean | `true` | Authentication plugin |
+| `plugins.yeti-auth.jwt.secret` | string | `"development-secret-change-in-production"` | JWT signing secret |
+| `plugins.yeti-auth.jwt.algorithm` | string | `"HS256"` | JWT signing algorithm |
+| `plugins.yeti-auth.jwt.accessTtl` | integer | `900` | Access token TTL (seconds) |
+| `plugins.yeti-auth.jwt.refreshTtl` | integer | `604800` | Refresh token TTL (seconds) |
+| `plugins.yeti-auth.oauth.github.clientId` | string | `""` | GitHub OAuth client ID |
+| `plugins.yeti-auth.oauth.github.clientSecret` | string | `""` | GitHub OAuth client secret |
+| `plugins.yeti-auth.oauth.google.clientId` | string | `""` | Google OAuth client ID |
+| `plugins.yeti-auth.oauth.google.clientSecret` | string | `""` | Google OAuth client secret |
+| `plugins.yeti-auth.oauth.microsoft.clientId` | string | `""` | Microsoft OAuth client ID |
+| `plugins.yeti-auth.oauth.microsoft.clientSecret` | string | `""` | Microsoft OAuth client secret |
+| `plugins.yeti-telemetry.enabled` | boolean | `true` | Telemetry plugin |
+| `plugins.yeti-ai.enabled` | boolean | `true` | AI service (embeddings, inference, model management) |
 
 ### auth (shorthand)
 
-Top-level `auth:` key is shorthand parsed into `extensions.yeti-auth`. The two forms are equivalent. See [Authentication](../guides/auth-overview.md).
+Top-level `auth:` key is shorthand parsed into `plugins.yeti-auth`. The two forms are equivalent. See [Authentication](../guides/auth-overview.md).
 
 ---
 
@@ -417,7 +417,7 @@ telemetry:
   otlpEndpoint: "http://otel-collector:4317"
   metricsIntervalSecs: 30
 
-extensions:
+plugins:
   yeti-auth:
     jwt:
       secret: "${JWT_SECRET}"

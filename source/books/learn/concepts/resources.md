@@ -12,12 +12,11 @@ resource!(Greeting {
 
 Creates `GET /{app-id}/api/greeting`. The `resource!` macro handles struct definition, trait implementation, and registration.
 
-Place `.rs` files in `resources/` and reference them in `config.yaml`:
+Place `.rs` files in `resources/` and reference them in `Cargo.toml`:
 
-```yaml
-resources:
-  path: "resources/*.rs"
-  route: "/api"
+```toml
+[package.metadata.app]
+resources = { path = "resources/*.rs", route = "/api" }
 ```
 
 The `route` field sets the URL prefix for all resources (default: `/api`). Resources compile to dynamic libraries at runtime. Initial compilation takes ~2 minutes; cached rebuilds are fast.
@@ -68,7 +67,7 @@ resource!(Items {
 | `ctx.app_id` | Application ID |
 | `ctx.auth_identity` | Authentication identity (if present) |
 
-### Context Extension Methods
+### Context Plugin Methods
 
 `ContextExt` (included in `prelude::*`) provides convenience methods:
 
