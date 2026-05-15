@@ -1,130 +1,116 @@
 # Resource Macros
 
-## resource!
+`resource!()` is the primary macro for defining HTTP resources. It
+emits a unit struct, an `impl ResourceMetadata` (routing + auth
+predicates), and per-verb `tower::Service<Context>` impls — then
+auto-registers the resource with the runtime.
 
-The primary macro for defining HTTP resources. Generates a struct, implements `Resource`, and registers it for export.
-
-### Simple (no context)
-
-Static responses without request data:
+## resource! — basic
 
 ```rust,ignore
+use yeti_sdk::prelude::*;
+
+// Simple — no context
 resource!(Health {
     get => json!({"status": "ok"})
 });
 ```
 
-Struct name becomes the route path (lowercased): `GET /app/health`.
+Struct name lower-cased becomes the route: `GET /{app}/health`.
 
-### With Context
+## With context
 
-Pass a parameter to access the `Context` (request, path ID, query params, auth identity, headers, body, tables):
+Pass a parameter to access the request `Context`:
 
 ```rust,ignore
 resource!(Items {
     get(ctx) => {
-        let table = ctx.get_table("Items")?;
-        let id = ctx.require_id()?;
-        let item = table.get(id).await?;
-        ok(item)
+        let table = ctx.table("Items")?;
+        let id    = ctx.require_id()?;
+        ok(table.get(id).await?)
     },
     post(ctx) => {
-        let body = ctx.require_json_body()?.clone();
-        let table = ctx.get_table("Items")?;
-        let id = body["id"].as_str().unwrap_or("unknown");
+        let body  = ctx.require_json_body()?;
+        let table = ctx.table("Items")?;
+        let id    = body["id"].as_str().unwrap_or("unknown");
         table.put(id, body.clone()).await?;
         created(body)
     },
     delete(ctx) => {
-        let table = ctx.get_table("Items")?;
-        let id = ctx.require_id()?;
-        table.delete(id).await?;
+        ctx.table("Items")?.delete(ctx.require_id()?).await?;
         no_content()
     }
 });
 ```
 
-The parameter name is arbitrary (`ctx`, `c`, `request`, etc.).
+Parameter name is arbitrary (`ctx`, `c`, `request`, …).
 
-### Custom URL path
-
-Override the route path:
+## Custom path
 
 ```rust,ignore
 resource!(MyHandler {
     name = "custom-path",
     get => json!({"served_at": "/app/custom-path"})
 });
+// → GET /{app}/custom-path
 ```
 
-Registers at `/app/custom-path` instead of `/app/myhandler`.
-
-### Catch-all (default)
-
-A default resource handles unmatched paths:
+## Catch-all
 
 ```rust,ignore
 resource!(Fallback {
     default = true,
-    get(ctx) => {
-        let path = ctx.path_id.as_deref().unwrap_or("/");
-        not_found(&format!("No resource at {}", path))
-    }
+    get(ctx) => not_found(&format!("No resource at {}", ctx.path_id))
 });
 ```
 
-### Combined options
+`name` and `default` combine in either order.
 
-`name` and `default` combine in either order:
+## Stateful — `fields { ... }`
 
-```rust,ignore
-resource!(CatchAll {
-    name = "fallback",
-    default = true,
-    get(ctx) => {
-        reply().text("Not found")
-    }
-});
-```
-
-### Custom fields
-
-Resources hold state via the `fields` block. Fields are accessible via `self` inside handlers (each handler is a `fn get(&self, ctx: Context)` method). The `fields` pattern does not support a context parameter.
+Resources can hold state. Inside handlers, fields are accessible via
+`self`. The `fields` form does **not** support a context parameter
+(use a sub-method or capture into a closure).
 
 ```rust,ignore
+use std::sync::atomic::{AtomicU64, Ordering};
+
 resource!(Counter {
-    fields { count: Arc<std::sync::atomic::AtomicU64> },
+    fields { count: Arc<AtomicU64> },
     get => {
-        let n = self.count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let n = self.count.fetch_add(1, Ordering::Relaxed);
         ok(json!({"count": n}))
     }
 });
 ```
 
-### Supported methods
+## Supported verbs
 
-Supported HTTP methods (each with or without a context parameter):
+Each verb accepts the `ident => body` or `ident(ctx) => body` shape.
 
-| Method | Description |
-|--------|-------------|
-| `get` | GET requests |
-| `post` | POST requests |
-| `put` | PUT requests |
-| `patch` | PATCH requests |
-| `delete` | DELETE requests |
-| `search` | SEARCH requests |
+| Verb | HTTP method |
+|---|---|
+| `get` | `GET` |
+| `post` | `POST` |
+| `put` | `PUT` |
+| `patch` | `PATCH` |
+| `delete` | `DELETE` |
+| `search` | `SEARCH` |
 
-Real-time methods (available when implementing `Resource` directly):
+Real-time verbs (defined on the underlying traits, not via the basic
+`resource!()` macro):
 
-| Method | Return type | Description |
-|--------|-------------|-------------|
-| `subscribe` | `SubscriptionFuture` | SSE event streams |
-| `publish` | `ResourceFuture` | MQTT publish handling |
-| `connect` | `ConnectionFuture` | WebSocket connections |
+| Verb | Trigger |
+|---|---|
+| `subscribe` | SSE stream |
+| `publish` | MQTT publish |
+| `connect` | WebSocket open |
 
-## extends_table!
+## extends_table! — augment a table
 
-Override behavior on an auto-generated table resource. Only defined methods are overridden; others delegate to the default table implementation.
+Override behavior on an auto-generated table resource. Only declared
+methods are overridden; everything else delegates to the default
+table implementation.
 
 ```rust,ignore
 extends_table!(Product {
@@ -132,46 +118,39 @@ extends_table!(Product {
 });
 ```
 
-`extends_table!` uses simple expression syntax (no context parameter). For context access, use `resource!` with the TableExtender pattern or implement `Resource` directly.
+For context access in a table extender, use the `TableExtender` form
+of `resource!()` (see below).
 
-## Permission overrides (TableExtender)
+## Permission overrides — `TableExtender`
 
-Declare publicly accessible methods on a table resource (no authentication required):
-
-```rust,ignore
-resource!(TableExtender for Product {
-    get => allow_read(),
-    subscribe => allow_read(),
-});
-```
-
-Permission functions:
-
-| Function | Makes public | Applies to |
-|----------|-------------|------------|
-| `allow_read()` | Read access | `get`, `search`, `subscribe`, `connect` |
-| `allow_create()` | Insert access | `post`, `publish` |
-| `allow_update()` | Update access | `put`, `patch` |
-| `allow_delete()` | Delete access | `delete` |
-
-Multiple methods can map to the same permission. Duplicates are deduplicated:
+Declare publicly-accessible methods on a table without writing real
+handler code:
 
 ```rust,ignore
 resource!(TableExtender for Chat {
-    get => allow_read(),
-    post => allow_create(),
-    put => allow_update(),
-    patch => allow_update(),
-    delete => allow_delete(),
-    subscribe => allow_read(),
+    get        => allow_read(),
+    post       => allow_create(),
+    put        => allow_update(),
+    patch      => allow_update(),
+    delete     => allow_delete(),
+    subscribe  => allow_read(),
 });
 ```
 
-## Response helpers
+| Helper | Permits |
+|---|---|
+| `allow_read()` | `get`, `search`, `subscribe`, `connect` |
+| `allow_create()` | `post`, `publish` |
+| `allow_update()` | `put`, `patch` |
+| `allow_delete()` | `delete` |
 
-### reply() builder
+Multiple verbs mapping to the same permission are deduplicated.
 
-Chainable response builder:
+For declarative schema-side gating, prefer
+`@access(public: [read, subscribe])` in `schema.graphql`. Use
+`TableExtender` only when permissions need code-level logic.
+
+## reply() — response builder
 
 ```rust,ignore
 resource!(Api {
@@ -184,48 +163,38 @@ resource!(Api {
 });
 ```
 
-Builder methods: `.code(status)`, `.header(name, value)`, `.json(value)`, `.text(content)`, `.html(content)`.
+Builder methods: `.code(status)`, `.header(name, value)`, `.json(v)`,
+`.text(s)`, `.html(s)`.
 
-### Function helpers
+### Helpers
 
-| Function | Description |
-|----------|-------------|
-| `ok(value)` | 200 + JSON body |
-| `created(value)` | 201 + JSON body |
+| Function | Result |
+|---|---|
+| `ok(value)` | 200 + JSON |
+| `created(value)` | 201 + JSON |
 | `no_content()` | 204 empty |
 | `not_found(msg)` | 404 error |
 | `bad_request(msg)` | 400 error |
 | `unauthorized(msg)` | 401 error |
-| `json_response(status, value)` | Custom status + JSON |
-| `html_response(content)` | 200 + text/html |
-| `text_response(content)` | 200 + text/plain |
+| `json_response(status, value)` | custom status + JSON |
+| `html_response(content)` | 200 + `text/html` |
+| `text_response(content)` | 200 + `text/plain` |
 
-## Resource trait reference
+## Trait reference
 
-The full trait that macros implement:
+The `resource!()` macro emits these:
 
 ```rust,ignore
-pub trait Resource: Send + Sync {
+use yeti_types::resource::ResourceMetadata;
+
+pub trait ResourceMetadata: Send + Sync + 'static {
     fn name(&self) -> &str;
     fn is_default(&self) -> bool { false }
     fn attribute_names(&self) -> Option<Arc<Vec<String>>> { None }
     fn extends_table(&self) -> Option<&str> { None }
     fn method_overrides(&self) -> MethodOverrides { Default::default() }
 
-    fn get(&self, ctx: Context) -> ResourceFuture;
-    fn post(&self, ctx: Context) -> ResourceFuture;
-    fn put(&self, ctx: Context) -> ResourceFuture;
-    fn patch(&self, ctx: Context) -> ResourceFuture;
-    fn delete(&self, ctx: Context) -> ResourceFuture;
-    fn search(&self, ctx: Context) -> ResourceFuture;
-    fn copy(&self, ctx: Context) -> ResourceFuture;
-    fn move_record(&self, ctx: Context) -> ResourceFuture;
-    fn invalidate(&self, ctx: Context) -> ResourceFuture;
-
-    fn subscribe(&self, ctx: Context) -> SubscriptionFuture;
-    fn publish(&self, ctx: Context) -> ResourceFuture;
-    fn connect(&self, ctx: Context) -> ConnectionFuture;
-
+    // Permission predicates — read from Context.access (RBAC)
     fn allow_read(&self, ctx: &Context) -> bool;
     fn allow_create(&self, ctx: &Context) -> bool;
     fn allow_update(&self, ctx: &Context) -> bool;
@@ -236,24 +205,20 @@ pub trait Resource: Send + Sync {
 }
 ```
 
-All methods except `name()` have defaults. HTTP methods default to 405. Authorization methods default to RBAC checks against the context's `AccessControl`.
-ssControl`.
-l`.
-essControl`.
-ssControl`.
-l`.
-ext's `AccessControl`.
-ssControl`.
-l`.
-essControl`.
-ssControl`.
-l`.
-trol`.
-l`.
-`.
-essControl`.
-ssControl`.
-l`.
-trol`.
-l`.
-l`.
+Plus one `impl tower::Service<Context>` per declared verb. The macro
+hides this; you write `get(ctx) => ...` and get a `Service<Context>`
+that the router dispatches via the auto-generated method bindings.
+
+### When to bypass the macro
+
+If you need behavior the macro can't express — streaming responses
+beyond the standard verbs, multi-method dispatch from one handler,
+custom `Service<R>` layers — implement `ResourceMetadata` directly
+and provide your own `Service<Context>` impls. The dispatcher only
+sees the trait surface; the macro is convenience, not a contract.
+
+## See also
+
+- [Request Parsing](request-parsing.md) — the `Context` API
+- [Table Access](table-access.md) — `ctx.table()`, `Query`, CRUD
+- [Plugin API](plugin-api.md) — `Plugin` trait, the cross-cutting analog

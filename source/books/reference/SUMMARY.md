@@ -10,7 +10,9 @@
 - [Response Helpers](sdk/response-helpers.md)
 - [Table Access](sdk/table-access.md)
 - [Utilities](sdk/utilities.md)
+- [Scheduled Functions](sdk/cron.md)
 - [Plugin API](sdk/plugin-api.md)
+- [Service Bridge](sdk/service-bridge.md)
 
 # Configuration
 
