@@ -1,88 +1,86 @@
 # MCP API
 
-[Model Context Protocol](https://modelcontextprotocol.io/) (MCP) endpoint for AI agents and tool-calling LLMs. Standardized JSON-RPC 2.0 interface over application tables.
+[Model Context Protocol](https://modelcontextprotocol.io/) endpoint
+for AI agents and tool-calling LLMs. JSON-RPC 2.0 over streamable
+HTTP, backed by the [`rmcp`](https://crates.io/crates/rmcp) 1.7
+official Rust SDK (YTC-325 row 17, May 2026 — replaced 4,000 LOC of
+hand-rolled wire layer).
+
+```bash
+curl -sk -X POST https://localhost/my-app/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "2025-11-25",
+      "capabilities": {},
+      "clientInfo": {"name": "my-agent", "version": "1.0"}
+    }
+  }'
+```
 
 ## Enabling MCP
 
-Auto-enabled for any table with `@export(mcp: true)`. When `@export` is present without arguments, `mcp` defaults to `true`.
+Auto-enabled on any `@export`-ed table. Disable per table with
+`@export(mcp: false)`.
 
 ```graphql
-type Product @table @export(mcp: true) {
-    id: ID!
+type Product @table @export {                    # MCP on
+    id: ID! @primaryKey
     name: String!
     price: Float!
+}
+
+type AuditLog @table @export(mcp: false) {       # MCP off
+    id: ID! @primaryKey
+    action: String!
 }
 ```
 
 Endpoint: `POST /{app-id}/mcp`.
 
-## Transport
+Protocol version: **2025-11-25** (rmcp 1.7 default). Older clients
+that send `"2025-03-26"` are accepted via negotiation; the server
+replies with its preferred version and the client downgrades.
 
-Streamable HTTP, JSON-RPC 2.0 over POST:
+## Session lifecycle
 
-```bash
-curl -sk -X POST https://localhost:9996/my-app/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"my-agent","version":"1.0"}}}'
-```
+1. **`initialize`** — start a session. Response includes an
+   `mcp-session-id` header and the negotiated `protocolVersion`.
+2. **`notifications/initialized`** — confirm (notification, no `id`,
+   returns 202).
+3. **`tools/list`**, **`resources/list`**, **`prompts/list`** —
+   discovery.
+4. **`tools/call`** — invoke an operation.
+5. **`DELETE /{app-id}/mcp`** with the `mcp-session-id` header —
+   terminate.
 
-Protocol version: `2025-03-26`.
+Subsequent requests in the session reuse the `mcp-session-id` header.
+The default `LocalSessionManager` stores session state in-memory;
+swap for a custom `SessionStore` impl to persist across restarts (see
+the rmcp docs).
 
-## Session Lifecycle
+## Tools
 
-1. Send `initialize` to start a session. The response includes an `mcp-session-id` header.
-2. Send `notifications/initialized` (no `id` field -- it is a notification, returns 202).
-3. Use `tools/list`, `resources/list`, or `prompts/list` to discover capabilities.
-4. Call `tools/call` to perform operations.
-5. Send `DELETE /{app-id}/mcp` with the `mcp-session-id` header to terminate.
+Each MCP-enabled table generates six tools:
 
-## Methods
-
-### `initialize`
-
-Starts a session and returns server capabilities.
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "initialize",
-  "params": {
-    "protocolVersion": "2025-03-26",
-    "capabilities": {},
-    "clientInfo": { "name": "my-agent", "version": "1.0" }
-  }
-}
-```
-
-Response includes `tools`, `resources`, and `prompts` capability declarations.
-
-### `tools/list`
-
-Returns tool definitions. Each MCP-enabled table generates six tools:
-
-| Tool | Description |
-|------|-------------|
-| `{table}_get` | Get a record by ID |
-| `{table}_list` | List records with optional limit, offset, order_by |
+| Tool | Effect |
+|---|---|
+| `{table}_get` | Get a record by id |
+| `{table}_list` | List records (`limit`, `offset`, `order_by` optional) |
 | `{table}_create` | Create a new record |
-| `{table}_update` | Update an existing record (requires id) |
-| `{table}_delete` | Delete a record by ID |
-| `{table}_search` | Search with a FIQL filter or text query |
+| `{table}_update` | Update an existing record (requires `id`) |
+| `{table}_delete` | Delete by id |
+| `{table}_search` | FIQL filter or full-text query |
 
-Tool names use lowercase table names: `product_get`, `product_list`, etc.
+Tool names are lowercased table names. For a `Product` table:
+`product_get`, `product_list`, `product_create`, ….
 
 ```json
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "method": "tools/list"
-}
+{"jsonrpc": "2.0", "id": 2, "method": "tools/list"}
 ```
-
-### `tools/call`
-
-Invoke a tool:
 
 ```json
 {
@@ -91,106 +89,115 @@ Invoke a tool:
   "method": "tools/call",
   "params": {
     "name": "product_create",
-    "arguments": {
-      "id": "p1",
-      "name": "Widget",
-      "price": 9.99
-    }
+    "arguments": {"id": "p1", "name": "Widget", "price": 9.99}
   }
 }
 ```
 
-Tool results follow the MCP content format:
+Responses follow the MCP content shape:
 
 ```json
 {
   "jsonrpc": "2.0",
   "id": 3,
   "result": {
-    "content": [{ "type": "text", "text": "..." }],
+    "content": [{"type": "text", "text": "..."}],
     "isError": false
   }
 }
 ```
 
-### `resources/list`
+### Annotations
 
-Lists data resources (tables) as MCP resources with `yeti://` URIs.
+Tools carry safety hints for agent runtimes:
+
+| Annotation | True for |
+|---|---|
+| `readOnlyHint` | `get`, `list`, `search` |
+| `destructiveHint` | `delete` |
+| `idempotentHint` | `get`, `list`, `search`, `update`, `delete` (not `create`) |
+
+### Runtime enable/disable
+
+rmcp 1.5+ supports runtime tool toggling via `tools/list_changed`
+notifications. Plugins or admin endpoints can disable a tool without
+restarting — the next `tools/list` reflects the change and clients
+receive a `notifications/tools/list_changed` push.
+
+## Resources
+
+`resources/list` returns one resource per `@export`-ed table.
 
 ```json
-{
-  "jsonrpc": "2.0",
-  "id": 4,
-  "method": "resources/list"
-}
+{"jsonrpc": "2.0", "id": 4, "method": "resources/list"}
 ```
 
-Each resource has the URI pattern `yeti://{app-id}/{table}`.
-
-### `resources/templates/list`
-
-Lists URI templates for record-level access: `yeti://{app-id}/{table}/{id}`.
-
-### `resources/read`
-
-Reads a resource by URI. Returns table listing or single record depending on the URI.
+URI scheme: `yeti://{app-id}/{table}`. Templates for record-level
+access (`resources/templates/list`) expose
+`yeti://{app-id}/{table}/{id}`.
 
 ```json
 {
   "jsonrpc": "2.0",
   "id": 5,
   "method": "resources/read",
-  "params": { "uri": "yeti://my-app/product/p1" }
+  "params": {"uri": "yeti://my-app/product/p1"}
 }
 ```
 
-### `prompts/list`
+## Prompts
 
-Lists prompt templates. Each table generates three prompts:
+Three per table:
 
-| Prompt | Arguments | Description |
-|--------|-----------|-------------|
-| `list_{table}` | `limit` (optional) | List records |
-| `search_{table}` | `query` (required) | Search records |
-| `describe_{table}` | none | Describe table schema |
-
-### `prompts/get`
-
-Retrieves a prompt with arguments expanded into messages.
+| Prompt | Args | Returns |
+|---|---|---|
+| `list_{table}` | `limit?` | Pre-templated list-and-summarize prompt |
+| `search_{table}` | `query` | Search prompt with FIQL hints |
+| `describe_{table}` | none | Schema-aware description prompt |
 
 ```json
 {
   "jsonrpc": "2.0",
   "id": 6,
   "method": "prompts/get",
-  "params": { "name": "search_product", "arguments": { "query": "widget" } }
+  "params": {"name": "search_product", "arguments": {"query": "widget"}}
 }
 ```
 
-### `ping`
-
-Health check. Returns `{}`.
-
-## Tool Annotations
-
-Each tool includes MCP annotations for agent safety:
-
-| Annotation | Description |
-|------------|-------------|
-| `readOnlyHint` | `true` for get, list, search |
-| `destructiveHint` | `true` for delete |
-| `idempotentHint` | `true` for get, list, search, update, delete; `false` for create |
-
 ## Authentication
 
-MCP endpoints use the same authentication as the rest of the application. Include credentials in request headers.
+Same pipeline as the rest of the application — Basic / JWT / OAuth /
+mTLS. Send credentials in standard HTTP headers; the auth layer runs
+before MCP dispatch.
 
-## GET Endpoint
+`@access(public: [read])` lets unauthenticated MCP clients call
+`get`, `list`, and `search` tools. `create`, `update`, and `delete`
+always require auth.
 
-`GET /{app-id}/mcp` returns a JSON description of the endpoint including available tables, tool counts, and instructions.
+## Origin header validation
 
-## See Also
+rmcp 1.5 added DNS-rebinding mitigation for streamable HTTP. The
+server rejects requests whose `Origin` header doesn't match the
+configured allow-list. Configured server-wide in `yeti-config.yaml`
+`[http].cors_access_list`.
 
-- [REST API](rest.md) -- Standard REST interface
-- [GraphQL API](graphql.md) -- GraphQL interface
-- [Schema Directives](../reference/schema-directives.md) -- `@export` directive reference
+## GET endpoint
+
+`GET /{app-id}/mcp` returns a JSON description of the endpoint:
+available tables, tool counts, instructions for the agent. Useful as
+a self-describing entry point for agents that haven't initialized yet.
+
+## ping
+
+```json
+{"jsonrpc": "2.0", "id": 7, "method": "ping"}
+```
+
+Returns `{}`. Use for health checks and keepalives.
+
+## See also
+
+- [REST API](rest.md) — same CRUD surface, HTTP-native
+- [GraphQL API](graphql.md) — schema-introspectable alternative
+- [Schema Directives — `@export`](../config/schema-directives.md) — `mcp: true` toggle
+- [Authentication](../../guides/auth/overview.md) — applies to MCP equally

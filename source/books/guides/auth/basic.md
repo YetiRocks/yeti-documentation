@@ -66,11 +66,11 @@ curl -sk -u admin:admin -X DELETE https://localhost:9996/yeti-auth/users/alice
 ## Security Notes
 
 - Always use HTTPS -- Basic auth credentials are base64-encoded, not encrypted
-- For browser apps, prefer [JWT](auth-jwt.md) or [OAuth](auth-oauth.md)
+- For browser apps, prefer [JWT](jwt.md) or [OAuth](oauth.md)
 - Basic auth is ideal for server-to-server, CLI tools, and scripts
 
 ## See Also
 
-- [Authentication Overview](auth-overview.md)
-- [JWT Authentication](auth-jwt.md) - Stateless token-based auth
-- [Roles & Permissions](auth-rbac.md) - Configuring access
+- [Authentication Overview](overview.md)
+- [JWT Authentication](jwt.md) - Stateless token-based auth
+- [Roles & Permissions](rbac.md) - Configuring access

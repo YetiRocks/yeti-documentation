@@ -115,5 +115,5 @@ curl -sk -u user:password https://localhost:9996/my-app/Employee
 
 ## See Also
 
-- [Roles & Permissions](auth-rbac.md) - Table-level CRUD permissions
-- [Authentication Overview](auth-overview.md) - Auth providers
+- [Roles & Permissions](rbac.md) - Table-level CRUD permissions
+- [Authentication Overview](overview.md) - Auth providers

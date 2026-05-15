@@ -1,10 +1,45 @@
 # Roles & Permissions
 
-Each user's access to an application is determined by their **AppMembership** record, which links to an app-scoped **Role** with structured permissions.
+Two layers govern access:
 
-## AppMembership Table
+1. **Schema-side gating** via `@access` on each table — declarative,
+   evaluated per (op, protocol) before any handler runs.
+2. **Identity-side roles** via `AppMembership` → `Role` →
+   permissions JSON — what each user is allowed to do.
 
-The AppMembership table controls per-app access. Each record uses a compound key:
+This guide covers layer 2. For the declarative table-side surface,
+see the [`@access` directive](../../reference/config/schema-directives.md#access--authorization).
+
+## Schema-side: `@access`
+
+Most apps don't need to hand-write permission JSON. Declare access at
+the schema layer:
+
+```graphql
+# Public read; writes require a role on the table's matrix
+type Article @table @export @access(
+  public: [read]
+  roles: { create: [editor, admin], update: [editor, admin], delete: [admin] }
+) { ... }
+
+# Per-(op, protocol) — admins update via REST, MQTT can't update at all
+type Vault @table @export @access(
+  roles: { update: { rest: [admin], graphql: [admin] } }
+) { ... }
+```
+
+`@access(public: [...])` opens specific ops to anonymous traffic.
+`@access(roles: {...})` defines which roles can perform each op.
+Roles can be split per-protocol — REST / GraphQL / WS / SSE / MQTT
+/ MCP / gRPC. See the directive reference for the full shape.
+
+Tables without `@access` follow the app's auth pipeline default
+(every authenticated user, unless a `Role`'s permissions JSON denies
+the table).
+
+## AppMembership table
+
+Per-app access grants. Each record uses a compound key:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -62,7 +97,7 @@ The hierarchy:
 - `super_user: true` -- bypasses all permission checks
 - `databases.{db}.tables.{TableName}` -- table-specific CRUD grants (`read`, `insert`, `update`, `delete`)
 - `databases.{db}.tables.*` -- wildcard fallback for tables without explicit entries
-- `attribute_permissions` -- per-field overrides within a table (see [Attribute-Level Access](auth-attributes.md))
+- `attribute_permissions` -- per-field overrides within a table (see [Attribute-Level Access](attributes.md))
 
 Table name matching is case-insensitive: roles store PascalCase names from the schema, but URL-based lookups work regardless of case.
 
@@ -112,7 +147,7 @@ All auth methods follow the same resolution path:
 
 For OAuth users, the role is determined by the app's `oauth.rules` configuration before creating the auto-signup membership.
 
-Services can provide an `AuthHook` to intercept role resolution before the default logic. See [Auth Hooks](auth-hooks.md).
+Services can provide an `AuthHook` to intercept role resolution before the default logic. See [Auth Hooks](hooks.md).
 
 ## Permission Checks
 
@@ -121,10 +156,11 @@ The permission system operates at two levels:
 1. **Table-level**: `can_read_table()`, `can_insert_table()`, `can_update_table()`, `can_delete_table()`
 2. **Attribute-level**: `can_read_attribute()`, `can_write_attribute()`, `has_unrestricted_attributes()`
 
-Super users bypass all checks. See [Attribute-Level Access](auth-attributes.md) for field-level details.
+Super users bypass all checks. See [Attribute-Level Access](attributes.md) for field-level details.
 
 ## See Also
 
-- [Authentication Overview](auth-overview.md)
-- [Attribute-Level Access](auth-attributes.md) - Field-level permissions
-- [Auth Hooks](auth-hooks.md) - Custom role resolution
+- [Authentication Overview](overview.md)
+- [`@access` directive](../../reference/config/schema-directives.md#access--authorization) — declarative table-side gating
+- [Attribute-Level Access](attributes.md) — field-level permissions
+- [Auth Hooks](hooks.md) — custom role resolution

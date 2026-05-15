@@ -46,6 +46,7 @@
 - [Telemetry Pipeline](architecture/telemetry.md)
 - [Security Architecture](architecture/security.md)
 - [Replication](architecture/replication.md)
+- [Transaction Log](architecture/transaction-log.md)
 
 # Deployment
 

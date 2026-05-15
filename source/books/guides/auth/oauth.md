@@ -1,6 +1,11 @@
 # OAuth Integration
 
-Yeti supports OAuth 2.0 with GitHub, Google, and Microsoft providers.
+Yeti supports OAuth 2.0 / OpenID Connect with GitHub, Google, and
+Microsoft providers. **PKCE (RFC 7636) is on by default for all
+flows** — the auth pipeline generates a `code_verifier` per session,
+sends the SHA-256 `code_challenge` on `/authorize`, and presents the
+verifier on `/token` exchange. There's nothing to configure;
+customers don't see PKCE wiring.
 
 ## Setup
 
@@ -14,43 +19,42 @@ Callback URL: `https://your-host:port/yeti-auth/oauth_callback`
 
 ### 2. Configure Per-App OAuth in `Cargo.toml`
 
-Provider credentials and role-mapping rules are declared in the app's `auth:` section. Values support `${ENV_VAR}` interpolation:
+Provider credentials and role-mapping rules go in
+`[package.metadata.auth]`. `${ENV_VAR}` interpolation is supported in
+credential fields.
 
-```yaml
-auth:
-  methods: [oauth]
-  signup: auto
-  default_role: viewer
-  oauth:
-    github:
-      clientId: "${GITHUB_CLIENT_ID}"
-      clientSecret: "${GITHUB_CLIENT_SECRET}"
-    google:
-      clientId: "${GOOGLE_CLIENT_ID}"
-      clientSecret: "${GOOGLE_CLIENT_SECRET}"
-    rules:
-      - strategy: provider
-        pattern: "google"
-        role: admin
-      - strategy: email
-        pattern: "*@mycompany.com"
-        role: standard
-      - strategy: provider
-        pattern: "github"
-        role: standard
+```toml
+[package.metadata.auth]
+methods = ["oauth"]
+signup = "auto"
+default_role = "viewer"
+
+[package.metadata.auth.oauth]
+providers = [
+  { name = "github",    client_id = "${GITHUB_CLIENT_ID}",    client_secret = "${GITHUB_CLIENT_SECRET}" },
+  { name = "google",    client_id = "${GOOGLE_CLIENT_ID}",    client_secret = "${GOOGLE_CLIENT_SECRET}" },
+  { name = "microsoft", client_id = "${MICROSOFT_CLIENT_ID}", client_secret = "${MICROSOFT_CLIENT_SECRET}" },
+]
+rules = [
+  { strategy = "provider", pattern = "google",         role = "admin" },
+  { strategy = "email",    pattern = "*@mycompany.com", role = "standard" },
+  { strategy = "provider", pattern = "github",         role = "standard" },
+]
 ```
 
-Strategies: `provider` (match by provider name) or `email` (wildcard pattern). Rules evaluate in order; first match wins.
+Strategies: `provider` (match by provider name) or `email` (glob
+pattern). Rules evaluate in order; first match wins.
 
-### Role Resolution on No Match
+### Role resolution on no match
 
-If no rule matches the user's provider or email, the user is **denied access** (401). No implicit default role exists for OAuth users. To allow all OAuth users, add a catch-all rule:
+If no rule matches, the user is **denied access** (401). No implicit
+default role for OAuth users. To accept everyone, add a catch-all
+rule:
 
-```yaml
-rules:
-  - strategy: provider
-    pattern: "*"
-    role: viewer
+```toml
+rules = [
+  { strategy = "provider", pattern = "*", role = "viewer" },
+]
 ```
 
 ## Auto-Signup
@@ -112,5 +116,5 @@ Two-tier: in-memory cache for fast lookup, OAuthSession table in the database fo
 
 ## See Also
 
-- [Authentication Overview](auth-overview.md)
-- [Roles & Permissions](auth-rbac.md) - How roles map to access
+- [Authentication Overview](overview.md)
+- [Roles & Permissions](rbac.md) - How roles map to access

@@ -57,7 +57,7 @@ TOKEN=$(curl -sk -X POST https://localhost:9996/yeti-auth/login \
 curl -sk -H "Authorization: Bearer $TOKEN" https://localhost:9996/my-app/MyTable
 ```
 
-## Refreshing Tokens
+## Refreshing tokens — rotation by default
 
 ```bash
 curl -sk -X POST https://localhost:9996/yeti-auth/jwt_refresh \
@@ -65,7 +65,19 @@ curl -sk -X POST https://localhost:9996/yeti-auth/jwt_refresh \
   -d '{"refresh_token":"eyJhbGciOiJIUzI1NiIs..."}'
 ```
 
-Returns a new token pair with all accumulated app entries preserved.
+Returns a **new** token pair. **The old refresh token is invalidated
+on every refresh** (rotation, landed May 2026). Clients must drop the
+previous refresh and persist the new one — using a rotated refresh
+token a second time results in 401 and the user's entire refresh
+chain is revoked.
+
+This is RFC 6749 §6 rotating-refresh semantics. It defends against
+refresh-token theft: an attacker who exfiltrates a refresh sees it
+work once, then the next legitimate refresh from the real client
+fails — yeti-auth detects the second use and revokes the family.
+
+Embedded app permissions roll forward across refreshes — the new
+access token carries all accumulated app entries.
 
 ## Auth Status
 
@@ -77,15 +89,14 @@ curl -sk -H "Authorization: Bearer $TOKEN" https://localhost:9996/yeti-auth/auth
 
 Each app can define its own JWT secret and token TTLs:
 
-```yaml
-auth:
-  jwt:
-    secret: "${MY_APP_JWT_SECRET}"
-    accessTtl: 1800     # 30 minutes
-    refreshTtl: 86400   # 24 hours
+```toml
+[package.metadata.auth.jwt]
+secret = "${MY_APP_JWT_SECRET}"
+access_ttl = 1800       # 30 minutes
+refresh_ttl = 86400     # 24 hours
 ```
 
-Secrets support environment variable interpolation (`${VAR}`).
+Secrets support environment-variable interpolation via `${VAR}`.
 
 ## JavaScript Example
 
@@ -115,8 +126,8 @@ async function fetchData(token) {
 
 ## See Also
 
-- [Authentication Overview](auth-overview.md)
-- [Basic Authentication](auth-basic.md) - Credential-per-request auth
-- [OAuth Integration](auth-oauth.md) - Third-party provider auth
+- [Authentication Overview](overview.md)
+- [Basic Authentication](basic.md) - Credential-per-request auth
+- [OAuth Integration](oauth.md) - Third-party provider auth
  Credential-per-request auth
-- [OAuth Integration](auth-oauth.md) - Third-party provider auth
+- [OAuth Integration](oauth.md) - Third-party provider auth

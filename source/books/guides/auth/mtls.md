@@ -167,9 +167,9 @@ For individual certificate revocation, maintain a revocation list in a `RevokedC
 
 ## See Also
 
-- [Authentication Overview](auth-overview.md)
-- [Basic Authentication](auth-basic.md) - Password-based auth
-- [JWT Authentication](auth-jwt.md) - Token-based auth
-- [OAuth Integration](auth-oauth.md) - Third-party login
-- [Roles & Permissions](auth-rbac.md) - Configuring access
+- [Authentication Overview](overview.md)
+- [Basic Authentication](basic.md) - Password-based auth
+- [JWT Authentication](jwt.md) - Token-based auth
+- [OAuth Integration](oauth.md) - Third-party login
+- [Roles & Permissions](rbac.md) - Configuring access
 - [TLS & HTTPS](../reference/tls.md) - Server TLS configuration

@@ -100,5 +100,5 @@ impl AuthHook for TenantHook {
 
 ## See Also
 
-- [Roles & Permissions](auth-rbac.md) - Default RBAC system
-- [Authentication Overview](auth-overview.md) - Auth providers
+- [Roles & Permissions](rbac.md) - Default RBAC system
+- [Authentication Overview](overview.md) - Auth providers
