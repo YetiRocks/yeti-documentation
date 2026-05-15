@@ -46,6 +46,10 @@
 - [MQTT](realtime/mqtt.md)
 - [Kafka](realtime/kafka.md)
 
+# AI Integration
+
+- [MCP for Agents](ai/mcp.md)
+
 # Caching & Performance
 
 - [Overview](caching/overview.md)
