@@ -4,22 +4,50 @@ Cluster-aware data distribution. License-gated — without a valid
 license, `max_peers = 0` and yeti runs standalone (every other
 feature works).
 
-## Current state (2026-05)
+## Current state (2026-05-14)
 
-| Capability | Status |
+Replication is **early days**. The 3-node binary mesh and wire
+protocol work; almost everything beyond that is design-stage. Track
+the buildout under [YTC-348](https://linear.app/yetirocks/issue/YTC-348/replication)
+(16 open child tickets).
+
+### What works today
+
+| Capability | Source |
 |---|---|
-| 3-node binary mesh | **Shipped** (YTC-4 Phase 5, May 2026) |
-| Streaming gRPC replicator with HLC-ordered batches | **Shipped** |
-| Per-deployment mTLS CA + node certs | **Shipped** |
-| Dedicated replication log (separate from RocksDB WAL) | **Shipped** |
-| Backpressure: pause + disconnect thresholds | **Shipped** |
-| Catch-up from snapshot or replay | **Shipped** |
-| Chaos suite + 24-hour bake harness | **Shipped** (YTC-347) |
-| Sharded residency, multi-region, quorum writes | Planned (see umbrella) |
+| 3-node binary mesh — peer dial, mTLS handshake, gossip join | YTC-4 Phase 5 (2026-05-13) |
+| Streaming gRPC replicator with HLC-ordered batches | YTC-4 Phase 5 |
+| Per-deployment mTLS CA + node identity certs | YTC-4 Phase 5 |
+| Dedicated replication log (separate from RocksDB WAL) | YTC-4 Phase 5 |
+| Backpressure: pause + disconnect thresholds | YTC-4 Phase 5 |
+| Catch-up from snapshot or replay | YTC-4 Phase 5 |
+| Chaos suite + 24-hour bake harness | YTC-347 (2026-05-13) |
+
+### Known limitations
+
+| Issue | Tracking |
+|---|---|
+| Replication crate emits **zero metrics** — operators can't see drop rates, lag, or peer health from telemetry | [YTC-350](https://linear.app/yetirocks/issue/YTC-350) (high) |
+| Cold-start dial flake — in some 3-node mesh boots a peer stays at `backoffExp=5, connected=false` for 60s+ | [YTC-351](https://linear.app/yetirocks/issue/YTC-351) (high) |
+| No replica bootstrap (`yeti clone --leader`) — adding a node is manual | [YTC-99](https://linear.app/yetirocks/issue/YTC-99) |
+| No record-level LWW + anti-entropy — partition reconciliation is naive | [YTC-23](https://linear.app/yetirocks/issue/YTC-23) |
+| No eager nodeIdMapping + per-node sequence — ordering across producers isn't deterministic | [YTC-225](https://linear.app/yetirocks/issue/YTC-225) |
+| Sharded residency, consistent hashing, DistSender — not implemented | [YTC-137](https://linear.app/yetirocks/issue/YTC-137), [YTC-138](https://linear.app/yetirocks/issue/YTC-138), [YTC-139](https://linear.app/yetirocks/issue/YTC-139), [YTC-142](https://linear.app/yetirocks/issue/YTC-142) |
+| Per-request consistency routing (`X-Yeti-Consistency: strong/eventual`) | [YTC-140](https://linear.app/yetirocks/issue/YTC-140) |
+| Quorum writes (`put_confirmed`) | YTC-348 Phase 8 |
+| Conflict-resolution policy hooks | YTC-348 Phase 5.1 |
+| Multi-region routing | YTC-348 |
+
+**Practical implications.** A 3-node cluster brings up successfully
+in dev mode and replicates row writes via the wire protocol. **Don't
+use it as a production durability story yet** — without metrics
+(YTC-350) you can't tell if writes are actually replicating, and
+without anti-entropy (YTC-23) post-partition reconciliation depends
+on best-effort batch replay.
 
 The yeti-replication crate at `crates/foundation/yeti-replication/`
-is the source of truth. This page summarizes the developer-facing
-surface.
+is the source of truth for what's actually wired. The rest of this
+page describes the architecture as currently implemented.
 
 ## Design principles
 
@@ -162,16 +190,21 @@ reload, no restart required).
 
 ## Residency modes (`@distribute(residency:)`)
 
-| Mode | Behavior | Status |
+| Mode | Behavior | Runtime |
 |---|---|---|
-| `"full"` | Every node has every record. Reads always local. | **Default**; shipped |
-| `"sharded"` | Hash-partitioned across nodes; each record on `replicationFactor` nodes | Planned |
-| `"mirrored"` | At least N copies, adaptive placement | Planned |
-| `"adaptive"` | Standard sharding + dynamic locality-following copies | Planned |
+| `"full"` | Every node has every record. Reads always local. | **Implemented** (effectively the only mode today — the wire protocol replicates every write to every peer) |
+| `"sharded"` | Hash-partitioned across nodes; each record on `replicationFactor` nodes | Directive parses; runtime in [YTC-142](https://linear.app/yetirocks/issue/YTC-142) (residency modes) + [YTC-137](https://linear.app/yetirocks/issue/YTC-137) (shard map + openraft consensus) + [YTC-138](https://linear.app/yetirocks/issue/YTC-138) (consistent hashing + vnodes) |
+| `"mirrored"` | At least N copies, adaptive placement | Directive parses; runtime in YTC-142 |
+| `"adaptive"` | Standard sharding + dynamic locality-following copies | Directive parses; runtime in YTC-142 |
 
-Full residency works for most workloads where the dataset fits one
-node (~10 GB rule of thumb). Sharded mode + distributed query routing
-land in YTC-141's followup.
+The `@distribute(residency:)` directive **parses today** but the
+runtime only honors `"full"`. Declaring `"sharded"` won't shard —
+the value is recorded on `TableDefinition` and is a no-op until
+YTC-137/138/142 land.
+
+Full residency works for workloads where the dataset fits one node
+(~10 GB rule of thumb). For larger datasets, sharded mode is on the
+roadmap but **not yet usable**.
 
 ## See also
 
