@@ -15,6 +15,7 @@
 - [Overview](plugins/overview.md)
 - [Plugin Lifecycle](plugins/lifecycle.md)
 - [Event Subscribers](plugins/event-subscribers.md)
+- [Cross-Dylib Hooks](plugins/cross-dylib-hooks.md)
 
 # Authentication & Authorization
 
