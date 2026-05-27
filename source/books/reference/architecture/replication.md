@@ -213,9 +213,13 @@ replication:
 ### License gating
 
 The license key encodes a `max_peers` cap, expiration, and feature
-flags. Without a valid license, `max_peers = 0` — yeti accepts no
-outbound peer dials and the cluster pipeline never starts. Every
-other feature works. License keys rotate without restart via
+flags. A release build with no `license_key` falls back to an
+unlicensed dev allowance of `max_peers = 3`, enough to stand up a
+fully-meshed 4-node cluster for local development. An expired,
+malformed, or unverifiable license (or an unreadable `settings.toml`)
+resolves to `max_peers = 0`, where yeti accepts no outbound peer dials
+and the cluster pipeline never starts. Every other feature works
+regardless of license state. License keys rotate without restart via
 configuration reload.
 
 ## See also
