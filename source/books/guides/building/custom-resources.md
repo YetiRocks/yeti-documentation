@@ -165,31 +165,34 @@ impl Resource for PageCache {
     fn name(&self) -> &str { "PageCache" }
     fn is_default(&self) -> bool { true }
 
-    fn get(&self, ctx: Context) -> ResourceFuture {
+    // One `handle` per resource; match on the verb yourself. Verbs you
+    // don't handle should return 405.
+    fn handle(&self, ctx: Context) -> ResourceFuture {
         Box::pin(async move {
-            let path = ctx.path_id.as_deref().unwrap_or("/");
-            let cache = ctx.get_table("PageCache")?;
+            if ctx.method() != http::Method::GET {
+                return Ok(method_not_allowed());
+            }
+            let path = if ctx.path_id().is_empty() { "/" } else { ctx.path_id() };
+            let cache = ctx.table("PageCache")?;
             match cache.get(path).await? {
-                Some(cached) => {
-                    reply()
-                        .header("x-cache", "HIT")
-                        .html(cached.as_str().unwrap_or_default())
-                }
-                None => {
-                    reply()
-                        .code(404)
-                        .header("x-cache", "MISS")
-                        .text("Not cached")
-                }
+                Some(cached) => reply()
+                    .header("x-cache", "HIT")
+                    .html(cached.as_str().unwrap_or_default()),
+                None => reply()
+                    .code(404)
+                    .header("x-cache", "MISS")
+                    .text("Not cached"),
             }
         })
     }
 }
-
-register_resource!(PageCache);
 ```
 
-The `resource!` macro handles registration automatically. For manual implementations, add `register_resource!(MyResource);` at the end.
+No registration call is needed. The compiler discovers a resource by
+its `impl Resource` (or by a `resource!` invocation), so declaring the
+resource is registering it. For most resources the `resource!` macro is
+shorter — reach for the manual `impl` only when you need control the
+macro doesn't give.
 
 ## External HTTP Requests
 

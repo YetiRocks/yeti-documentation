@@ -10,7 +10,7 @@ use yeti_sdk::prelude::*;
 
 | Category | Key exports |
 |----------|------------|
-| [Resource Types](resource-macros.md) | `resource!`, `extends_table!`, `register_resource!`, `Resource`, `Context`, `ContextExt` |
+| [Resource Types](resource-macros.md) | `resource!` (standalone or `extends tables::X`), `Resource`, `Context`, `ContextExt` |
 | [Response Builders](response-helpers.md) | `ok()`, `reply()`, `created()`, `no_content()`, `not_found()`, `json_response()`, `html_response()`, `text_response()` |
 | [Request Parsing](request-parsing.md) | `RequestBodyExt`, `RequestExt`, `ContextExt::require_json_body()`, `ContextExt::require_id()` |
 | [Table Access](table-access.md) | `Table`, `Tables`, `TableExt`, `KvBackend`, `BackendManager` |

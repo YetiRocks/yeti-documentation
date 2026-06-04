@@ -66,8 +66,6 @@ impl Resource for PageCache {
         })
     }
 }
-
-register_resource!(PageCache);
 ```
 
 Uses `fetch!` macro from `yeti_sdk::prelude` for external HTTP calls. Do not use `reqwest::blocking::Client` — it crashes in the dylib context.

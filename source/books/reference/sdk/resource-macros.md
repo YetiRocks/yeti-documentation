@@ -106,49 +106,43 @@ Real-time verbs (defined on the underlying traits, not via the basic
 | `publish` | MQTT publish |
 | `connect` | WebSocket open |
 
-## extends_table! — augment a table
+## Table extension — `resource!(X extends tables::T { ... })`
 
-Override behavior on an auto-generated table resource. Only declared
-methods are overridden; everything else delegates to the default
-table implementation.
+Override behavior on an auto-generated table resource. Only the
+declared verbs are overridden; every other verb delegates to the
+default table CRUD. The `extends tables::T` clause references the
+compiler-emitted `crate::tables::T` marker, so a misspelled table is a
+compile error, and the resource routes at the table's path:
 
 ```rust,ignore
-extends_table!(Product {
-    get => json!({"message": "custom product listing"})
+resource!(Product extends tables::Product {
+    get(ctx) => {
+        // custom listing; POST/PUT/DELETE fall through to the table
+        let items = ctx.table("Product")?.get_all().await?;
+        reply().json(&items)
+    }
 });
 ```
 
-For context access in a table extender, use the `TableExtender` form
-of `resource!()` (see below).
+The struct name may differ from the table — `resource!(Catalog extends
+tables::Product { ... })` still routes at `product`.
 
-## Permission overrides — `TableExtender`
+### Public access
 
-Declare publicly-accessible methods on a table without writing real
-handler code:
+Declare public verbs with `allow_* => <expr>` clauses next to the verb
+bodies. This works on both standalone resources and table extenders:
 
 ```rust,ignore
-resource!(TableExtender for Chat {
-    get        => allow_read(),
-    post       => allow_create(),
-    put        => allow_update(),
-    patch      => allow_update(),
-    delete     => allow_delete(),
-    subscribe  => allow_read(),
+resource!(Chat extends tables::Chat {
+    allow_read => true,
+    allow_create => true,
+    get(ctx) => { /* ... */ }
 });
 ```
 
-| Helper | Permits |
-|---|---|
-| `allow_read()` | `get`, `search`, `subscribe`, `connect` |
-| `allow_create()` | `post`, `publish` |
-| `allow_update()` | `put`, `patch` |
-| `allow_delete()` | `delete` |
-
-Multiple verbs mapping to the same permission are deduplicated.
-
-For declarative schema-side gating, prefer
-`@access(public: [read, subscribe])` in `schema.graphql`. Use
-`TableExtender` only when permissions need code-level logic.
+For purely declarative gating with no code, prefer
+`@access(public: [read, subscribe])` in `schema.graphql` and skip the
+`allow_*` clauses entirely.
 
 ## reply() — response builder
 

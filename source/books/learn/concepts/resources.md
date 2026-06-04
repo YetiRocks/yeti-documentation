@@ -111,13 +111,15 @@ resource!(CatchAll {
 
 ## Table Extenders
 
-Override permissions or behavior for auto-generated table endpoints:
+Override behavior on an auto-generated table endpoint with the same
+`resource!` macro plus an `extends tables::T` clause. Declared verbs
+run your code; the rest delegate to the table's auto-CRUD. Public
+access is declared inline with `allow_* => <expr>`:
 
 ```rust,ignore
-resource!(TableExtender for Employee {
-    get => allow_read(),
-    put => allow_update(),
-    delete => deny()
+resource!(Employee extends tables::Employee {
+    allow_read => true,
+    get(ctx) => { /* custom listing */ }
 });
 ```
 
