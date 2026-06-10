@@ -1,0 +1,69 @@
+# Docs corpus schema (ADR-028)
+#
+# The yeti-documentation app owns its search corpus. The docs build emits
+# sharded passage seed files (data/passages/{book}/{page}.json) and a
+# corpus manifest (data/corpus-manifest.json). The platform loads the
+# seeds into this table and embeds the `passage` text field on
+# ingest/backfill — no embeddings ship in the artifact, so the index-time
+# and query-time embedding models are identical by construction.
+#
+# A model upgrade is a schema change (bump the `model:` argument) plus a
+# re-backfill; the docs artifact never changes.
+
+type Passage
+  @table(database: "documentation")
+  @export
+  @access(public: [read]) {
+  # Stable passage ID: "book/page#anchor" (e.g. "reference/sdk/overview.html#prelude-exports").
+  # Stable across builds for unchanged sections — this is what the manifest
+  # purge sweep and the per-file hash-skip both rely on.
+  id: ID! @primaryKey
+
+  # Book this passage belongs to: "learn" | "guides" | "reference".
+  book: String! @indexed
+
+  # Page path within the book (e.g. "sdk/overview.html").
+  page: String! @indexed
+
+  # Section anchor within the page (e.g. "prelude-exports"); empty for the
+  # page-root passage.
+  anchor: String
+
+  # Section heading.
+  title: String!
+
+  # Breadcrumb trail from the book root to this section
+  # (e.g. "Reference » SDK » SDK Overview").
+  breadcrumb: String!
+
+  # Canonical deep link into the published docs site, including the anchor.
+  url: String!
+
+  # The passage prose. This is the @indexed(source) field: the platform
+  # embeds THIS text into `embedding` on ingest/backfill. Kept out of the
+  # vector so the bytes stay model-independent.
+  passage: String!
+
+  # Structural link graph for this passage: sibling sections on the same
+  # page, plus outbound in-corpus hyperlinks. JSON array of passage IDs,
+  # serialized as a string. One semantic query returns the hit plus its
+  # neighborhood without a second round-trip.
+  related: String
+
+  # Auto-embedded from `passage` using the pinned model. The artifact never
+  # carries this — the platform fills it on ingest/backfill.
+  embedding: Vector @indexed(source: "passage", model: "BAAI/bge-small-en-v1.5")
+}
+
+# Sweep-state for the corpus-versioned purge (ADR-028 §5). Holds the
+# last-swept corpus version so the purge tool short-circuits when the version
+# is unchanged. Travels with the app so a fresh node inherits the state.
+type CorpusSweep
+  @table(database: "documentation")
+  @export
+  @access(public: [read]) {
+  id: ID! @primaryKey
+  # The corpus version (docs git SHA) most recently reconciled against the
+  # live table.
+  version: String!
+}

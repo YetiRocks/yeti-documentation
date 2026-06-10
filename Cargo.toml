@@ -7,6 +7,14 @@ version = "1.0.0"
 [package.metadata.app]
 customer_id = "yeti"
 tools = ["mdbook@0.4"]
-static = { path = "web", root = "/", source = "source", not_found = "404.html", build = "set -euo pipefail; for book in learn guides reference; do (cd books/$book && mdbook build); done; mkdir -p ../web/assets; cp assets/*.svg assets/*.png ../web/assets/; cp books/index.html ../web/index.html; cp books/404.html ../web/404.html" }
+# ADR-028 docs-corpus vector pipeline. The build emits two output targets:
+#   web/   — rendered HTML site (mdbook)
+#   data/  — search corpus: corpus-manifest.json + sharded passage seeds
+# `schemas` declares the Passage @table (auto-embed Vector index). `loaders.data`
+# declares the per-page seed glob; corpus-manifest.json sits OUTSIDE the glob so
+# the loader treats it as sweep input, not table records.
+schemas = "schemas/passages.graphql"
+loaders = { data = "data/passages/**/*.json" }
+static = { path = "web", root = "/", source = "source", not_found = "404.html", build = "set -euo pipefail; for book in learn guides reference; do (cd books/$book && mdbook build); done; mkdir -p ../web/assets; cp assets/*.svg assets/*.png ../web/assets/; cp books/index.html ../web/index.html; cp books/404.html ../web/404.html; python3 tools/extract_corpus.py --source .." }
 
 [dependencies]
