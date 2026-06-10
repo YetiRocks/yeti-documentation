@@ -113,6 +113,89 @@ Browser
 
 ---
 
+## Search Corpus (ADR-028)
+
+The build emits a second output target beside `web/`: a semantic-search
+corpus the platform loads, embeds, and serves. This app owns its search
+corpus and generates it from its own sources, so the corpus can never drift
+from the published docs.
+
+```
+yeti-documentation/
++-- source/                          # book sources (input)
++-- web/                             # rendered HTML (build output 1)
++-- data/                            # search corpus (build output 2)
+    +-- corpus-manifest.json         # corpus version (docs git SHA) + live passage-ID set
+    +-- passages/{book}/{page}.json  # per-page seed shards
+```
+
+### How it works
+
+1. **Extraction.** After `mdbook build`, `source/tools/extract_corpus.py`
+   reads each book's rendered `searchindex.js` (mdbook's authoritative
+   section list) and emits one seed shard per page. Each passage carries a
+   stable ID (`book/page#anchor`), title, breadcrumb, canonical deep link,
+   the prose to embed, and `related` — the structural link graph (same-page
+   sibling sections + outbound in-corpus links resolved to their target
+   page). Per-page sharding makes shard granularity equal re-embed
+   granularity, and shards are byte-stable across builds so the loader's
+   per-file hash-skip preserves embeddings for unchanged pages.
+
+2. **Schema-declared vector index.** `schemas/passages.graphql` declares:
+
+   ```graphql
+   type Passage @table(database: "documentation") @export @access(public: [read]) {
+     id: ID! @primaryKey
+     # ... title, breadcrumb, url, related ...
+     passage: String!
+     embedding: Vector @indexed(source: "passage", model: "BAAI/bge-small-en-v1.5")
+   }
+   ```
+
+   **No embeddings ship in the artifact.** The platform embeds the `passage`
+   field on ingest/backfill, so the index-time and query-time embedding
+   models are identical by construction. A model upgrade is a schema change
+   (bump `model:`) plus a re-backfill; the docs artifact never changes.
+
+3. **Deploy = existing pipeline.** `Cargo.toml` declares the seed glob
+   `loaders.data = "data/passages/**/*.json"`; `corpus-manifest.json` sits
+   outside the glob so it loads as sweep input, not table records. On deploy,
+   the seed loads into the `Passage` table, the vector hook backfills
+   embeddings, and the corpus is queryable over REST/GraphQL/MCP. One
+   semantic query returns the passage, its deep link into the docs site, and
+   the `related` set.
+
+4. **Corpus-versioned purge sweep.** `source/tools/purge_corpus.py`
+   reconciles the live `Passage` table against the manifest's live-ID set and
+   deletes rows absent from it (renamed/deleted pages). It is gated on a
+   corpus-version change and is idempotent. Run it after a deploy whose
+   corpus version advanced:
+
+   ```bash
+   python3 source/tools/purge_corpus.py \
+     --base https://localhost:9996 --route documentation --insecure
+   ```
+
+### Run / verify locally
+
+```bash
+# Build the corpus (also runs automatically as part of the app build):
+cd source && python3 tools/extract_corpus.py --source ..
+
+# Run the corpus test suite (extractor shape + purge logic + real output):
+python3 -m unittest discover -s source/tools -p 'test_*.py'
+```
+
+The corpus version defaults to the docs git SHA, falling back to a
+deterministic content digest when the build runs outside a git checkout
+(e.g. a deployed artifact). Override the canonical deep-link host with
+`DOCS_CANONICAL_BASE` (default `https://docs.yetirocks.com`).
+
+`data/` is build output, gitignored like `web/`, and bundled into the deploy
+artifact at deploy time.
+
+---
+
 ## Features
 
 ### Documentation Coverage
