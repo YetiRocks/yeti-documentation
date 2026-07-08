@@ -12,6 +12,7 @@
 
 type Passage
   @table(database: "documentation")
+  @distribute
   @export
   @access(public: [read]) {
   # Stable passage ID: "book/page#anchor" (e.g. "reference/sdk/overview.html#prelude-exports").

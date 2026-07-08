@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yeti Documentation</title>
-    <link rel="icon" href="/documentation/learn/favicon.png">
+    <!-- Yeti runtime base: the web server injects window.__YETI_BASE_PATH for
+         the deployment mount. This landing page is served at the documentation
+         app root, so links resolve against the mount at runtime (fallback `/`). -->
+    <script>window.__YETI_DOC_BASE__=(window.__YETI_BASE_PATH||'/').replace(/\/$/,'')+'/';</script>
+    <link rel="icon" href="learn/favicon.png">
     <style>
         :root {
             --color-black: #0e0e0e;
@@ -46,19 +50,24 @@
         .btn-primary:hover { background: color-mix(in srgb, var(--color-primary) 85%, white); }
     </style>
     <script>
-        // Route to the correct book if path matches a known prefix
+        // Route to the correct book if path matches a known prefix. Mount-aware:
+        // strip the runtime base (`/` or `/www/documentation`...) rather than a
+        // fixed `/documentation`, and redirect against it.
         (function() {
-            var path = window.location.pathname.replace('/documentation', '').replace(/^\/+/, '');
+            var base = window.__YETI_DOC_BASE__ || '/';
+            var path = window.location.pathname;
+            if (path.indexOf(base) === 0) { path = path.slice(base.length); }
+            path = path.replace(/^\/+/, '');
             var books = ['learn', 'guides', 'reference', 'fabric', 'releases'];
             if (!path || path === '/') {
-                window.location.replace('/documentation/learn/');
+                window.location.replace(base + 'learn/');
                 return;
             }
             for (var i = 0; i < books.length; i++) {
                 if (path === books[i] || path.indexOf(books[i] + '/') === 0) {
                     // Book exists — this shouldn't happen (static file should have matched)
                     // but redirect just in case
-                    window.location.replace('/documentation/' + books[i] + '/');
+                    window.location.replace(base + books[i] + '/');
                     return;
                 }
             }
@@ -72,7 +81,7 @@
     <p class="fact" id="fact"></p>
     <div class="buttons">
         <button class="btn" onclick="pickFact()">Another fact</button>
-        <a href="/documentation/learn/" class="btn btn-primary">Go home</a>
+        <a href="learn/" class="btn btn-primary">Go home</a>
     </div>
     <script>
         var facts = [

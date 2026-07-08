@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Page Not Found | Yeti Documentation</title>
-    <link rel="icon" href="/documentation/learn/favicon.png">
+    <!-- Yeti runtime base: the web server injects window.__YETI_BASE_PATH for
+         the deployment mount. The 404 is served at arbitrary paths, so its
+         links are rewritten against the runtime base (fallback `/`). -->
+    <script>window.__YETI_DOC_BASE__=(window.__YETI_BASE_PATH||'/').replace(/\/$/,'')+'/';</script>
+    <link rel="icon" id="doc-favicon" href="learn/favicon.png">
     <style>
         :root {
             --color-black: #0e0e0e;
@@ -81,8 +85,19 @@
     <p class="fact" id="fact"></p>
     <div class="buttons">
         <button class="btn" onclick="pickFact()">Another fact</button>
-        <a href="/documentation/learn/" class="btn btn-primary">Go home</a>
+        <a id="doc-home" href="learn/" class="btn btn-primary">Go home</a>
     </div>
+    <script>
+        // Rewrite mount-dependent links against the runtime base so the 404
+        // works at any deployment mount, not a fixed `/documentation/`.
+        (function() {
+            var base = window.__YETI_DOC_BASE__ || '/';
+            var home = document.getElementById('doc-home');
+            if (home) { home.setAttribute('href', base + 'learn/'); }
+            var fav = document.getElementById('doc-favicon');
+            if (fav) { fav.setAttribute('href', base + 'learn/favicon.png'); }
+        })();
+    </script>
     <script>
         var facts = [
             'Samoyeds were bred by the Samoyede people of Siberia to herd reindeer, pull sleds, and keep their owners warm by sleeping on top of them.',

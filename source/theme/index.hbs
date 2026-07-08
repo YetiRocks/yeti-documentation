@@ -14,8 +14,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#121212">
 
-    <link rel="icon" href="/documentation/assets/favicon.png">
-    <link rel="shortcut icon" href="/documentation/assets/favicon.png">
+    <link rel="icon" href="{{ path_to_root }}../assets/favicon.png">
+    <link rel="shortcut icon" href="{{ path_to_root }}../assets/favicon.png">
 
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="{{ path_to_root }}FontAwesome/css/font-awesome.css">
@@ -59,13 +59,13 @@
     <!-- Yeti Header — responsive with hamburger for mobile -->
     <nav class="nav">
         <div class="nav-left">
-            <a href="/documentation/"><img src="/documentation/assets/logo_white.svg" class="nav-logo nav-logo-full" alt="Yeti"></a>
-            <a href="/documentation/"><img src="/documentation/assets/icon.svg" class="nav-logo nav-logo-icon" alt="Yeti"></a>
+            <a href="{{ path_to_root }}../"><img src="{{ path_to_root }}../assets/logo_white.svg" class="nav-logo nav-logo-full" alt="Yeti"></a>
+            <a href="{{ path_to_root }}../"><img src="{{ path_to_root }}../assets/icon.svg" class="nav-logo nav-logo-icon" alt="Yeti"></a>
         </div>
         <div class="nav-center">
-            <a href="/documentation/learn/" class="nav-link">Learn</a>
-            <a href="/documentation/guides/" class="nav-link">Guides</a>
-            <a href="/documentation/reference/" class="nav-link">Reference</a>
+            <a href="{{ path_to_root }}../learn/" class="nav-link">Learn</a>
+            <a href="{{ path_to_root }}../guides/" class="nav-link">Guides</a>
+            <a href="{{ path_to_root }}../reference/" class="nav-link">Reference</a>
         </div>
         <div class="nav-right">
             <div id="search-wrapper" class="header-search">
@@ -80,17 +80,21 @@
 
     <!-- Mobile nav overlay -->
     <div class="nav-mobile" id="nav-mobile">
-        <a href="/documentation/learn/" class="nav-link">Learn</a>
-        <a href="/documentation/guides/" class="nav-link">Guides</a>
-        <a href="/documentation/reference/" class="nav-link">Reference</a>
+        <a href="{{ path_to_root }}../learn/" class="nav-link">Learn</a>
+        <a href="{{ path_to_root }}../guides/" class="nav-link">Guides</a>
+        <a href="{{ path_to_root }}../reference/" class="nav-link">Reference</a>
     </div>
 
     <script>
-        // Highlight active topnav link
+        // Highlight active topnav link. The nav hrefs are now book-relative
+        // (`{{ path_to_root }}../learn/`), so match on the resolved book slug
+        // (the trailing `learn`/`guides`/`reference` path segment) rather than
+        // a fixed-prefix string compare against the absolute mount.
         (function() {
-            var path = window.location.pathname;
+            var path = window.location.pathname.replace(/\/+$/, '');
             document.querySelectorAll('.nav-center .nav-link, .nav-mobile .nav-link').forEach(function(link) {
-                if (path.indexOf(link.getAttribute('href')) === 0) {
+                var slug = (link.getAttribute('href') || '').replace(/\/+$/, '').split('/').pop();
+                if (slug && (path === slug || path.indexOf('/' + slug + '/') !== -1 || path.endsWith('/' + slug))) {
                     link.classList.add('active');
                 }
             });
