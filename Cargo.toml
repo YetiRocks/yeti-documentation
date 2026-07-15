@@ -18,10 +18,12 @@ loaders = { data = "data/passages/**/*.json" }
 # Mount-agnostic docs build (founder-locked architecture): the rendered HTML is
 # BYTE-IDENTICAL regardless of where it's served. The deployment mount is applied
 # at SERVE time by the Yeti web server (the router injects `<base href="{mount}/">`
-# into the served index, and the theme/landing/404 read `window.__YETI_BASE_PATH`
-# at runtime), NOT baked here. `site-url` stays the fixed in-app `/documentation/`
-# so the corpus canonical URLs are stable; the theme uses `path_to_root`-relative
-# asset refs that resolve against the served `<base>` at any mount.
-static = { path = "web", root = "/", source = "source", not_found = "404.html", build = "set -euo pipefail; for book in learn guides reference; do (cd books/$book && MDBOOK_OUTPUT__HTML__SITE_URL=\"/documentation/$book/\" mdbook build); done; mkdir -p ../web/assets; cp assets/*.svg assets/*.png ../web/assets/; cp books/index.html ../web/index.html; cp books/404.html ../web/404.html; python3 tools/extract_corpus.py --source .." }
+# into the served index), NOT baked here. Because each book is served one level
+# below the mount (`{mount}/{book}/`) while a single mount-root `<base>` is
+# injected, `build-docs.sh` renders every book with a per-book theme whose asset
+# refs are the base-relative book root `{book}/` (not page-relative
+# `{{ path_to_root }}`, which 404s under the mount base). See build-docs.sh for
+# the full rationale.
+static = { path = "web", root = "/", source = "source", not_found = "404.html", build = "bash build-docs.sh" }
 
 [dependencies]
