@@ -25,7 +25,7 @@ type Order
 | Directive | Axis | Required? |
 |---|---|---|
 | `@table` | Identity (database, table name) | Always — the marker |
-| `@store` | Storage engine (durability, volume, eviction, compression) | Override only |
+| `@store` | Storage engine (durability, volume, compression) | Override only |
 | `@source` | Where data comes from on miss (URL / fn / another table) | Cache-aside tables |
 | `@distribute` | Replication topology (sharding, residency, replicas) | Clustered deploys |
 | `@export` | Protocol exposure + URL path | To serve over HTTP |
@@ -45,15 +45,16 @@ type Users @table(database: "auth", table: "users") { ... }
 |---|---|---|---|
 | `database` | String | `"data"` | Database namespace (alias: `schema`) |
 | `table` | String | type name | Physical RocksDB table name |
+| `expiration` | Int (seconds) | none | Per-record TTL: each row expires this many seconds after it is written, unless its `@expiresAt` value says otherwise |
 
-Bare `@table` is fine. `storage:` and `expiration:` moved to `@store`.
+Bare `@table` is fine. `storage:` moved to `@store`. `@store(evictAfter:)` and `@store(class:)` are retired and fail to load; use `@table(expiration: N)`.
 
 ---
 
 ### `@store` — storage engine
 
 ```graphql
-type Cache @table @export @store(durability: "lossy", evictAfter: 3600) { ... }
+type Cache @table(expiration: 3600) @export @store(durability: "lossy") { ... }
 type Tickets @table @export @store(durability: "strong", flushIntervalMs: 100) { ... }
 ```
 
@@ -61,7 +62,6 @@ type Tickets @table @export @store(durability: "strong", flushIntervalMs: 100) {
 |---|---|---|---|
 | `durability` | String | `"soft"` | `"memory"` / `"lossy"` / `"soft"` / `"strong"` |
 | `volume` | String | app default | Literal path, `s3://...`, or named volume from `yeti-config.yaml` |
-| `evictAfter` | Int (seconds) | none | Per-record TTL (replaces `@table(expiration:)`) |
 | `flushIntervalMs` | Int | none | Bounded crash-loss window between `"lossy"` and default |
 | `compression` | Bool | deployment default | Per-table override |
 
@@ -288,7 +288,7 @@ Float fields. No arguments. Auto-populated.
 ```graphql
 createdAt: Float! @createdTime
 updatedAt: Float! @updatedTime
-expiresAt: Float @expiresAt        # overrides @store(evictAfter:)
+expiresAt: Float @expiresAt        # overrides @table(expiration:)
 ```
 
 ### `@computed`

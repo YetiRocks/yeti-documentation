@@ -20,7 +20,7 @@ tiers form a single ordered scale; each table picks one. Omit
 
 ```graphql
 # In-memory cache — wiped on restart
-type Cache @table @export @store(durability: "memory", evictAfter: 600) { ... }
+type Cache @table(expiration: 600) @export @store(durability: "memory") { ... }
 
 # Lossy — RocksDB without WAL, minutes-class loss window
 type Metrics @table @export @store(durability: "lossy") { ... }
@@ -47,12 +47,13 @@ type Sessions @table @export @store(durability: "soft", flushIntervalMs: 100) { 
 | Arg | Effect |
 |---|---|
 | `volume` | Override storage path (literal, `s3://...`, or a named volume from `yeti-config.yaml`) |
-| `evictAfter` | Per-record TTL in seconds (replaces the older `@table(expiration:)`) |
 | `flushIntervalMs` | Force a memtable flush every N ms — bounded crash-loss between `"lossy"` and `"soft"` |
 | `compression` | Per-table override of the deployment default (`true` = LZ4) |
 
-For finer per-record TTL, add `@expiresAt` to a Float field — that
-overrides `evictAfter`.
+Per-record TTL is not a `@store` argument: set `@table(expiration: N)`
+(seconds). For finer per-record TTL, add `@expiresAt` to a field — its
+value overrides `expiration`. `@store(evictAfter:)` is retired and fails
+to load.
 
 ## Sharding
 
