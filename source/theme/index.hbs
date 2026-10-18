@@ -245,9 +245,11 @@
           ],
         };
       });
-      // Re-highlight any graphql blocks
+      // Re-highlight any graphql blocks. mdBook bundles highlight.js 10.1,
+      // which has highlightBlock; highlightElement arrived in 10.7 (YTC-2140).
+      var highlight = hljs.highlightElement || hljs.highlightBlock;
       document.querySelectorAll('code.language-graphql').forEach(function(block) {
-        hljs.highlightElement(block);
+        highlight.call(hljs, block);
       });
     }
     </script>

@@ -26,4 +26,9 @@ loaders = { data = "data/passages/**/*.json" }
 # the full rationale.
 static = { path = "web", root = "/", source = "source", not_found = "404.html", build = "bash build-docs.sh" }
 
+# The app's own UI specs (YTC-2140): every book, root and first chapter, judged
+# by the UI gate for page and console errors.
+[package.metadata.app.tests]
+ui = "tests/ui"
+
 [dependencies]
