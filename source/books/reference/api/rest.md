@@ -40,11 +40,11 @@ Returns 200 with the record, or 404 if not found.
 ### Create Record
 
 ```
-POST /{app-id}/{TableName}
+POST /{app-id}/{TableName}/
 ```
 
 ```bash
-curl -sk -X POST https://localhost:9996/my-app/Product \
+curl -sk -X POST https://localhost:9996/my-app/Product/ \
   -H "Content-Type: application/json" \
   -d '{"id": "prod-3", "name": "Doohickey", "price": 29.99}'
 ```

@@ -38,7 +38,7 @@ type Message @table(database: "realtime-demo") @export(
 4. Optional: Kafka producer bridges forward changes to external Kafka topics
 
 ```
-Client A: POST /Message {"id":"msg-1","title":"Hello"}
+Client A: POST /Message/ {"id":"msg-1","title":"Hello"}
                 |
                 v
          +-----------+
@@ -58,7 +58,7 @@ curl -sk "https://localhost:9996/realtime-demo/message?stream=sse"
 
 **Terminal 2** -- create a record:
 ```bash
-curl -sk -X POST https://localhost:9996/realtime-demo/message \
+curl -sk -X POST https://localhost:9996/realtime-demo/message/ \
   -H "Content-Type: application/json" \
   -d '{"id":"msg-1","title":"Hello","content":"Real-time works!"}'
 ```

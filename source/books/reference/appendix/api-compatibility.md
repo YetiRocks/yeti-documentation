@@ -8,7 +8,7 @@ Yeti API feature implementation status.
 |----------|--------|
 | `GET /{app}/{table}` | Complete |
 | `GET /{app}/{table}/:id` | Complete |
-| `POST /{app}/{table}` | Complete |
+| `POST /{app}/{table}/` | Complete |
 | `PUT /{app}/{table}/:id` | Complete |
 | `DELETE /{app}/{table}/:id` | Complete |
 | `GET /{app}/{table}?fiql` | Complete |

@@ -18,7 +18,7 @@ type Document @table @export {
 The `Vector` type automatically creates an HNSW index. With `source` specified, embeddings auto-generate from the source field on every write:
 
 ```bash
-curl -sk -X POST https://localhost:9996/my-app/Document \
+curl -sk -X POST https://localhost:9996/my-app/Document/ \
   -H "Content-Type: application/json" \
   -d '{"id":"doc-1","title":"Intro to ML","content":"Machine learning is a branch of AI..."}'
 ```

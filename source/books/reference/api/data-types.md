@@ -29,12 +29,12 @@ Stored as a string. Yeti generates **UUID v7** (time-ordered) when no ID is prov
 
 ```bash
 # Auto-generated ID
-curl -sk -X POST https://localhost:9996/my-app/User \
+curl -sk -X POST https://localhost:9996/my-app/User/ \
   -H "Content-Type: application/json" \
   -d '{"name": "Alice"}'
 
 # Custom ID
-curl -sk -X POST https://localhost:9996/my-app/User \
+curl -sk -X POST https://localhost:9996/my-app/User/ \
   -H "Content-Type: application/json" \
   -d '{"id": "alice-001", "name": "Alice"}'
 ```

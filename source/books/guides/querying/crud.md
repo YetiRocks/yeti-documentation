@@ -15,7 +15,7 @@ type Product @table @export {
 ## Create (POST)
 
 ```bash
-curl -sk https://localhost:9996/my-app/Product -X POST \
+curl -sk https://localhost:9996/my-app/Product/ -X POST \
   -H "Content-Type: application/json" \
   -d '{"id":"prod-1","name":"Widget","price":9.99,"category":"hardware","inStock":true}'
 ```
