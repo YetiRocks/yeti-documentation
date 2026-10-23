@@ -48,7 +48,7 @@ Every `@export`ed table produces:
 
 ```
 GET    /{app-id}/{Table}        # List/search
-POST   /{app-id}/{Table}        # Create
+POST   /{app-id}/{Table}/       # Create
 GET    /{app-id}/{Table}/{id}   # Get by ID
 PUT    /{app-id}/{Table}/{id}   # Replace
 PATCH  /{app-id}/{Table}/{id}   # Partial update

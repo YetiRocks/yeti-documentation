@@ -40,7 +40,7 @@ MQTT delivery is powered by the same PubSub backbone as SSE and WebSocket:
 3. The MQTT bridge forwards the event to all matching MQTT subscribers
 
 ```
-REST POST /my-app/SensorReading
+REST POST /my-app/SensorReading/
         |
         v
    +---------+
@@ -74,7 +74,7 @@ mosquitto_sub -h localhost -p 8883 \
   -t "my-app/SensorReading/#"
 
 # Publish (writes go through REST)
-curl -sk -X POST https://localhost:9996/my-app/SensorReading \
+curl -sk -X POST https://localhost:9996/my-app/SensorReading/ \
   -H "Content-Type: application/json" \
   -d '{"id":"r1","deviceId":"sensor-001","temperature":22.5,"humidity":45.0}'
 ```

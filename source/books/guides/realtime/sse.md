@@ -84,7 +84,7 @@ curl -sk --max-time 60 "https://localhost:9996/realtime-demo/message?stream=sse"
 
 **Terminal 2** -- write:
 ```bash
-curl -sk -X POST https://localhost:9996/realtime-demo/message \
+curl -sk -X POST https://localhost:9996/realtime-demo/message/ \
   -H "Content-Type: application/json" \
   -d '{"id":"test-1","title":"Live","content":"SSE is working"}'
 ```

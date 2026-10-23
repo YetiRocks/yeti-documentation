@@ -46,12 +46,12 @@ Seed data loads on first startup. Records are upserted by primary key. Unchanged
 
 ```bash
 # Single record
-curl -sk https://localhost:9996/my-app/Product -X POST \
+curl -sk https://localhost:9996/my-app/Product/ -X POST \
   -H "Content-Type: application/json" \
   -d '{"id":"prod-1","name":"Widget","price":9.99}'
 
 # Batch
-curl -sk https://localhost:9996/my-app/Product -X POST \
+curl -sk https://localhost:9996/my-app/Product/ -X POST \
   -H "Content-Type: application/json" \
   -d '[{"id":"prod-1","name":"Widget","price":9.99},{"id":"prod-2","name":"Gadget","price":19.99}]'
 ```
@@ -59,7 +59,7 @@ curl -sk https://localhost:9996/my-app/Product -X POST \
 ### CSV
 
 ```bash
-curl -sk https://localhost:9996/my-app/Product -X POST \
+curl -sk https://localhost:9996/my-app/Product/ -X POST \
   -H "Content-Type: text/csv" \
   -d 'id,name,price
 prod-1,Widget,9.99
