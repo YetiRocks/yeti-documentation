@@ -137,10 +137,12 @@ type Events @table @export @distribute(
 | `sharding` | String | none | `"hash"` / `"range"` / custom |
 | `shardKey` | String | none | Field hashed/ranged on. **Required** for `"hash"` / `"range"` |
 | `shardCount` | Int | cluster default | Explicit count (validated ≥ 2) |
-| `residency` | String | none | `"sharded"` / `"full"` / `"mirrored"` / `"adaptive"` |
+| `residency` | String | none | `"full"` / `"sharded"` |
 | `replicationFactor` | Int | cluster default | Replicas (1–255) |
-| `consistency` | String | `"eventual"` | `"strong"` / `"eventual"` |
-| `replication` | String | none | `"false"` disables; `"global"` for all regions |
+| `consistency` | String | `"eventual"` | `"eventual"` / `"anti-entropy"` / `"crdt"` / `"causal"` / `"quorum"` / `"strong"` |
+| `replication` | Bool | none | `false` keeps the table node-local; `true` replicates it |
+
+`residency`, `consistency` and `replication` accept only the values in the table, matched without regard to case. Any other value fails schema load with an error that names the type, the argument, the value and the accepted set. Nothing falls back to a default.
 
 ---
 

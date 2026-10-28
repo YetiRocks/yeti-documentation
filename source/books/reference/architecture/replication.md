@@ -80,8 +80,10 @@ inside the same cluster.
 |---|---|
 | `"full"` | Every node has every record. Reads always local. Best for ≤10 GB tables and config/auth data. |
 | `"sharded"` | Hash-partitioned across nodes; each record on `replicationFactor` nodes. Reads route via `DistSender`. |
-| `"mirrored"` | At least `N` copies, adaptive placement. Hot data lands near the regions reading it. |
-| `"adaptive"` | Standard sharding plus dynamic copies that follow access patterns. |
+
+`"full"` and `"sharded"` are the only residencies. Any other value
+fails schema load with an error that names the type, the argument,
+the value and the accepted set.
 
 Sharded routing uses HRW (Highest Random Weight) hashing with 256
 virtual nodes per peer for uniform distribution and bounded
@@ -104,6 +106,12 @@ X-Yeti-Consistency: strong     # routes to shard leader, waits for quorum
 
 The response echoes `X-Yeti-Consistency` so clients can verify which
 path served their read.
+
+A table sets its own tier with `@distribute(consistency:)`, which
+accepts `"eventual"`, `"anti-entropy"`, `"crdt"`, `"causal"`,
+`"quorum"` and `"strong"`. Any other value fails schema load with an
+error that names the accepted set. `@distribute(replication:)` accepts
+`true` or `false`, and fails schema load on anything else.
 
 ## Quorum writes — `put_confirmed`
 
@@ -204,7 +212,7 @@ replication:
 | `region` | `""` | Topology-aware routing hint |
 | `advertiseAddr` | `""` | Address to advertise (auto-detect when empty) |
 | `nodeId` | auto | Unique node id |
-| `replicationFactor` | `3` | Replicas per shard for `"sharded"` / `"mirrored"` residency |
+| `replicationFactor` | `3` | Replicas per shard for `"sharded"` residency |
 | `logRetentionDays` | `7` | Replication log retention |
 | `logMaxSizeMb` | `1024` | Log cap; oldest pruned on overflow |
 | `backpressurePauseMs` | `5000` | Slow-peer pause threshold |

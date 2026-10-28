@@ -171,10 +171,18 @@ type Event @table @export @distribute {
 | Parameter | Values | Default |
 |-----------|--------|---------|
 | `sharding` | `"hash"`, `"range"`, custom | none |
-| `residency` | `"sharded"`, `"full"`, `"mirrored"`, `"adaptive"` | `"full"` |
+| `residency` | `"full"`, `"sharded"` | `"full"` |
 | `replicationFactor` | 1-255 | cluster default |
-| `consistency` | `"strong"`, `"eventual"` | `"eventual"` |
-| `replication` | `"false"`, `"global"` | cluster default |
+| `consistency` | `"eventual"`, `"anti-entropy"`, `"crdt"`, `"causal"`, `"quorum"`, `"strong"` | `"eventual"` |
+| `replication` | `true`, `false` | cluster default |
+
+`residency`, `consistency` and `replication` take only the values listed, matched without regard to case. Any other value fails schema load with an error that names the type, the argument, the value and the accepted set:
+
+```
+@distribute(consistency: "quorom") on type `UserProfile` is not a consistency yeti implements; it accepts "eventual", "anti-entropy", "crdt", "causal", "quorum", "strong" in any case
+```
+
+`replication: false` keeps the table node-local; `true` replicates it, as an omitted argument does when the cluster has replication on.
 
 ### Audit Trail
 
