@@ -128,11 +128,14 @@ type Session @table @export @distribute(sharding: "hash", residency: "sharded", 
 | Argument | Purpose | Default |
 |----------|---------|---------|
 | `sharding` | Strategy: `"hash"`, `"range"` | None |
-| `residency` | Mode: `"full"`, `"sharded"`, `"mirrored"`, `"adaptive"` | `"full"` |
+| `residency` | `"full"` or `"sharded"` | `"full"` |
 | `replicationFactor` | Number of replicas (1-255) | Cluster default |
-| `consistency` | `"strong"` or `"eventual"` | `"eventual"` |
+| `consistency` | `"eventual"`, `"anti-entropy"`, `"crdt"`, `"causal"`, `"quorum"` or `"strong"` | `"eventual"` |
+| `replication` | `true` or `false`; `false` keeps the table node-local | Cluster default |
 
 Bare `@distribute` with no arguments inherits cluster defaults.
+
+`residency`, `consistency` and `replication` accept only the values above, in any case. Any other value fails schema load with an error that names the type, the argument, the value and the accepted set.
 
 ### `@audit` -- Compliance
 
