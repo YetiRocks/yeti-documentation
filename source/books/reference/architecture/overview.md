@@ -47,10 +47,6 @@ HTTPS/gRPC/MCP :9996 ──> DynamicRouter ──> /{app-id}/ prefix match
 - **BackendManager** - Maps table names to storage backends
 - **Health Endpoint** - `/health` for liveness checks and app count
 
-## Yeti Cloud
-
-Managed hosting with automated deployment, replication, cgroup isolation, and built-in backups. See [Yeti Cloud](../deployment/cloud.md).
-
 ## Directory Layout
 
 ```

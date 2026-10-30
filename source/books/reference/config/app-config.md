@@ -25,7 +25,6 @@ name = "My Application"
 |---|---|---|---|---|
 | `app_id` | string | yes | — | URL routing slug (`/{app_id}/...`). Kebab-case, 3–40 chars |
 | `name` | string | no | — | Human-readable name |
-| `customer_id` | string | no | — | Owning tenant (injected by build server in cloud mode) |
 | `enabled` | bool | no | `true` | Load at startup; disabled apps are skipped |
 | `plugin` | bool | no | `false` | Global plugin (loaded before user apps) |
 | `required_roles` | string[] | no | `[]` | Role names required for access. Missing role = 403; unauthenticated = 401 |

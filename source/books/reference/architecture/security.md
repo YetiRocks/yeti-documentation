@@ -106,9 +106,9 @@ interfaces:
     audit: true
 ```
 
-## Cgroup Isolation (Yeti Cloud)
+## Cgroup Isolation
 
-In Yeti Cloud, each application runs within cgroup boundaries for CPU, memory, and I/O isolation.
+On a Linux fabric node, each application instance runs within its own cgroup v2 boundaries for CPU, memory, and I/O isolation. Other platforms don't apply these limits.
 
 ## Unix Socket Permissions
 

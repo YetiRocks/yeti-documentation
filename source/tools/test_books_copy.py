@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Yeti offers no free tier and no hosted sign-up (YTC-2900, YTC-2928).
+"""Yeti offers no hosted cloud, free tier or sign-up (YTC-2900, YTC-2928).
 
-Reads every page source under source/books, the markdown and the two
-top-level HTML pages the build copies, so a page can't pitch either again.
+Reads every page source in every book under source/books, the markdown and
+the two top-level HTML pages the build copies, so no page can teach any of
+them again.
 
 Run:
     python3 -m unittest discover -s source/tools -p 'test_*.py'
@@ -15,7 +16,12 @@ import unittest
 from pathlib import Path
 
 BOOKS = Path(__file__).resolve().parents[1] / "books"
-RETIRED = re.compile(r"free[ -]?tier|no credit card|sign up at", re.I)
+NAMES = ("learn", "guides", "reference")
+RETIRED = re.compile(
+    r"free[ -]?tier|no credit card|sign up at"
+    r"|yeti cloud|managed hosting|cloud\.yetirocks\.com|cloud mode|build server|usage-based pricing",
+    re.I,
+)
 
 
 def _pages() -> list[Path]:
@@ -23,12 +29,15 @@ def _pages() -> list[Path]:
 
 
 class BooksCopy(unittest.TestCase):
-    def test_finds_the_pages(self) -> None:
+    maxDiff = None  # name every line that fails, not the first
+
+    def test_reads_every_book(self) -> None:
         names = [p.relative_to(BOOKS).as_posix() for p in _pages()]
         self.assertGreater(len(names), 50)
-        self.assertIn("reference/deployment/cloud.md", names)
+        for book in NAMES:
+            self.assertGreater(sum(n.startswith(f"{book}/") for n in names), 5, book)
 
-    def test_no_page_offers_a_free_tier_or_a_sign_up(self) -> None:
+    def test_no_page_offers_a_hosted_cloud_free_tier_or_sign_up(self) -> None:
         hits = [
             f"{p.relative_to(BOOKS).as_posix()}:{n}"
             for p in _pages()

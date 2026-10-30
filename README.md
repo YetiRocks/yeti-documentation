@@ -211,7 +211,7 @@ The site covers the entire Yeti platform across 80+ pages organized into 10 sect
 | **Configuration** | 6 | Server config, app config, schema directives, environment variables, CLI arguments, TLS |
 | **API Reference** | 5 | REST, GraphQL, MCP, error codes, data types |
 | **Architecture** | 6 | System overview, storage engine, plugin system, telemetry pipeline, security, replication |
-| **Deployment** | 5 | Production checklist, performance tuning, monitoring, backup, Yeti Cloud |
+| **Deployment** | 4 | Production checklist, performance tuning, monitoring, backup |
 | **Examples** | 1 | Overview of example applications |
 | **Appendix** | 3 | API compatibility matrix, benchmarks, migration guide |
 
@@ -416,12 +416,11 @@ yeti-documentation/
 │   │   ├── telemetry.md
 │   │   ├── security.md
 │   │   └── replication.md
-│   ├── deployment/                    # Deployment guides (5 files)
+│   ├── deployment/                    # Deployment guides (4 files)
 │   │   ├── production.md
 │   │   ├── performance.md
 │   │   ├── monitoring.md
-│   │   ├── backup.md
-│   │   └── cloud.md
+│   │   └── backup.md
 │   ├── examples/                      # Example applications
 │   │   └── overview.md
 │   ├── contributing/                  # Contributor docs
