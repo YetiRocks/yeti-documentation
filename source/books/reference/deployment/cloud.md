@@ -232,10 +232,7 @@ build:
 
 ## Getting Started
 
-1. Sign up at [cloud.yetirocks.com](https://cloud.yetirocks.com) (Google/GitHub OAuth or email)
-2. Install the Yeti CLI: `curl -fsSL https://yetirocks.com/install.sh | sh`
-3. Create your app: `yeti init my-api`
-4. Develop locally: `yeti start`
-5. Deploy: `yeti deploy`
-
-No credit card is required for the free tier (1 app, 1 region, limited resources).
+1. Install the Yeti CLI: `curl -fsSL https://yetirocks.com/install.sh | sh`
+2. Create your app: `yeti init my-api`
+3. Develop locally: `yeti start`
+4. Deploy: `yeti deploy`
