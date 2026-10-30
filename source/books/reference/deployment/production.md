@@ -88,7 +88,3 @@ Enables SSRF validation and stricter security defaults.
 curl -sk https://your-server:9996/health
 curl -v https://your-server:9996/documentation/ 2>&1 | grep "SSL certificate"
 ```
-
-## Yeti Cloud
-
-[Yeti Cloud](cloud.md) provides managed hosting with replication, cgroup isolation, and automated backups.
