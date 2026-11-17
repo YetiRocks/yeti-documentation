@@ -149,19 +149,42 @@ plugins:
 
 - `provider`: the provider's type, `google`, `github` or `microsoft`.
 - `email`: `*@domain` or one address, matched only against an email the provider verified.
-- `claims`: `field=value`, or `field` for a present, true claim. Values compare as strings, so an
-  array claim never matches.
+- `claims`: `field=value`, or `field` for a present, true claim. A string or number value
+  compares as text, so GitHub's `id=583231` matches; an array or boolean claim never matches.
 - `allow_any_account`: `true` lets a rule that can't narrow below a whole provider load.
 
 Every key a rule names must match. App rules in `[package.metadata.auth.oauth]` can't grant
 `yeti_admin`, and neither can a WebAssembly auth provider, whose sign-in reaches the node as a JWT.
 
-A rule must narrow below a whole provider, with an address, a domain or a claim with a value. A
-rule that names only a provider, `email: "*"` or a wildcard domain such as `*@*`, or a bare claim
-name such as `sub` or `email_verified`, would make every account of that provider the node admin,
-so it fails config load with the rule's index and how to narrow it. To admit every account of one
-provider on purpose, add `allow_any_account: true` and a `provider`; the node logs a warning naming
-the rule at every start. A misspelt key under `management:` also fails load.
+A rule must narrow below a whole provider, with an address, a company domain, or a claim whose
+field names one account or organisation of that provider:
+
+| `provider` | Claim fields that narrow |
+|---|---|
+| `google` | `hd`, `email`, `sub` |
+| `github` | `id`, `email` |
+| `microsoft` | `tid`, `oid`, `sub`, `email` |
+| any other type | `sub`, `email`, `groups`, `roles`, `org_id`, `tid` |
+| none named | `email`, `hd` |
+
+Any other field narrows nothing, since every account of the provider carries it (`iss`, `aud`,
+`azp`, `email_verified`, GitHub's `type: User`) or its holder can set it. GitHub's `login` is left
+out because a renamed login is free for anyone to register; use `id`. The `tid` of personal
+Microsoft accounts, `9188040d-6c67-4c5b-b112-36a304b66dad`, narrows nothing either.
+
+A domain rule on a public mail domain narrows nothing, because anyone can open a mailbox there:
+`gmail.com`, `googlemail.com`, `outlook.com`, `hotmail.com`, `live.com`, `msn.com`, `yahoo.com`,
+`ymail.com`, `icloud.com`, `me.com`, `mac.com`, `proton.me`, `protonmail.com`, `pm.me`, `aol.com`,
+`mail.com`, `zoho.com`, `yandex.com`, `yandex.ru`, `qq.com`, `163.com`, and the country domains of
+`gmx`, `yahoo`, `hotmail`, `outlook`, `live` and `web` such as `gmx.de` or `yahoo.co.uk`. An exact
+address there, such as `ops@gmail.com`, still narrows.
+
+A rule that narrows nothing, whether it names only a provider, `email: "*"`, a wildcard domain such
+as `*@*`, a public mail domain, a bare claim name such as `sub`, or a claim field not in the table,
+would make every account of that provider the node admin, so it fails config load naming the rule's
+index, the field or domain, and how to narrow it. To admit every account of one provider on
+purpose, add `allow_any_account: true` and a `provider`; the node logs a warning naming the rule at
+every start. A misspelt key under `management:` also fails load.
 
 Prefer exact addresses, or `hd=` for Google Workspace. A domain rule such as
 `{ provider: google, email: "*@example.com" }` admits any account that once verified an address in
