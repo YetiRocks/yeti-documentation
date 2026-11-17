@@ -189,9 +189,14 @@ belongs to that domain's organisation:
   personal-account tenant above.
 
 A Microsoft rule that names a `tid`, with or without an email, admits members of that tenant
-only, and only when the signed token's `tid` and issuer are that tenant's. Guests never match: a
-token whose `idp` differs from its `iss`, whose `acct` is not `0`, or whose `upn` or
-`preferred_username` holds `#EXT#` is refused, even when another claim says member. Entra ID
+only. It checks the signed token's `tid` and its exact v2.0 issuer for that tenant, then the guest
+signals the token carries: an `idp` that differs from `iss`, an `acct` other than `0`, or a `upn`
+or `preferred_username` holding `#EXT#` or `_EXT_@` refuses, even when another claim says member.
+`acct` and `upn` are optional claims an app registration must request, so a default token may
+carry `idp` alone. The login therefore also reads Microsoft Graph `/me`, bound to the token's
+`oid`, and admits only when its `userType` is `Member` and its `userPrincipalName` holds neither
+`#EXT#` nor `_EXT_@`; with no Graph answer, the rule refuses. A Graph external member (an account
+homed in another tenant with `userType` `Member`) is refused by its UPN. Entra ID
 tokens carry no `email_verified`, so the address such a rule matches is the member's UPN, `upn`,
 else `preferred_username`, whose domain the tenant has verified; the token's `email` is never
 read, since Microsoft sends it unverified and a guest's `email` is the guest's own. The same
