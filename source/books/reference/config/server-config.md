@@ -149,7 +149,8 @@ plugins:
 
 - `provider`: the provider's type, `google`, `github` or `microsoft`.
 - `email`: one address, or `*@domain` with the provider's proof of the domain (below), matched
-  only against an email the provider verified. Case doesn't matter; a trailing dot or a space in
+  only against an email the provider verified, or on a `tid`-pinned Microsoft rule the address
+  its tenant asserts (below). Case doesn't matter; a trailing dot or a space in
   the domain is refused.
 - `claims`: `field=value`, or `field` for a present, true claim. A string or number value
   compares as text, so GitHub's `id=583231` matches; an array or boolean claim never matches. `hd`,
@@ -173,7 +174,9 @@ one account or organisation of that provider:
 Any other field narrows nothing, since every account of the provider carries it (`iss`, `aud`,
 `azp`, `email_verified`, GitHub's `type: User`) or its holder can set it. GitHub's `login` is left
 out because a renamed login is free for anyone to register; use `id`. The `tid` of personal
-Microsoft accounts, `9188040d-6c67-4c5b-b112-36a304b66dad`, narrows nothing either. A provider
+Microsoft accounts, `9188040d-6c67-4c5b-b112-36a304b66dad`, fails load, and so does any `tid`
+that is not a tenant GUID: `common`, `organizations`, `consumers`, a wildcard or a padded value.
+A provider
 type other than `google`, `github` or `microsoft` is a name the operator chose, and `sub`, a tenant
 or a group is unique only within one issuer, so such a type narrows only on `email`.
 
@@ -182,8 +185,15 @@ belongs to that domain's organisation:
 
 - `provider: google` with `claims: "hd=example.com"`, the same domain. Google sets `hd` only on a
   Workspace account, so a personal Google account registered on a company address never matches.
-- `provider: microsoft` with `claims: "tid=<tenant>"`, a work tenant, never the personal-account
-  tenant above.
+- `provider: microsoft` with `claims: "tid=<tenant GUID>"`, a work tenant, never the
+  personal-account tenant above.
+
+Entra ID tokens carry no `email_verified`, so a Microsoft rule pinned to a `tid` matches the
+address the tenant itself asserts, the token's `email`, else `preferred_username`, else `upn`, and
+only when the signed token's `tid` and issuer are that tenant's. The same address from another
+tenant or from a personal account never matches. A Microsoft email rule with no `tid` pin matches
+only a token that carries `email_verified: true`; Google and GitHub rules always need a verified
+email.
 
 On GitHub, Apple or any other provider type, anyone may verify an address at a domain, a public
 mail domain or a relay domain included, so a domain rule there fails load unless it sets
