@@ -136,20 +136,43 @@ plugins:
 # Who holds the node admin role, yeti_admin. The install username and
 # password always do. An OAuth identity does only when a rule here
 # matches what its provider verified; with no rules, none does.
+# Rules are read at start: a change takes effect on restart.
 # management:
 #   admin:
 #     oauth:
 #       rules:
-#         - { provider: google, email: "*@example.com" }
+#         - { provider: google, claims: "hd=example.com" }
 #         - { provider: github, email: "ops@example.com" }
-#         - { provider: okta, claims: "groups=yeti-admins" }
 ```
 
-`management.admin.oauth.rules` keys: `provider` (the provider's type, such as `google`, `github` or `okta`), `email` (`*`, `*@domain`
-or one address, matched only against an email the provider verified) and `claims` (`field=value`,
-or `field` for a present, true claim). Every key a rule names must match. App rules in
-`[package.metadata.auth.oauth]` can't grant `yeti_admin`. A rule with no keys, or `email: "*"` with
-no provider and no claims, fails config load, since it would make any OAuth account the node admin.
+`management.admin.oauth.rules` keys:
+
+- `provider`: the provider's type, `google`, `github` or `microsoft`.
+- `email`: `*@domain` or one address, matched only against an email the provider verified.
+- `claims`: `field=value`, or `field` for a present, true claim. Values compare as strings, so an
+  array claim never matches.
+- `allow_any_account`: `true` lets a rule that can't narrow below a whole provider load.
+
+Every key a rule names must match. App rules in `[package.metadata.auth.oauth]` can't grant
+`yeti_admin`, and neither can a WebAssembly auth provider, whose sign-in reaches the node as a JWT.
+
+A rule must narrow below a whole provider, with an address, a domain or a claim with a value. A
+rule that names only a provider, `email: "*"` or a wildcard domain such as `*@*`, or a bare claim
+name such as `sub` or `email_verified`, would make every account of that provider the node admin,
+so it fails config load with the rule's index and how to narrow it. To admit every account of one
+provider on purpose, add `allow_any_account: true` and a `provider`; the node logs a warning naming
+the rule at every start. A misspelt key under `management:` also fails load.
+
+Prefer exact addresses, or `hd=` for Google Workspace. A domain rule such as
+`{ provider: google, email: "*@example.com" }` admits any account that once verified an address in
+that domain: a personal Google account can be registered on a company address and carries no `hd`,
+and GitHub marks an address verified once and doesn't check it again after its owner leaves. On
+GitHub, `claims` reads the user's profile, which the account holder edits; `company`, `name`,
+`blog` and `bio` prove nothing, while `id` is fixed for the account.
+
+Rules are read once, at start. Adding or removing one takes effect when the node restarts; until
+then an admin whose rule was removed stays admin, and every request is checked against the rules the
+node started with.
 
 ## Modes — `environment`
 
