@@ -149,7 +149,7 @@ plugins:
 
 - `provider`: the provider's type, `google`, `github` or `microsoft`.
 - `email`: one address, or `*@domain` with the provider's proof of the domain (below), matched
-  only against an email the provider verified, or on a `tid`-pinned Microsoft rule the member's
+  only against an email the provider verified, or on a Microsoft rule the member's Graph
   UPN (below). Case doesn't matter; a trailing dot or a space in
   the domain is refused.
 - `claims`: `field=value`, or `field` for a present, true claim. A string or number value
@@ -167,7 +167,7 @@ one account or organisation of that provider:
 |---|---|
 | `google` | `hd`, `email`, `sub` |
 | `github` | `id`, `email` |
-| `microsoft` | `tid`, `oid`, `sub`, `email` |
+| `microsoft` | `tid`, which every Microsoft rule must pin (below) |
 | any other type | `email` |
 | none named | no claim; an exact `email` address only |
 
@@ -188,21 +188,25 @@ belongs to that domain's organisation:
 - `provider: microsoft` with `claims: "tid=<tenant GUID>"`, a work tenant, never the
   personal-account tenant above.
 
-A Microsoft rule that names a `tid`, with or without an email, admits members of that tenant
-only. It checks the signed token's `tid` and its exact v2.0 issuer for that tenant, then the guest
-signals the token carries: an `idp` that differs from `iss`, an `acct` other than `0`, or a `upn`
-or `preferred_username` holding `#EXT#` or `_EXT_@` refuses, even when another claim says member.
-`acct` and `upn` are optional claims an app registration must request, so a default token may
-carry `idp` alone. The login therefore also reads Microsoft Graph `/me`, bound to the token's
-`oid`, and admits only when its `userType` is `Member` and its `userPrincipalName` holds neither
-`#EXT#` nor `_EXT_@`; with no Graph answer, the rule refuses. A Graph external member (an account
-homed in another tenant with `userType` `Member`) is refused by its UPN. Entra ID
-tokens carry no `email_verified`, so the address such a rule matches is the member's UPN, `upn`,
-else `preferred_username`, whose domain the tenant has verified; the token's `email` is never
-read, since Microsoft sends it unverified and a guest's `email` is the guest's own. The same
-address from another tenant or from a personal account never matches. A Microsoft email rule with no `tid` pin matches
-only a token that carries `email_verified: true`; Google and GitHub rules always need a verified
-email.
+Every `microsoft` rule must pin a work tenant with `claims: "tid=<tenant GUID>"`; one without
+it fails load, unless it sets `allow_any_account: true`. A `tid`-pinned rule, with or without an
+email, admits members of that tenant only. It checks the signed token's `tid` and its exact v2.0
+issuer for that tenant, then the guest signals the token carries: an `idp` that differs from `iss`
+or an `acct` other than `0` refuses, even when another claim says member. `acct` and `upn` are
+optional claims an app registration must request, so a default token may carry `idp` alone. The
+login therefore also reads Microsoft Graph `/me`, bound to the token's `oid`, and admits only when
+its `userType` is `Member` and its `userPrincipalName` holds neither `#EXT#` nor `_EXT_@`; with no
+Graph answer, the rule refuses. A Graph external member (an account homed in another tenant with
+`userType` `Member`) is refused by its UPN.
+
+The address a Microsoft rule matches is that Graph `userPrincipalName`, whose domain the tenant has
+verified. The token's `upn` and `preferred_username`, each where present, must name the same
+address, case aside, or the login refuses; a member who signs in with an alternate login ID
+therefore matches no rule. The token's `email` is never read, since Microsoft sends it unverified
+and a guest's `email` is the guest's own. The same address from another tenant or from a personal
+account never matches. A `microsoft` rule with `allow_any_account: true` and no `tid` admits a
+Graph-proven member of any tenant, by the same checks without the tenant pin, and a rule with no
+provider never admits a Microsoft sign-in. Google and GitHub rules always need a verified email.
 
 On GitHub, Apple or any other provider type, anyone may verify an address at a domain, a public
 mail domain or a relay domain included, so a domain rule there fails load unless it sets
