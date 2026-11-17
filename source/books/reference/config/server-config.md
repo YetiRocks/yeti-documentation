@@ -131,7 +131,25 @@ plugins:
   yeti-ai:        { enabled: true }
 
 # Top-level `auth:` is shorthand parsed into plugins.yeti-auth.
+
+# ─── Management ──────────────────────────────────────────────────────
+# Who holds the node admin role, yeti_admin. The install username and
+# password always do. An OAuth identity does only when a rule here
+# matches what its provider verified; with no rules, none does.
+# management:
+#   admin:
+#     oauth:
+#       rules:
+#         - { provider: google, email: "*@example.com" }
+#         - { provider: github, email: "ops@example.com" }
+#         - { provider: okta, claims: "groups=yeti-admins" }
 ```
+
+`management.admin.oauth.rules` keys: `provider` (the provider's type, such as `google`, `github` or `okta`), `email` (`*`, `*@domain`
+or one address, matched only against an email the provider verified) and `claims` (`field=value`,
+or `field` for a present, true claim). Every key a rule names must match. App rules in
+`[package.metadata.auth.oauth]` can't grant `yeti_admin`. A rule with no keys, or `email: "*"` with
+no provider and no claims, fails config load, since it would make any OAuth account the node admin.
 
 ## Modes — `environment`
 
