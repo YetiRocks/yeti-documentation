@@ -149,8 +149,8 @@ plugins:
 
 - `provider`: the provider's type, `google`, `github` or `microsoft`.
 - `email`: one address, or `*@domain` with the provider's proof of the domain (below), matched
-  only against an email the provider verified, or on a `tid`-pinned Microsoft rule the address
-  its tenant asserts (below). Case doesn't matter; a trailing dot or a space in
+  only against an email the provider verified, or on a `tid`-pinned Microsoft rule the member's
+  UPN (below). Case doesn't matter; a trailing dot or a space in
   the domain is refused.
 - `claims`: `field=value`, or `field` for a present, true claim. A string or number value
   compares as text, so GitHub's `id=583231` matches; an array or boolean claim never matches. `hd`,
@@ -188,10 +188,14 @@ belongs to that domain's organisation:
 - `provider: microsoft` with `claims: "tid=<tenant GUID>"`, a work tenant, never the
   personal-account tenant above.
 
-Entra ID tokens carry no `email_verified`, so a Microsoft rule pinned to a `tid` matches the
-address the tenant itself asserts, the token's `email`, else `preferred_username`, else `upn`, and
-only when the signed token's `tid` and issuer are that tenant's. The same address from another
-tenant or from a personal account never matches. A Microsoft email rule with no `tid` pin matches
+A Microsoft rule that names a `tid`, with or without an email, admits members of that tenant
+only, and only when the signed token's `tid` and issuer are that tenant's. Guests never match: a
+token whose `idp` differs from its `iss`, whose `acct` is not `0`, or whose `upn` or
+`preferred_username` holds `#EXT#` is refused, even when another claim says member. Entra ID
+tokens carry no `email_verified`, so the address such a rule matches is the member's UPN, `upn`,
+else `preferred_username`, whose domain the tenant has verified; the token's `email` is never
+read, since Microsoft sends it unverified and a guest's `email` is the guest's own. The same
+address from another tenant or from a personal account never matches. A Microsoft email rule with no `tid` pin matches
 only a token that carries `email_verified: true`; Google and GitHub rules always need a verified
 email.
 
